@@ -1,6 +1,15 @@
-# The Abstraction and Reasoning Corpus (ARC)
+# Solution for three (ARC) tasks:
 
-This repository contains the ARC task data, as well as a browser-based interface for humans to try their hand at solving the tasks manually.
+This repository contains solution to three ARC tasks; 7f4411dc, 239be575 and 83302e8f.
+
+The idea of the solutions is to collect information from the input traing grids, which are provided in the form of meaningfull cells with values > 0 and useless cells with 0 values or connections between cells, or special patternes or shapes formed by the cells in the grids, then it stores this information in a data structure or variables which works as a predicton modle to be applied to new un-seen test grids and make a regression on the expected output grids. 
+
+Solutions are written in python code with use of numpy library, and using programming capapilities in python; looping over 2 dimention arrays, using different python data structures; like dictionaries, sets and lists to store collected information.
+
+Solutions also provides examples of using 1d and 2d numpy arrays slicing and nested loops over nested sub-2d arrays.
+     
+
+# The Abstraction and Reasoning Corpus (ARC)
 
 *"ARC can be seen as a general artificial intelligence benchmark, as a program synthesis benchmark, or as a psychometric intelligence test. It is targeted at both humans and artificially intelligent systems that aim at emulating a human-like form of general fluid intelligence."*
 

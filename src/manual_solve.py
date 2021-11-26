@@ -140,7 +140,7 @@ def solve_239be575(x):
         if k.find('-2')>0:                  # check if a key is a base cell
             ij = k.split('-')[0].split('_')
             pos = ij[0], ij[1]
-            baseCells.append(pos)           # add base cell position to list as tubles
+            baseCells.append(pos)           # add base cell position to list as tuples
         for e in vEdge2.get(k):
             if e.find('-2')>0:              # check if an edge value is a base cell
                 ij = e.split('-')[0].split('_')
