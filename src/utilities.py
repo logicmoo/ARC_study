@@ -1,3 +1,9 @@
+#!/usr/bin/python
+
+# Student ID: 17436176
+# Student name: Jaroslaw Janas
+# Repository: https://github.com/jaroslawjanas/ARC
+
 from queue import Queue
 from collections import defaultdict
 
