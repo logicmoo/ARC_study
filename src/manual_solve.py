@@ -9,21 +9,9 @@ import json
 import numpy as np
 import re
 from math import sqrt
-from utilities import find_shapes, group_by_color, find_colors, \
-    redraw_in_scale, recolor, position_matching_by_color, draw_on_pattern, get_of_color
-
-
 from colorama import Fore, Style, init
 init() # this colorama init helps Windows 
 
-
-    
-
-### YOUR CODE HERE: write at least three functions which solve
-### specific tasks by transforming the input x and returning the
-### result. Name them according to the task ID as in the three
-### examples below. Delete the three examples. The tasks you choose
-### must be in the data/training directory, not data/evaluation.
 from utilities import find_shapes, group_by_colour, find_colours, \
     redraw_in_scale, recolour, position_matching_by_colour, draw_on_pattern, get_of_colour
 
