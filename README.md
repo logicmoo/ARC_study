@@ -1,3 +1,24 @@
+# Solving ARC
+This repository was forked and contributed to as part of a NUIG assignment which focuses on teaching python and other tools useful in the AI industry.
+
+The goal of the assignment was to **manualy** solve three tasks from the ARC repository and include appropriate comments explaining how the results were achived.
+
+## Task design and general approach
+All taks in ARC are different, each task requiring a slightly different approach. However once each task is broken down into individual steps it can be easily seen that most of the underlying tranformations and information gather is the same across most of them.
+
+In summary each `solve()` function can be built from a finite set of simpler operaions on the pattern.
+
+## Solution design
+Based on the above a utilities files was created containing some of the common tranformations.
+For them to be reusable I developed the following representation of data.
+
+- **pattern** - a list or a numpy array representing the input pattern from the json file as is, colour values positioned in order in a 2D space 
+- **cell** - a single cell represent a point from a pattern in the following format `(y, x, colour)`
+- **shape** - a list consisting of unordered cells, is one dimensional and can have any size i.e `[cell1, cell2, cell5, cell6]`
+
+## Shapes finding
+I developed a somewhat robust algorithm for finding shapes. It is based on a breadth first search (BFS) and allows for things such as ignoring certain colours or specifing a range for neighbours to be included in the search. The only thing it does not check for is diagonal neighbours, for the three selected tasks there was no such need.
+
 # The Abstraction and Reasoning Corpus (ARC)
 
 This repository contains the ARC task data, as well as a browser-based interface for humans to try their hand at solving the tasks manually.
