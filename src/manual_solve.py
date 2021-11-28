@@ -4,6 +4,8 @@ import os, sys
 import json
 import numpy as np
 import re
+from math import sqrt
+from utilities import find_shapes, group_by_color, find_colors, redraw_in_scale, recolor, position_matching_by_color, draw_on_pattern
 
 from colorama import Fore, Style, init
 init() # this colorama init helps Windows 
@@ -16,14 +18,55 @@ init() # this colorama init helps Windows
 ### result. Name them according to the task ID as in the three
 ### examples below. Delete the three examples. The tasks you choose
 ### must be in the data/training directory, not data/evaluation.
-def solve_6a1e5592(x):
-    return x
 
-def solve_b2862040(x):
-    return x
+def solve_57aa92db(pattern):
 
-def solve_05269061(x):
-    return x
+    # pattern separation using BFS
+    shapes = find_shapes(pattern)
+
+    shapes_by_colors = []
+    for shape in shapes:
+        shapes_by_colors.append(group_by_color(shape))
+
+    # The shape with unequal number of colors is the source
+    # Also the length of a side of the odd color is the scale
+    source_shape_index = None
+    scales = [None] * len(shapes_by_colors)
+
+    for i, shape_by_colors in enumerate(shapes_by_colors):
+        group_size = len(shape_by_colors[0])
+
+        for color_group in shape_by_colors:
+            l = len(color_group)
+
+            if l != group_size:
+                if l < group_size:
+                    group_size = l
+                    source_shape_index = i
+
+        scales[i] = int(sqrt(group_size))
+
+    source_shape = shapes[source_shape_index]
+    common_color, uncommon_colors = find_colors(shapes)
+
+    new_pattern = pattern.copy()
+    for idx, (shape, scale) in enumerate(zip(shapes, scales)):
+
+        if shape == source_shape:
+            continue
+
+        if scales[source_shape_index] != scale:
+            new_shape = redraw_in_scale(source_shape, scale)
+        else:
+            new_shape = source_shape
+
+        re_colored_new_shape = recolor(new_shape, uncommon_colors[source_shape_index][0], uncommon_colors[idx][0])
+
+        positioned_new_shape = position_matching_by_color(re_colored_new_shape, shape, common_color)
+
+        new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
+
+    return new_pattern
 
     
 
