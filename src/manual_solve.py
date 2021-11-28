@@ -5,6 +5,12 @@ import json
 import numpy as np
 import re
 
+from colorama import Fore, Style, init
+init() # this colorama init helps Windows 
+
+
+    
+
 ### YOUR CODE HERE: write at least three functions which solve
 ### specific tasks by transforming the input x and returning the
 ### result. Name them according to the task ID as in the three
@@ -18,6 +24,8 @@ def solve_b2862040(x):
 
 def solve_05269061(x):
     return x
+
+    
 
 
 def main():
@@ -43,6 +51,55 @@ def main():
         json_filename = os.path.join(directory, ID + ".json")
         data = read_ARC_JSON(json_filename)
         test(ID, solve_fn, data)
+
+
+# ref https://stackoverflow.com/a/54955094
+# Enum-like class of different styles
+# these are the styles for background
+class style():
+    BLACK = '\033[40m'
+    RED = '\033[101m'
+    GREEN = '\033[42m'
+    YELLOW = '\033[103m'
+    BLUE = '\033[44m'
+    MAGENTA = '\033[45m'
+    CYAN = '\033[46m'
+    WHITE = '\033[47m'
+    RESET = '\033[0m'
+    DARKYELLOW = '\033[43m'
+    DARKRED = '\033[41m'
+    # DARKYELLOW = '\033[2m' + '\033[33m'
+    # DARKRED = '\033[2m' + '\033[31m'
+    # DARKWHITE = '\033[2m' + '\033[37m'
+    
+# the order of colours used in ARC
+# (notice DARKYELLOW is just an approximation)
+cmap = [style.BLACK,
+       style.BLUE,
+       style.RED,
+       style.GREEN,
+       style.YELLOW,
+       style.WHITE,
+       style.MAGENTA,
+       style.DARKYELLOW,
+       style.CYAN,
+       style.DARKRED]
+
+
+def echo_colour(x):
+    s = " " # print a space with a coloured background
+
+    for row in x:
+        for i in row:
+            # print a character twice as grids are too "thin" otherwise
+            print(cmap[int(i)] + s + s + style.RESET, end="")
+        print("")
+
+    
+## TODO write a more convenient diff function, either for grids
+## or for json files (because each task is stored as a single line
+## of json in GitHub).
+
     
 def read_ARC_JSON(filepath):
     """Given a filepath, read in the ARC task data which is in JSON
@@ -80,11 +137,14 @@ def test(taskID, solve, data):
         
 def show_result(x, y, yhat):
     print("Input")
-    print(x)
+    echo_colour(x) # if echo_colour(x) doesn't work, uncomment print(x) instead
+    #print(x)
     print("Correct output")
-    print(y)
+    echo_colour(y)
+    #print(y)
     print("Our output")
-    print(yhat)
+    echo_colour(yhat)
+    #print(yhat)
     print("Correct?")
     if y.shape != yhat.shape:
         print(f"False. Incorrect shape: {y.shape} v {yhat.shape}")
