@@ -5,7 +5,9 @@ import json
 import numpy as np
 import re
 from math import sqrt
-from utilities import find_shapes, group_by_color, find_colors, redraw_in_scale, recolor, position_matching_by_color, draw_on_pattern
+from utilities import find_shapes, group_by_color, find_colors, \
+    redraw_in_scale, recolor, position_matching_by_color, draw_on_pattern, get_of_color
+
 
 from colorama import Fore, Style, init
 init() # this colorama init helps Windows 
@@ -20,9 +22,8 @@ init() # this colorama init helps Windows
 ### must be in the data/training directory, not data/evaluation.
 
 def solve_57aa92db(pattern):
-
     # pattern separation using BFS
-    shapes = find_shapes(pattern)
+    shapes = find_shapes(pattern=pattern, ignored_colors=[0], nrange=1)
 
     shapes_by_colors = []
     for shape in shapes:
@@ -71,21 +72,77 @@ def solve_57aa92db(pattern):
     
 
 
+def solve_9edfc990(pattern):
+    all_colors = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    colors_of_interest = {0, 1}
+    ignored_colors = list(all_colors - colors_of_interest)
+
+    # find all black shapes
+    shapes = find_shapes(pattern=pattern, ignored_colors=ignored_colors, nrange=1)
+
+    # Find out which black shapes touch blue
+
+    # Filter out black only shapes
+    new_shapes = []
+    for shape in shapes:
+        # if no blue, remove
+        if len(get_of_color(shape, [1])) < 1:
+            continue
+
+        new_shapes.append(shape)
+    shapes = new_shapes
+
+    # Recolor all black to blue
+    new_shapes = []
+    for shape in shapes:
+        new_shapes.append(recolor(shape, [0], 1))
+
+    # Construct a new pattern
+    new_pattern = pattern.copy()
+    for shape in new_shapes:
+        new_pattern = draw_on_pattern(shape, new_pattern)
+
+
+    return new_pattern
+
+
+def solve_39e1d7f9(pattern):
+    # find a solid row = border color
+    border_color = None
+    for y, yrow in enumerate(pattern):
+        if np.all(yrow == yrow[0]):  # if has the same element (border)
+            border_color = yrow[0]
+
+    shapes = find_shapes(pattern=pattern, ignored_colors=[0, border_color], nrange=2)
+
+    [common_color], uncommon_colors = find_colors(shapes)
+
+    source_shape = max(shapes, key=lambda s: len(s))
+
+    new_pattern = pattern.copy()
+    for shape in shapes:
+        positioned_new_shape = position_matching_by_color(source_shape, shape, common_color)
+
+        new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
+
+    return new_pattern
+
+
 def main():
     # Find all the functions defined in this file whose names are
     # like solve_abcd1234(), and run them.
 
     # regex to match solve_* functions and extract task IDs
-    p = r"solve_([a-f0-9]{8})" 
+    p = r"solve_([a-f0-9]{8})"
     tasks_solvers = []
     # globals() gives a dict containing all global names (variables
     # and functions), as name: value pairs.
-    for name in globals(): 
+    for name in globals():
         m = re.match(p, name)
         if m:
             # if the name fits the pattern eg solve_abcd1234
-            ID = m.group(1) # just the task ID
-            solve_fn = globals()[name] # the fn itself
+            ID = m.group(1)  # just the task ID
+            solve_fn = globals()[name]  # the fn itself
             tasks_solvers.append((ID, solve_fn))
 
     for ID, solve_fn in tasks_solvers:
@@ -149,8 +206,8 @@ def read_ARC_JSON(filepath):
     format. Extract the train/test input/output pairs of
     grids. Convert each grid to np.array and return train_input,
     train_output, test_input, test_output."""
-    
-    # Open the JSON file and load it 
+
+    # Open the JSON file and load it
     data = json.load(open(filepath))
 
     # Extract the train/test input/output grids. Each grid will be a
@@ -177,7 +234,7 @@ def test(taskID, solve, data):
         yhat = solve(x)
         show_result(x, y, yhat)
 
-        
+
 def show_result(x, y, yhat):
     print("Input")
     echo_colour(x) # if echo_colour(x) doesn't work, uncomment print(x) instead

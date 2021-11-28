@@ -1,12 +1,14 @@
 from queue import Queue
 from collections import defaultdict
 
-
-def find_shapes(pattern, ignored_colors=[0]):
+def find_shapes(pattern=[], ignored_colors=[0], nrange=1):
     """ Uses breadth first search BFS to find vertically and horizontally joined
     cells, each grouping of cells is classified as a shape.
     >>> find_shapes([[0, 1, 0, 0, 1],[1, 1, 0, 1, 1]],[0])
     [[(0, 1, 1), (1, 1, 1), (1, 0, 1)], [(0, 4, 1), (1, 4, 1), (1, 3, 1)]]
+
+    >>> find_shapes([[0, 3, 0, 0, 5],[1, 1, 0, 1, 1]],[0])
+    [[(0, 1, 3), (1, 1, 1), (1, 0, 1)], [(0, 4, 5), (1, 4, 1), (1, 3, 1)]]
     """
 
     y_size = len(pattern)
@@ -57,8 +59,10 @@ def find_shapes(pattern, ignored_colors=[0]):
                 shape.append(c)
 
                 # horizontal and vertical neighbours from
-                # current cell
-                for i in [-1, 1]:
+                # current cell in range of nrange
+                neighbours = list(range(-nrange, nrange+1))
+                neighbours.remove(0)
+                for i in neighbours:
 
                     # add neighbours to the queue
                     if 0 <= yy + i < y_size:
@@ -95,60 +99,37 @@ def group_by_color(shape):
 
 
 # this function takes a list
-def find_common_colors(shapes):
-    """ Takes a list of shapes with cells (y, x, color) and finds their common color.
-    >>> find_common_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
-    [1]
+def find_colors(shapes):
+    """ Takes a list of shapes with cells (y, x, color) and finds their common and uncommon colors.
+    >>> find_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
+    ([1], [[4], [3]])
 
-    >>> find_common_colors([[(0, 1, 4), (3, 5, 8), (9, 3, 1)], [(4, 11, 3), (5, 1, 8), (12, 19, 1)]])
-    [8, 1]
+    >>> find_colors([[(0, 1, 4), (3, 5, 8), (9, 3, 1)], [(4, 11, 3), (5, 1, 8), (12, 19, 1), (3, 1, 7)]])
+    ([8, 1], [[4], [3, 7]])
     """
 
     # collect all colors for all shapes
     # where each shape has a set of colors
     shapes_colors_sets = []
     for shape in shapes:
-        colors = []
+        colors = set()
         for cell in shape:
             y, x, color = cell
-            colors.append(color)
+            colors.add(color)
 
-        shapes_colors_sets.append(set(colors))
+        shapes_colors_sets.append(colors)
 
     # intersect between all sets of all shapes
-    inter = shapes_colors_sets[0]
+    common = shapes_colors_sets[0]
     for shape_colors in shapes_colors_sets:
-        inter = inter.intersection(shape_colors)
+        common = common.intersection(shape_colors)
 
-    return list(inter)
+    # Difference between each set and common
+    uncommon = []
+    for shape_colors in shapes_colors_sets:
+        uncommon.append(list(shape_colors - common))
 
-
-def find_colors(shapes):
-    """ Return the common color and find the uncommon colors
-    >>> find_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
-    ([1], [[4], [3]])
-
-    >>> find_colors([[(0, 1, 4), (3, 5, 2), (9, 3, 1)], [(4, 11, 3), (5, 1, 2), (12, 19, 1)]])
-    ([1, 2], [[4], [3]])
-
-    >>> find_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1), (4, 4, 8)], [(4, 11, 3), (5, 1, 3), (12, 19, 1), (1, 5, 9)]])
-    ([1], [[8, 4], [9, 3]])
-    """
-
-    common_colors = find_common_colors(shapes)
-
-    uncommon_collors = []
-    for shape in shapes:
-        colors = []
-        for cell in shape:
-            y, x, color = cell
-
-            if color not in common_colors:
-                colors.append(color)
-
-        uncommon_collors.append(list(set(colors)))
-
-    return common_colors, uncommon_collors
+    return list(common), uncommon
 
 
 def get_of_color(shape, target_colors):
@@ -171,18 +152,6 @@ def get_of_color(shape, target_colors):
             out.append(cell)
 
     return out
-
-
-# def group_into_columns_and_rows(shape):
-#     columns = defaultdict(list)
-#     rows = defaultdict(list)
-#     for cell in shape:
-#
-#         y, x, color = cell
-#         columns[x].append(cell)
-#         rows[y].append(cell)
-#
-#     return [columns[col] for col in columns], [rows[ro] for ro in rows]
 
 
 def redraw_in_scale(shape, scale):
@@ -267,11 +236,15 @@ def draw_on_pattern(shape, pattern):
     [[1, 3, 0], [0, 8, 0]]
     """
 
+    y_size = len(pattern)
+    x_size = len(pattern[0])
     new_pattern = pattern.copy()
 
     for cell in shape:
         y, x, color = cell
-        new_pattern[y][x] = color
+
+        if 0 <= y < y_size and 0 <= x < x_size:
+            new_pattern[y][x] = color
 
     return new_pattern
 
