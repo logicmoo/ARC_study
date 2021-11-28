@@ -4,11 +4,11 @@ from collections import defaultdict
 
 def find_shapes(pattern, ignored_colors=[0]):
     """ Uses breadth first search BFS to find vertically and horizontally joined
-    cells, each grouping of cells is classified as a shape
-
+    cells, each grouping of cells is classified as a shape.
     >>> find_shapes([[0, 1, 0, 0, 1],[1, 1, 0, 1, 1]],[0])
     [[(0, 1, 1), (1, 1, 1), (1, 0, 1)], [(0, 4, 1), (1, 4, 1), (1, 3, 1)]]
     """
+
     y_size = len(pattern)
     x_size = len(pattern[0])
 
@@ -37,7 +37,6 @@ def find_shapes(pattern, ignored_colors=[0]):
             # list for cells of a single shape
             shape = []
             while not queue.empty():
-
 
                 # current cell
                 c = queue.get()
@@ -76,10 +75,10 @@ def find_shapes(pattern, ignored_colors=[0]):
 def group_by_color(shape):
     """ This takes a shape (a collection of points) [(y, x, color)...]
     and groups them by color each color will have its own list
-
     >>> group_by_color([(0, 1, 4), (3, 5, 4), (9, 3, 1), (12, 19, 1)])
     [[(0, 1, 4), (3, 5, 4)], [(9, 3, 1), (12, 19, 1)]]
     """
+
     # a default dictionary with lists
     grouped_by_color = defaultdict(list)
 
@@ -96,12 +95,15 @@ def group_by_color(shape):
 
 
 # this function takes a list
-def find_common_color(shapes):
+def find_common_colors(shapes):
     """ Takes a list of shapes with cells (y, x, color) and finds their common color.
+    >>> find_common_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
+    [1]
 
-    >>> find_common_color([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
-    1
+    >>> find_common_colors([[(0, 1, 4), (3, 5, 8), (9, 3, 1)], [(4, 11, 3), (5, 1, 8), (12, 19, 1)]])
+    [8, 1]
     """
+
     # collect all colors for all shapes
     # where each shape has a set of colors
     shapes_colors_sets = []
@@ -118,10 +120,22 @@ def find_common_color(shapes):
     for shape_colors in shapes_colors_sets:
         inter = inter.intersection(shape_colors)
 
-    return list(inter)[0]
+    return list(inter)
+
 
 def find_colors(shapes):
-    common_color = find_common_color(shapes)
+    """ Return the common color and find the uncommon colors
+    >>> find_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1)], [(4, 11, 3), (5, 1, 3), (12, 19, 1)]])
+    ([1], [[4], [3]])
+
+    >>> find_colors([[(0, 1, 4), (3, 5, 2), (9, 3, 1)], [(4, 11, 3), (5, 1, 2), (12, 19, 1)]])
+    ([1, 2], [[4], [3]])
+
+    >>> find_colors([[(0, 1, 4), (3, 5, 4), (9, 3, 1), (4, 4, 8)], [(4, 11, 3), (5, 1, 3), (12, 19, 1), (1, 5, 9)]])
+    ([1], [[8, 4], [9, 3]])
+    """
+
+    common_colors = find_common_colors(shapes)
 
     uncommon_collors = []
     for shape in shapes:
@@ -129,25 +143,35 @@ def find_colors(shapes):
         for cell in shape:
             y, x, color = cell
 
-            if color != common_color:
+            if color not in common_colors:
                 colors.append(color)
 
         uncommon_collors.append(list(set(colors)))
 
-    return common_color, uncommon_collors
+    return common_colors, uncommon_collors
 
 
+def get_of_color(shape, target_colors):
+    """ From shape gets cells of color
+    >>> get_of_color([(0, 1, 2), (1, 1, 2), (3, 3, 5), (9, 1, 5), (5, 1, 8)], [2])
+    [(0, 1, 2), (1, 1, 2)]
 
+    >>> get_of_color([(0, 1, 2), (1, 1, 2), (3, 3, 5), (9, 1, 5), (5, 1, 8)], [2, 5])
+    [(0, 1, 2), (1, 1, 2), (3, 3, 5), (9, 1, 5)]
 
-def get_of_color(shape, target_color):
+    >>> get_of_color([(0, 1, 2), (1, 1, 2), (3, 3, 5), (9, 1, 5), (5, 1, 8)], [5, 8])
+    [(3, 3, 5), (9, 1, 5), (5, 1, 8)]
+    """
+
     out = []
     for cell in shape:
         y, x, color = cell
 
-        if color == target_color:
+        if color in target_colors:
             out.append(cell)
 
     return out
+
 
 # def group_into_columns_and_rows(shape):
 #     columns = defaultdict(list)
@@ -162,44 +186,64 @@ def get_of_color(shape, target_color):
 
 
 def redraw_in_scale(shape, scale):
+    """ Redraws a shape in a different scale
+    >>> redraw_in_scale([(0, 0, 5), (0, 1, 9)], 2)
+    [(0, 0, 5), (0, 1, 5), (1, 0, 5), (1, 1, 5), (0, 2, 9), (0, 3, 9), (1, 2, 9), (1, 3, 9)]
+    """
+
     temp_new_shape = []
 
-    # For simplicity first rescal Ys
-    anchor_y, _, _ = min(shape, key=lambda c: c[0])
+    # For simplicity first rescale Ys
+    anchor_y, _, _ = min(shape, key=lambda c: c[0])  # anchor for Y - used for progressive scaling
     for cell in shape:
         y, x, color = cell
 
         for s in range(scale):
-            new_y = y + (scale-1)*(y - anchor_y) + s # rescale algorithm
+            new_y = y + (scale - 1) * (y - anchor_y) + s  # rescale algorithm
             temp_new_shape.append((new_y, x, color))
 
     new_shape = []
 
-    # Then rescal Xs
-    _, anchor_x, _ = min(temp_new_shape, key=lambda c: c[1])
+    # Then rescale Xs
+    _, anchor_x, _ = min(temp_new_shape, key=lambda c: c[1])  # anchor for X - used for progressive scaling
     for cell in temp_new_shape:
         y, x, color = cell
 
         for s in range(scale):
-            new_x = x + (scale-1)*(x - anchor_x) + s # rescale algorithm
+            new_x = x + (scale - 1) * (x - anchor_x) + s  # rescale algorithm
             new_shape.append((y, new_x, color))
 
     return new_shape
 
-def recolor(shape, source_color, target_color):
+
+def recolor(shape, source_colors, target_color):
+    """ Recolors a shape from source_color to target_color
+    >>> recolor([(0, 0, 1), (0, 1, 1), (0, 2, 1), (0, 3, 5)], [1], 4)
+    [(0, 0, 4), (0, 1, 4), (0, 2, 4), (0, 3, 5)]
+
+    >>> recolor([(0, 0, 1), (0, 1, 1), (0, 2, 2), (0, 3, 5)], [1, 2], 4)
+    [(0, 0, 4), (0, 1, 4), (0, 2, 4), (0, 3, 5)]
+    """
+
     new_shape = []
     for cell in shape:
         y, x, color = cell
 
-        if color == source_color:
+        if color in source_colors:
             color = target_color
 
         new_shape.append((y, x, color))
 
     return new_shape
 
+
 # does not consider rotation
 def position_matching_by_color(source_shape, target_shape, color):
+    """ Matched source_shape position with target_shape by color.
+    >>> position_matching_by_color([(0, 0, 1), (3, 3, 2)], [(6, 7, 2), (9, 2, 1), (3, 6, 8)], 2)
+    [(3, 4, 1), (6, 7, 2)]
+    """
+
     common_cells_target = list(filter(lambda c: c[2] == color, target_shape))
     common_cells_source = list(filter(lambda c: c[2] == color, source_shape))
 
@@ -216,16 +260,23 @@ def position_matching_by_color(source_shape, target_shape, color):
 
     return new_shape
 
+
 def draw_on_pattern(shape, pattern):
+    """Draws a shape on a pattern
+    >>> draw_on_pattern([(0, 0, 1), (0, 1, 3), (1, 1, 8)], [[0, 0, 0], [0, 0, 0]])
+    [[1, 3, 0], [0, 8, 0]]
+    """
+
     new_pattern = pattern.copy()
 
     for cell in shape:
-
         y, x, color = cell
         new_pattern[y][x] = color
 
     return new_pattern
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

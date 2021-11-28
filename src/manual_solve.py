@@ -47,7 +47,7 @@ def solve_57aa92db(pattern):
         scales[i] = int(sqrt(group_size))
 
     source_shape = shapes[source_shape_index]
-    common_color, uncommon_colors = find_colors(shapes)
+    [common_color], uncommon_colors = find_colors(shapes)
 
     new_pattern = pattern.copy()
     for idx, (shape, scale) in enumerate(zip(shapes, scales)):
@@ -60,7 +60,7 @@ def solve_57aa92db(pattern):
         else:
             new_shape = source_shape
 
-        re_colored_new_shape = recolor(new_shape, uncommon_colors[source_shape_index][0], uncommon_colors[idx][0])
+        re_colored_new_shape = recolor(new_shape, [uncommon_colors[source_shape_index][0]], uncommon_colors[idx][0])
 
         positioned_new_shape = position_matching_by_color(re_colored_new_shape, shape, common_color)
 
