@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+# Student ID: 17436176
+# Student name: Jaroslaw Janas
+# Repository: https://github.com/jaroslawjanas/ARC
+
 import os, sys
 import json
 import numpy as np
@@ -20,25 +24,42 @@ init() # this colorama init helps Windows
 ### result. Name them according to the task ID as in the three
 ### examples below. Delete the three examples. The tasks you choose
 ### must be in the data/training directory, not data/evaluation.
+from utilities import find_shapes, group_by_colour, find_colours, \
+    redraw_in_scale, recolour, position_matching_by_colour, draw_on_pattern, get_of_colour
+
+# I will go over commonalities at the end of each solve_*
+
+# For this task take the following steps:
+#   1. Split the pattern into shapes with black as ignored colour
+#   2. Find out which shape is the source pattern
+#       - this can be done bu checking if length of colours matches,
+#           since the target shapes always have only two starting squares
+#           in two different colours, the source shape does not
+#   3. Determine scale for each of target shapes.
+#       - square root of a single color of target
+#   4. Rescale the source shape to target's scale
+#   5. Recolor the rescale-source-shape to match target's colours
+#   6. Using the common colours reposition, no need to worry about rotation
 
 def solve_57aa92db(pattern):
-    # pattern separation using BFS
-    shapes = find_shapes(pattern=pattern, ignored_colors=[0], nrange=1)
+    # Pattern separation using BFS
+    shapes = find_shapes(pattern=pattern, ignored_colours=[0], nrange=1)
 
-    shapes_by_colors = []
+    shapes_by_colours = []
     for shape in shapes:
-        shapes_by_colors.append(group_by_color(shape))
+        shapes_by_colours.append(group_by_colour(shape))
 
-    # The shape with unequal number of colors is the source
-    # Also the length of a side of the odd color is the scale
+    # The shape with unequal number of colours is the source
+    # Also the length of a side of the odd colour is the scale
     source_shape_index = None
-    scales = [None] * len(shapes_by_colors)
+    scales = [None] * len(shapes_by_colours)
 
-    for i, shape_by_colors in enumerate(shapes_by_colors):
-        group_size = len(shape_by_colors[0])
+    # Figuring out the index of source shape and scales of other shapes
+    for i, shape_by_colours in enumerate(shapes_by_colours):
+        group_size = len(shape_by_colours[0])
 
-        for color_group in shape_by_colors:
-            l = len(color_group)
+        for colour_group in shape_by_colours:
+            l = len(colour_group)
 
             if l != group_size:
                 if l < group_size:
@@ -48,37 +69,45 @@ def solve_57aa92db(pattern):
         scales[i] = int(sqrt(group_size))
 
     source_shape = shapes[source_shape_index]
-    [common_color], uncommon_colors = find_colors(shapes)
+    [common_colour], uncommon_colours = find_colours(shapes)
 
+    # Final transformation
     new_pattern = pattern.copy()
     for idx, (shape, scale) in enumerate(zip(shapes, scales)):
 
+        # Skip is source shape
         if shape == source_shape:
             continue
 
+        # If different scales don't rescale
         if scales[source_shape_index] != scale:
             new_shape = redraw_in_scale(source_shape, scale)
         else:
             new_shape = source_shape
 
-        re_colored_new_shape = recolor(new_shape, [uncommon_colors[source_shape_index][0]], uncommon_colors[idx][0])
+        # Recolour to match target's colour
+        re_coloured_new_shape = recolour(new_shape, [uncommon_colours[source_shape_index][0]], uncommon_colours[idx][0])
 
-        positioned_new_shape = position_matching_by_color(re_colored_new_shape, shape, common_color)
+        # Position the newly rescaled-recoloured shape to match the target's position
+        positioned_new_shape = position_matching_by_colour(re_coloured_new_shape, shape, common_colour)
 
+        # Draw on new_pattern
         new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
 
     return new_pattern
 
-    
-
+# There are no similarities at this stage but as I worked on this task
+# I developed a lot of useful functions that are located in utilities.py
+# The next tasks are specifically chosen to make the best out of the already
+# developed utilities and minimize additional workload.
 
 def solve_9edfc990(pattern):
-    all_colors = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-    colors_of_interest = {0, 1}
-    ignored_colors = list(all_colors - colors_of_interest)
+    all_colours = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    colours_of_interest = {0, 1}
+    ignored_colours = list(all_colours - colours_of_interest)
 
     # find all black shapes
-    shapes = find_shapes(pattern=pattern, ignored_colors=ignored_colors, nrange=1)
+    shapes = find_shapes(pattern=pattern, ignored_colours=ignored_colours, nrange=1)
 
     # Find out which black shapes touch blue
 
@@ -86,16 +115,16 @@ def solve_9edfc990(pattern):
     new_shapes = []
     for shape in shapes:
         # if no blue, remove
-        if len(get_of_color(shape, [1])) < 1:
+        if len(get_of_colour(shape, [1])) < 1:
             continue
 
         new_shapes.append(shape)
     shapes = new_shapes
 
-    # Recolor all black to blue
+    # Recolour all black to blue
     new_shapes = []
     for shape in shapes:
-        new_shapes.append(recolor(shape, [0], 1))
+        new_shapes.append(recolour(shape, [0], 1))
 
     # Construct a new pattern
     new_pattern = pattern.copy()
@@ -107,21 +136,21 @@ def solve_9edfc990(pattern):
 
 
 def solve_39e1d7f9(pattern):
-    # find a solid row = border color
-    border_color = None
+    # find a solid row = border colour
+    border_colour = None
     for y, yrow in enumerate(pattern):
         if np.all(yrow == yrow[0]):  # if has the same element (border)
-            border_color = yrow[0]
+            border_colour = yrow[0]
 
-    shapes = find_shapes(pattern=pattern, ignored_colors=[0, border_color], nrange=2)
+    shapes = find_shapes(pattern=pattern, ignored_colours=[0, border_colour], nrange=2)
 
-    [common_color], uncommon_colors = find_colors(shapes)
+    [common_colour], uncommon_colours = find_colours(shapes)
 
     source_shape = max(shapes, key=lambda s: len(s))
 
     new_pattern = pattern.copy()
     for shape in shapes:
-        positioned_new_shape = position_matching_by_color(source_shape, shape, common_color)
+        positioned_new_shape = position_matching_by_colour(source_shape, shape, common_colour)
 
         new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
 
