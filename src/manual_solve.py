@@ -132,7 +132,7 @@ def solve_9edfc990(pattern):
 # Everything solved correctly.
 
 # As you can see I ended up re-using a lot of functions, the main one being find_shapes.
-# Being able to separate constructs in a pattern based on its structure makes the problem much simpler.
+# Being able to separate constructs in a pattern, based on its structure makes the problem much simpler.
 # Split and conquer!
 # Because my underlying structure of shapes is consistent I can reuse functions such as recolour or draw_on_pattern.
 # I developed get_of_colour while forking on the first problem but never ended up using it.
@@ -181,6 +181,15 @@ def solve_39e1d7f9(pattern):
 # A lot of these tasks require moving shapes and determining their colours.
 # The big picture might be different but the underlying small operation/transformations are often the same.
 # It's only a matter of ordering them properly.
+
+# Overall a lot of commonalities came from recolouring, repositioning and finding out common and uncommon colours.
+# I also ended up using find_shapes function in each single task, which made my life so much easier.
+
+# In utilities I used two python libraries, queue and defaultdict.
+# I mostly used queue in find_shapes - based on BFS that's why.
+# Defaultdict was useful when dealing with colours, we don't know what colours are present
+# in a pattern so can't properly initialize a dictionary with lists. Technically speaking I could
+# but then I would have to check for empty lists which would be ugly and more complex.
 
 def main():
     # Find all the functions defined in this file whose names are
