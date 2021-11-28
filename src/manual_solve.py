@@ -15,6 +15,9 @@ init() # this colorama init helps Windows
 from utilities import find_shapes, group_by_colour, find_colours, \
     redraw_in_scale, recolour, position_matching_by_colour, draw_on_pattern, get_of_colour
 
+# Note this repo was rebased with upstream
+# that's why all commits are withing minutes of each other
+
 # I will go over commonalities at the end of each solve_*
 
 # For this task take the following steps:
@@ -27,7 +30,7 @@ from utilities import find_shapes, group_by_colour, find_colours, \
 #       - square root of a single color of target
 #   4. Rescale the source shape to target's scale
 #   5. Recolor the rescale-source-shape to match target's colours
-#   6. Using the common colours reposition, no need to worry about rotation
+#   6. Using the common colours re-position, no need to worry about rotation
 
 def solve_57aa92db(pattern):
     # Pattern separation using BFS
@@ -83,23 +86,29 @@ def solve_57aa92db(pattern):
         new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
 
     return new_pattern
+# Everything solved correctly.
 
 # There are no similarities at this stage but as I worked on this task
 # I developed a lot of useful functions that are located in utilities.py
 # The next tasks are specifically chosen to make the best out of the already
 # developed utilities and minimize additional workload.
 
-def solve_9edfc990(pattern):
-    all_colours = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-    colours_of_interest = {0, 1}
-    ignored_colours = list(all_colours - colours_of_interest)
 
-    # find all black shapes
+# This task requires the following steps:
+#   1. Using BFS algorithm find_shapes find all shapes with blue and black cells
+#   2. Filter out cells with only black cells
+#   3. Fill all cells in the remaining shape with blue
+
+def solve_9edfc990(pattern):
+    # Identify colours of interest
+    all_colours = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+    colours_of_interest = {0, 1}  # black and blue
+    ignored_colours = list(all_colours - colours_of_interest) # set other colours as ignored
+
+    # Find all shapes with black and blue cells
     shapes = find_shapes(pattern=pattern, ignored_colours=ignored_colours, nrange=1)
 
-    # Find out which black shapes touch blue
-
-    # Filter out black only shapes
+    # Filter out shapes that only have black cells
     new_shapes = []
     for shape in shapes:
         # if no blue, remove
@@ -109,7 +118,7 @@ def solve_9edfc990(pattern):
         new_shapes.append(shape)
     shapes = new_shapes
 
-    # Recolour all black to blue
+    # Recolour all black cells to blue
     new_shapes = []
     for shape in shapes:
         new_shapes.append(recolour(shape, [0], 1))
@@ -119,31 +128,59 @@ def solve_9edfc990(pattern):
     for shape in new_shapes:
         new_pattern = draw_on_pattern(shape, new_pattern)
 
-
     return new_pattern
+# Everything solved correctly.
 
+# As you can see I ended up re-using a lot of functions, the main one being find_shapes.
+# Being able to separate constructs in a pattern based on its structure makes the problem much simpler.
+# Split and conquer!
+# Because my underlying structure of shapes is consistent I can reuse functions such as recolour or draw_on_pattern.
+# I developed get_of_colour while forking on the first problem but never ended up using it.
+# It was quite useful in this task.
+
+
+# This task requires the following steps:
+#   1. Find out the colour of the border.
+#   2. Find the shapes. Use nrange=2 so that the algorithm can go over the border.
+#       - use nrange=2 so that the algorithm can go over the border.
+#       - ignore border colour and background colour (black)
+#   3. Determine the source shape
+#       - all shapes in scale so simply get the biggest one
+#   4. Find out what the common colours between shapes are
+#   5. Reposition a new source shape onto the target using the common colours as reference
 
 def solve_39e1d7f9(pattern):
-    # find a solid row = border colour
+    # Find a solid row = border colour
     border_colour = None
     for y, yrow in enumerate(pattern):
         if np.all(yrow == yrow[0]):  # if has the same element (border)
             border_colour = yrow[0]
 
+    # Find shapes using BFS algorithm, note nrange=2
     shapes = find_shapes(pattern=pattern, ignored_colours=[0, border_colour], nrange=2)
 
+    # Find the common_colours
     [common_colour], uncommon_colours = find_colours(shapes)
 
+    # Find the source shape - since all are in the same scale, get the biggest
     source_shape = max(shapes, key=lambda s: len(s))
 
     new_pattern = pattern.copy()
     for shape in shapes:
+        # Position the new source shape
         positioned_new_shape = position_matching_by_colour(source_shape, shape, common_colour)
 
+        # Draw
         new_pattern = draw_on_pattern(positioned_new_shape, new_pattern)
 
     return new_pattern
+# Everything solved correctly.
 
+# You can see a lot of similarities. Once again I used find_shapes and other utilites that I developed
+# such as find_colours, position_matching_by_colour and draw_on_pattern.
+# A lot of these tasks require moving shapes and determining their colours.
+# The big picture might be different but the underlying small operation/transformations are often the same.
+# It's only a matter of ordering them properly.
 
 def main():
     # Find all the functions defined in this file whose names are
