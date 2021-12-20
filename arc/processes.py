@@ -4,7 +4,7 @@ from arc.contexts import Context
 from abc import ABC, abstractmethod
 
 from arc.util import logger
-from arc.board_methods import color_connect, grid_filter
+from arc.grid_methods import color_connect, grid_filter
 from arc.definitions import Constants as cst
 from arc.object import Object
 

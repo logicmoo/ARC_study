@@ -1,6 +1,6 @@
 import numpy as np
 
-from arc.board_methods import norm_pts, translational_order
+from arc.grid_methods import norm_pts, translational_order
 
 
 def test_norm_pts():

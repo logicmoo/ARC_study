@@ -9,10 +9,7 @@ from arc.definitions import Constants as cst
 
 log = logger.fancy_logger("BoardMethods", level=30)
 
-Position: TypeAlias = tuple[int, int]
-PositionList: TypeAlias = list[Position]
-Point: TypeAlias = tuple[int, int, int]
-PointList: TypeAlias = list[Point]
+from arc.types import PointList, Position, PositionList
 
 
 def norm_pts(
@@ -49,23 +46,6 @@ def norm_children(children):
         obj.row -= minrow
         obj.col -= mincol
     return (minrow, mincol)
-
-
-# TODO Can this be made to eliminate the object dependence?
-def layer_pts(objects, bound=(cst.MAX_ROWS, cst.MAX_COLS)):
-    """Handles occlusion due to layering in objects.
-    Start with the lowest layer and assign points to a dictionary
-    in the form {(x, y): color}
-    """
-    pts = {}
-    maxrow, maxcol = bound
-    for obj in objects:
-        for pt in obj.pts:
-            if pt[0] < maxrow and pt[1] < maxcol:
-                pts[(pt[0], pt[1])] = pt[2]
-    # print(f"{len(pts)} pts")
-    ordered = sorted([(*pos, color) for pos, color in pts.items()])
-    return ordered
 
 
 def grid_filter(grid: np.ndarray, color: int) -> tuple[PositionList, PointList]:

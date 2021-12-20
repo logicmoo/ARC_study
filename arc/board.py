@@ -1,11 +1,12 @@
 from typing import Any
-import asciitree
 import collections
 
+import asciitree
 from matplotlib.figure import Figure
+import numpy as np
+
 from arc.comparisons import get_color_diff, get_order_diff, get_translation
 from arc.layouts import tree_layout
-
 from arc.util import logger
 from arc.object import Object, ObjectDelta
 from arc.processes import Process, MakeBase, ConnectObjects, SeparateColor
@@ -33,7 +34,7 @@ class Board:
         self, data: BoardData, name: str = "", processes: list[Process] = None
     ):
         self.name = name
-        self.rep = Object(grid=data)
+        self.rep = Object.from_grid(grid=np.array(data))
         self.processes = processes or [MakeBase(), ConnectObjects(), SeparateColor()]
 
         # Used during decomposition process
@@ -189,23 +190,11 @@ class Board:
         results.append(obj)
         return results
 
+    # TODO: Reimplement
     def check_candidates(self, obj: Object, candidates: list[Object]) -> list[Object]:
         reviewed = []
         for cand in candidates:
-            # Either check equality of absolute points, or subset
-            if not set(obj.pts).issubset(cand.pts):
-                log.debug(f"Repairing: {cand}")
-                missing_pts = list(set(obj.pts) - set(cand.pts))
-                patch = Object(pts=missing_pts, name="Patch")
-                cand = Object(children=[cand, patch], name=cand.name + "Rep")
-            remainder = set([(pt[0], pt[1]) for pt in set(cand.pts) - set(obj.pts)])
-            if not remainder.issubset(obj.occ):
-                log.debug(f"Failed Occl: {cand}")
-                log.debug(f"Remainder {remainder}")
-                log.debug(f"Occlusion {obj.occ}")
-            else:
-                reviewed.append(cand)
-
+            reviewed.append(cand)
         return sorted(reviewed, key=lambda x: x.props)
 
 

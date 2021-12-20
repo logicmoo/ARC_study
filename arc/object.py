@@ -2,9 +2,15 @@ from functools import cached_property
 from typing import Any, Callable, TypeAlias
 
 import numpy as np
+from arc.types import PointDict, PositionList
 
 from arc.util import dictutil, logger
-from arc.board_methods import layer_pts, norm_pts, norm_children, translational_order
+from arc.grid_methods import (
+    PointList,
+    norm_pts,
+    norm_children,
+    translational_order,
+)
 from arc.concepts import Gen
 from arc.definitions import Constants as cst
 
@@ -23,9 +29,6 @@ class Object:
         decomposed: str = "",
         gens: list[str] = None,
         children: list["Object"] = None,
-        grid=None,
-        pos=None,
-        pts=None,
     ):
         self.row = row
         self.col = col
@@ -44,9 +47,6 @@ class Object:
         self.traits = {}
 
         # Internal variables for properties
-        self._grid = None if grid is None else self._grid2dots(grid)
-        self._pts = None if pts is None else self._pts2dots(pts)
-        self._pos = None if pos is None else self._pts2dots(pos)
         self._props = None
         self._c_rank = None
         self._order = None
@@ -54,6 +54,26 @@ class Object:
         # Special initializations based on inputs
         if children:
             self.adopt()
+
+    @classmethod
+    def from_grid(cls, grid: np.ndarray, name: str = "") -> "Object":
+        new_object = cls(name=name)
+        children = []
+        M, N = grid.shape
+        for i in range(M):
+            for j in range(N):
+                children.append(cls(i, j, grid[i, j], parent=new_object))
+        return new_object
+
+    @classmethod
+    def from_points(cls, points: PointList, name: str = "") -> "Object":
+        if len(points) == 1:
+            return cls(*points[0], name=name)
+        seed, normed = norm_pts(points)
+        new_object = cls(*seed)
+        children = [Object(*pt, parent=new_object) for pt in normed]
+        new_object.children = children
+        return new_object
 
     @property
     def seed(self) -> tuple[int, int, int]:
@@ -96,8 +116,8 @@ class Object:
         """The bounding dimensions of the Object."""
         if self.category == "Dot":
             return (1, 1)
-        maxrow = max([pt[0] for pt in self.pos])
-        maxcol = max([pt[1] for pt in self.pos])
+        maxrow = max([pos[0] for pos in self.pts])
+        maxcol = max([pos[1] for pos in self.pts])
         return (maxrow + 1, maxcol + 1)
 
     @property
@@ -115,11 +135,11 @@ class Object:
     def _id(self) -> str:
         """A concise, (nearly) unique description of the Object."""
         if self.category == "Dot":
-            shape = ""
+            shape_name = ""
         else:
-            shape = f"({self.shape[0]}x{self.shape[1]})"
+            shape_name = f"({self.shape[0]}x{self.shape[1]})"
         link = "*" if self.decomposed == "Scene" else ""
-        return f"{link}{self.category}{shape}@{self.anchor}"
+        return f"{link}{self.category}{shape_name}@{self.anchor}"
 
     def __repr__(self) -> str:
         """One line description of what the object is"""
@@ -266,83 +286,50 @@ class Object:
         ct = np.sum(self.grid == other.grid)
         return ct / self.grid.size, ct
 
-    def _grid2dots(self, grid: np.ndarray) -> None:
-        """If we defined the object via a grid, this will supply the Dot children"""
-        self._grid = np.array(grid, dtype=int)
-        self.children = []
-        M, N = self.grid.shape
-        for i in range(M):
-            for j in range(N):
-                self.children.append(Object(i, j, self.grid[i, j], parent=self))
-
-    def _pts2dots(self, pts):
-        if len(pts) == 1:
-            if len(pts[0]) == 3:
-                self.row, self.col, self.color = pts[0]
-            else:
-                self.row, self.col = pts[0]
-        else:
-            seed, normed = norm_pts(pts)
-            self.row, self.col = seed
-            for pt in normed:
-                self.children.append(Object(*pt, parent=self))
-
-    @property
+    @cached_property
     def grid(self):
         """2D grid, inheriting color but not position"""
-        if self._grid is not None:
-            return self._grid
         if self.category == "Dot":
-            self._grid = np.array([[self.pts[0][2]]], dtype=int)
-            return self._grid
-        self._grid = np.full(self.shape, cst.NULL_COLOR, dtype=int)
-        if self.color != cst.NULL_COLOR:
-            for pt in self.pos:
-                self._grid[pt] = self.color
-        else:
-            for pt in self.pts:
-                brow, bcol, _ = self.anchor
-                self._grid[pt[0] - brow, pt[1] - bcol] = pt[2]
-        return self._grid
+            return np.array([[self.anchor[2]]], dtype=int)
+        _grid = np.full(self.shape, cst.NULL_COLOR, dtype=int)
+        for pos, val in self.pts.items():
+            _grid[pos] = val
+        return _grid
 
-    @property
-    def pts(self):
-        """All points in the absolute coordinates and color"""
-        if self._pts is not None:
-            return self._pts
+    @cached_property
+    def pts(self) -> PointDict:
+        """Dict of all points defined by the Object."""
         if self.category == "Dot":
-            self._pts = [self.anchor]
-            return self._pts
+            return {(0, 0): self.anchor[2]}
 
         # Generators are applied to either the implied object (Dot at self coords)
         # Or else we apply the gens to each child
-        objs = self.children or [Object(*self.anchor)]
+        layers = self.children or [Object(0, 0, self.color)]
         # TODO gen refactor
         for gen in self.gens:
             spawned = []
-            for obj in objs:
+            for obj in layers:
                 spawned.extend(Gen(gen).create(obj))
-            objs = spawned
+            layers = spawned
         # This gets all pts from children and layers them in order
         # Only retrieve points within the defined bound
-        if self.bound is not None:
-            bound = (self.anchor[0] + self.bound[0], self.anchor[1] + self.bound[1])
-            self._pts = layer_pts(objs, bound)
-        else:
-            self._pts = layer_pts(objs)
-        return self._pts
+        _pts: PointDict = {}
+        max_row, max_col = self.bound or (cst.MAX_ROWS, cst.MAX_COLS)
+        for obj in layers:
+            if obj.category == "Dot":
+                _pts[obj.anchor[:2]] = obj.anchor[2]
+                continue
+            for pos, val in obj.pts.items():
+                row = pos[0] + obj.row
+                col = pos[1] + obj.col
+                if row < max_row and col < max_col:
+                    _pts[(row, col)] = val
+        return _pts
 
-    @property
-    def pos(self):
+    @cached_property
+    def pos(self) -> PositionList:
         """Contains list of coordinates relative to the object anchor point"""
-        if self._pos is not None:
-            return self._pos
-        if self.category == "Dot":
-            self._pos = [(0, 0)]
-            return self._pos
-        a_row, a_col, _ = self.anchor
-        self._pos = [(pt[0] - a_row, pt[1] - a_col) for pt in self.pts]
-        return self._pos
+        return list(self.pts.keys())
 
     @property
     def props(self) -> int:
