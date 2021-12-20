@@ -4,7 +4,7 @@ import numpy as np
 
 from arc.definitions import Constants as cst
 from arc.util import logger
-from arc.board_methods import intersect
+from arc.grid_methods import intersect
 from arc.object import Object
 
 log = logger.fancy_logger("Context", level=30)
@@ -27,7 +27,7 @@ class TaskContext(Context):
         common_in_px = intersect([item.input.raw for item in scenes])
         common_out_px = intersect([item.output.raw for item in scenes])
         common_all = intersect([common_in_px, common_out_px])
-        self.static = Object(grid=common_all)
+        self.static = Object.from_grid(grid=common_all)
         self.stc = np.sum(common_all != cst.MARKED_COLOR)
 
 
