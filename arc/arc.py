@@ -5,8 +5,6 @@ import pickle
 from pathlib import Path
 from typing import Any
 
-from matplotlib.figure import Figure
-
 from arc.definitions import Constants as cst
 from arc.task import Task
 from arc.util import logger
@@ -32,7 +30,7 @@ class ARC:
     def __init__(
         self,
         N: int = cst.N_TRAIN,
-        idxs: set[int] = set(),
+        idxs: set[int] = None,
         folder: str = cst.FOLDER_TRAIN,
     ):
         if not idxs:

@@ -1,1 +1,1 @@
-from .main import ARC  # noqa
+from arc.arc import ARC  # noqa

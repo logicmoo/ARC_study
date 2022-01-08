@@ -1,6 +1,6 @@
 import streamlit as st
 
-from arc.main import ARC
+from arc.arc import ARC
 from arc.app.explorer import explorer
 from arc.app.solver import solver
 from arc.app.settings import Settings
