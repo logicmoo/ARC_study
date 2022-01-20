@@ -3,6 +3,7 @@ from functools import cached_property
 from typing import Any, Callable, TypeAlias
 
 import numpy as np
+from arc.types import PointDict, PositionList
 
 from arc.types import PointDict, PointList, PositionList
 from arc.util import dictutil, logger
