@@ -1,18 +1,14 @@
 import numpy as np
 
-from arc.grid_methods import norm_pts, translational_order
+from arc.grid_methods import norm_points, translational_order
 
 
 def test_norm_pts():
     pts = [(1, 1, 1), (3, 1, 1)]
-    seed, normed = norm_pts(pts)
+    seed, normed, mono = norm_points(pts)
     assert seed == (1, 1)
     assert normed == [(0, 0, 1), (2, 0, 1)]
-
-    pts = [(4, 4), (3, 1)]
-    seed, normed = norm_pts(pts)
-    assert seed == (3, 1)
-    assert normed == [(1, 3), (0, 0)]
+    assert mono == True
 
 
 def _disorder(grid, seed=7):

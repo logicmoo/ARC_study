@@ -57,8 +57,8 @@ def get_translation(left: Object, right: Object) -> tuple[int, dict[str, Any]]:
     log.debug("Comparing Position")
     dist: int = 0
     transform: dict[str, Any] = {}
-    r1, c1, _ = left.anchor
-    r2, c2, _ = right.anchor
+    r1, c1 = left.loc
+    r2, c2 = right.loc
     # NOTE Consider using center vs corner for this measure
     if r1 == r2 and c1 == c2:
         return dist, transform

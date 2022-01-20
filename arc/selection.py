@@ -14,7 +14,7 @@ def obj_rank(s_list, name):
 
 def base_describe(group):
     # Reinitialize traits for current group to the base traits
-    base_traits = ["category", "anchor", "color"]
+    base_traits = ["category", "seed", "color"]
     for obj in group:
         obj.traits = {attr: getattr(obj, attr, None) for attr in base_traits}
 

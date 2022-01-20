@@ -41,9 +41,6 @@ class Board:
         self.proc_q = collections.deque([self.rep])
         self.bank = []
 
-        # TODO remove?
-        self.inventory = []
-
     def plot_tree(self, **kwargs) -> Figure:
         return plot_layout(tree_layout(self.rep), show_axis=False, **kwargs)
 
@@ -53,11 +50,7 @@ class Board:
         if log.level > level:
             return
         obj = obj or self.rep
-        if obj.decomposed:
-            header = f"[{obj.decomposed}]({obj.props})"
-        else:
-            header = f"{obj._id}({obj.props})"
-        nodes = {header: self._walk_tree(obj)}
+        nodes = {obj._hdr: self._walk_tree(obj)}
         output = asciitree.LeftAligned()(nodes).split("\n")
         indent_str = "  " * ind
         for line in output:
@@ -68,18 +61,10 @@ class Board:
         for kid in base.children:
             if kid.category == "Dot":
                 return {}
-            if kid.decomposed:
-                header = f"[{kid.decomposed}]({kid.props})"
-            else:
-                header = f"{kid._id}({kid.props})"
-            nodes[header] = self._walk_tree(kid)
+            nodes[kid._hdr] = self._walk_tree(kid)
         return nodes
 
-    # TODO Redo
-    def inv(self, max_dots=10):
-        return self.rep.inventory(max_dots=max_dots)
-
-    def decompose(self, batch: int = 10, max_iter: int = 10, source=None) -> None:
+    def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
         """Determine the optimal representation of the Board.
 
         Args:
@@ -87,10 +72,7 @@ class Board:
               candidate is retained.
             max_iter: Maximum number of iterations of decomposition.
         """
-        self.inventory = source.inv() if source else []
-        ct = 0
-        while ct < max_iter:
-            ct += 1
+        for ct in range(max_iter):
             self.batch_decomposition(batch=batch)
             log.debug(f"== Decomposition at {self.rep.props}p after {ct} rounds")
             if not self.proc_q:
@@ -104,31 +86,13 @@ class Board:
         """Decompose the top 'batch' candidates."""
         ct = 0
         while self.proc_q and ct < batch:
-            obj = self.proc_q.popleft()
-            self.tree(obj)
-            added = self._decomposition(obj)
-            if not added:
-                self.bank.append(obj)
-                log.debug("  # All leaves decomposed")
-            self.proc_q.extend(added)
-            log.debug(f" - Finished decomposition")
             ct += 1
-
-    def create_decomposition(
-        self, old_o: Object, new_args: dict[str, Any], **kwargs
-    ) -> Object:
-        # First generate any children of the main object
-        children = []
-        for kid_args in new_args.pop("children", []):
-            children.append(Object(**kid_args))
-        new_args["children"] = children
-
-        if "color" in new_args:
-            parent = Object(old_o.row, old_o.col, parent=old_o.parent, **new_args)
-        else:
-            parent = Object(*old_o.seed, parent=old_o.parent, **new_args)
-        parent.occ = old_o.occ.copy()
-        return parent
+            obj = self.proc_q.popleft()
+            new_objs = self._decomposition(obj)
+            if not new_objs:
+                self.bank.append(obj)
+            self.proc_q.extend(new_objs)
+            log.debug(f" - Finished decomposition round {ct}, {len(self.bank)} in bank")
 
     def _decomposition(self, obj: Object) -> list[Object]:
         """Attempts to find a more canonical or condensed way to represent the object"""
@@ -136,66 +100,42 @@ class Board:
         if len(obj.children) == 0:
             return []
         # Search for the first object that's not decomposed and apply decomposition
-        elif obj.decomposed:
-            all_rev = []
-            curr_occ = obj.occ.copy()
+        # TODO Need to redo occlusion
+        elif obj.traits.get("decomp"):
+            # NOTE: We run in reverse order to handle occlusion
+            decomps = []
             for r_idx, child in enumerate(obj.children[::-1]):
-                idx = len(obj.children) - 1 - r_idx
-                child.occ = curr_occ.copy()
-                reviewed = self._decomposition(child)
-                if not reviewed:
-                    curr_occ |= set([(pt[0], pt[1]) for pt in child.pts])
-                    continue
-                for rev in reviewed:
-                    children = [kid.spawn() for kid in obj.children]
-                    children[idx] = rev
-                    red = obj.spawn(children=children)
-                    all_rev.append(red)
-                break
-            return all_rev
+                curr_dc = self._decomposition(child)
+                if curr_dc:
+                    # Each new decomposition needs a new top-level object
+                    for decomp in curr_dc:
+                        new_obj = obj.spawn()
+                        new_obj.children[r_idx] = decomp
+                        decomps.append(new_obj)
+                    break
+            return decomps
 
+        # TODO
         # Begin decomposition process:  check for existing context representations
-        if check := find_closest(obj, self.inventory, threshold=0.75):
-            banked = check.right.spawn()
-            # TODO We should figure out the right way to assign all this
-            banked.adult()
-            banked.row = obj.row
-            banked.col = obj.col
-            banked.parent = obj.parent
-            banked.decomposed = "Scene"
-            return [banked]
+        if check := find_closest(obj, [], threshold=0.75):
+            # banked = check.right.spawn()
+            pass
 
         candidates = self.generate_candidates(obj)
-        reviewed = self.check_candidates(obj, candidates)
-        out = [(res.name, res.props) for res in reviewed]
-        log.debug(f" + {len(reviewed)} candidates for {obj._id}: {obj.history}")
-        log.debug(f"  {out}")
-        for res in reviewed:
-            self.tree(res)
-        return reviewed
+        log.debug(f" + {len(candidates)} candidates for {obj._id}:")
+        for cand in candidates:
+            log.debug(f"  {cand._hdr}")
+        return candidates
 
     def generate_candidates(self, obj: Object) -> list[Object]:
-        obj.decomposed = "Save"
         candidates = []
         for process in self.processes:
             if process.test(obj):
-                candidates.append(process.run(obj))
+                candidate = process.run(obj)
+                if candidate:
+                    candidates.append(candidate)
 
-        # TODO This seems to be bugged based on number of args to CTile or RTile
-        # Test for any form of (r, c) tiling, but only once during lifetime
-        # if "Tile" not in obj.history:
-        #     candidates.append(Pr.tiling(obj, **kwargs))
-
-        results = [self.create_decomposition(obj, cand) for cand in candidates if cand]
-        results.append(obj)
-        return results
-
-    # TODO: Reimplement
-    def check_candidates(self, obj: Object, candidates: list[Object]) -> list[Object]:
-        reviewed = []
-        for cand in candidates:
-            reviewed.append(cand)
-        return sorted(reviewed, key=lambda x: x.props)
+        return candidates
 
 
 default_comparisons = [get_order_diff, get_color_diff, get_translation]

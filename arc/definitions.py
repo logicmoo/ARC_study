@@ -26,6 +26,10 @@ class Constants:
     STEPS_DIAG = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
     ALL_STEPS = STEPS_BASE + STEPS_DIAG
 
+    # Information
+    DOT_PROPS = 1  # 'entropic weight' of a single point
+    NON_DOT_PROPS = 2  # 'entropic weight' of a container object
+
     cname = {
         -1: "Trans",
         0: "Black",

@@ -50,13 +50,16 @@ class Scene:
         self.input.decompose(batch=batch, max_iter=max_iter)
         log.info(f"Input decomposition at {self.input.rep.props}")
         if self.output:
-            self.output.decompose(batch=batch, max_iter=max_iter, source=self.input)
+            self.output.decompose(batch=batch, max_iter=max_iter)
+            # TODO Handle inventories
+            # self.output.decompose(batch=batch, max_iter=max_iter, source=self.input)
             log.info(f"Output decomposition at {self.output.rep.props}")
 
     # TODO Below needs review/updating
     def match(self):
         """Identify the minimal transformation set needed from input -> output Board."""
-        self._dist, self._path = self.recreate(self.output.rep, self.input.inv())
+        # TODO Handle inventory
+        self._dist, self._path = self.recreate(self.output.rep, self.input)
         log.info(f"Minimal distance transformation ({self.dist}):")
         for delta in self._path:
             obj1, obj2, trans = delta.right, delta.left, delta.transform

@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
-import re
+
+if TYPE_CHECKING:
+    from arc.object import Object
 
 
-class Act:
+class Action:
     action_map = {
         "c": "recolor",
         "w": "vertical",
@@ -27,6 +31,19 @@ class Act:
         return getattr(cls, cls.action_map[code])
 
     @classmethod
+    def move(cls, item: "Object", dr: int, dc: int) -> "Object":
+        """Returns a new Object/Shape with transformed coordinates"""
+        a_row, a_col, color = item.seed
+        return item.spawn((a_row + dr, a_col + dc, color))
+
+    @classmethod
+    def mtile(cls, item, nr, nc):
+        a_row, a_col, color = item.seed
+        dr, dc = item.shape
+        args = (a_row + nr * dr, a_col + nc * dc, color)
+        return item.spawn(args)
+
+    @classmethod
     def zero(cls, item, dummy=0):
         """Sets row and column to zero"""
         return item.spawn(row=0, col=0)
@@ -34,9 +51,9 @@ class Act:
     @classmethod
     def justify(cls, item, axis):
         """Sets one of row or column to zero"""
-        anchor = list(item.anchor)
-        anchor[axis] = 0
-        return item.spawn(*anchor)
+        loc = list(item.loc)
+        loc[axis] = 0
+        return item.spawn(*loc)
 
     @classmethod
     def rescale(cls, item, code, value):
@@ -59,13 +76,6 @@ class Act:
         return cls.rescale(item, "C", value)
 
     @classmethod
-    def move(cls, item, dr, dc):
-        """Returns a new Object/Shape with transformed coordinates"""
-        a_row, a_col, _ = item.anchor
-        loc_args = (a_row + dr, a_col + dc)
-        return item.spawn(*loc_args)
-
-    @classmethod
     def turn(cls, item, num):
         turned = item
         for i in range(num):
@@ -79,13 +89,6 @@ class Act:
         loc[axis] += item.shape[axis]
         grid = np.flip(item.grid, axis)
         return item.__class__(*loc, grid=grid)
-
-    @classmethod
-    def mtile(cls, item, nr, nc):
-        a_row, a_col, _ = item.anchor
-        dr, dc = item.shape
-        loc_args = (a_row + nr * dr, a_col + nc * dc)
-        return item.spawn(*loc_args)
 
     @classmethod
     def recolor(cls, item, color):
@@ -130,37 +133,3 @@ class Act:
     @classmethod
     def flip_h(cls, item):
         return cls.flip(item, 1)
-
-
-act_regex = re.compile(r"([A-Za-z]+)(\d+)")
-
-
-class Gen:
-    def __init__(self, code=None, actions=None, condition=None, args=None):
-        self.actions = actions or []
-        self.condition = condition
-        if code is not None:
-            acts, cond = re.match(act_regex, code).groups()  # type: ignore
-            self.acode = acts
-            self.ccode = cond
-            self.actions = [Act.action_map[ch] for ch in acts]
-            self.condition = int(cond)
-        self.args = args or [{}] * len(self.actions)
-
-    def create(self, shape):
-        try:
-            res = getattr(Act, self.actions[0])(shape, self.condition)
-        except:
-            res = getattr(Act, self.actions[0])(shape)
-            if isinstance(self.condition, int):
-                # TODO Fix this the hell up
-                if self.acode[0] in "RCudlr":
-                    res = [shape]
-                    for i in range(self.condition):
-                        for act, arg in zip(self.actions, self.args):
-                            shape = getattr(Act, act)(shape, **arg)
-                        res.append(shape)
-        return res
-
-    def __str__(self):
-        return f"({self.actions}, {self.condition})"

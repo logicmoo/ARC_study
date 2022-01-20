@@ -2,9 +2,10 @@ from typing import Any
 import numpy as np
 from arc.contexts import Context
 from abc import ABC, abstractmethod
+from arc.generator import Generator
 
 from arc.util import logger
-from arc.grid_methods import color_connect, grid_filter
+from arc.grid_methods import color_connect, point_filter
 from arc.definitions import Constants as cst
 from arc.object import Object
 
@@ -12,109 +13,107 @@ log = logger.fancy_logger("Processes", level=30)
 
 
 class Process(ABC):
+    # NOTE: After adding in the context functionality, this could manifest in
+    # parametrized instantion of decomposition processes.
+    def __init__(self):
+        pass
+
     def test(self, obj: Object) -> bool:
         """Check whether we believe we should run this process."""
         return True
 
     @abstractmethod
-    def run(self, obj: Object) -> Object:
+    def run(self, obj: Object) -> Object | None:
         pass
 
     def info(self, obj: Object) -> None:
-        log.debug(f"Running {self.__class__.__name__}")
+        log.debug(f"Running {self.__class__.__name__} on {obj._id}")
+
+    def fail(self, message: str) -> None:
+        log.debug(f"  ..failed: {message}")
+
+    def success(self, obj: Object) -> None:
+        log.debug(f"  ..finished: {(obj.props)} props")
 
 
 class SeparateColor(Process):
-    def __init__(self):
-        pass
-
     def test(self, obj: Object) -> bool:
         return len(obj.c_rank) > 1
 
-    def run(self, obj: Object) -> dict[str, Any]:
+    def run(self, obj: Object) -> Object:
         """Improves representation by combining points of like colors"""
         self.info(obj)
-        # TODO Add in Context handling
         color = obj.c_rank[0][0]
 
-        match_pos, other_pts = grid_filter(obj.grid, color)
-        oArgs1 = {"color": color, "pos": match_pos, "name": f"Color|{cst.cname[color]}"}
-        oArgs2 = {"pts": other_pts, "name": "Remainder|"}
-
-        name = f"Split|{cst.cname[color]}"
-        parent = {"name": name, "decomposed": "Split", "children": [oArgs1, oArgs2]}
-        return parent
+        match_pts, other_pts = point_filter(obj.points, color)
+        match = Object.from_points(match_pts)
+        other = Object.from_points(other_pts)
+        result = Object(*obj.loc, children=[match, other])
+        result.traits["decomp"] = f"SC{color}"
+        self.success(result)
+        return result
 
 
 class MakeBase(Process):
-    def __init__(self):
-        pass
-
-    def test(self, obj: Object) -> bool:
-        return True
-
-    def run(self, obj: Object) -> dict[str, Any]:
-        # Select a color to use, based on area covered by the color
-        # TODO Add context interaction
-        # color = getattr(context, "base_color", None)
+    def run(self, obj: Object) -> Object:
         self.info(obj)
+        # NOTE: This currently assumes a black background if black is present
+        # which should be altered later to be more data-driven.
         if 0 in [item[0] for item in obj.c_rank]:
             color = 0
+        # Select a color to use, based on area covered by the color
         else:
             color = obj.c_rank[0][0]
-        gens = []
+
+        # Create a Generator based on the grid size
+        codes = []
         rows, cols = obj.grid.shape
         if cols > 1:
-            gens.append(f"C{cols - 1}")
+            codes.append(f"C{cols - 1}")
         if rows > 1:
-            gens.append(f"R{rows - 1}")
-        if len(obj.c_rank) > 1:
-            oArgs1 = {"color": color, "gens": gens, "decomposed": "Base"}
-            oArgs1["name"] = f"Rect({rows},{cols})|{cst.cname[color]}"
-            _, other_pts = grid_filter(obj.grid, color)
-            oArgs2 = {"pts": other_pts, "name": "BaseRemainder"}
-            name = f"MakeBase|{cst.cname[color]}"
-            parent = dict(children=[oArgs1, oArgs2], name=name, decomposed="Base")
-        else:
-            name = f"Rect({rows},{cols})|{cst.cname[color]}"
-            parent = dict(color=color, name=name, decomposed="Base", gens=gens)
+            codes.append(f"R{rows - 1}")
+        generator = Generator.from_codes(codes) if codes else None
 
-        return parent
+        # For a single color present, this simplifies to a rectangle
+        if len(obj.c_rank) == 1:
+            return Object(*obj.loc, color, generator=generator)
+
+        # Split off the base color from the "front matter"
+        _, front_points = point_filter(obj.points, color)
+        background = Object(*obj.loc, color, generator=generator)
+        background.traits["decomp"] = "Base"
+        front = Object.from_points(front_points)
+        result = Object(*obj.seed, children=[background, front])
+        result.traits["decomp"] = f"MB{color}"
+        self.success(result)
+        return result
 
 
 class ConnectObjects(Process):
-    def __init__(self):
-        pass
-
-    def test(self, obj: Object) -> bool:
-        return True
-
-    def run(self, obj: Object) -> dict[str, Any] | None:
+    def run(self, obj: Object) -> Object | None:
         self.info(obj)
         marked = obj.grid.copy()
+
+        # TODO: we'll want to include context here soon
         off_colors = [cst.NULL_COLOR]
+
         for color in off_colors:
             marked[marked == color] = cst.MARKED_COLOR
-        obj_pts, fail = color_connect(marked)
-        if fail:
-            log.debug("Failed Connect")
+        obj_pts, fail_message = color_connect(marked)
+        if fail_message:
+            self.fail(fail_message)
             return None
         children = []
         for idx, pts in enumerate(obj_pts):
             name = f"Conn{idx}"
-            children.append(dict(pts=pts, name=name))
-        parent = {
-            "children": children,
-            "name": f"Cnxn{len(children)}",
-            "decomposed": "Conn",
-        }
-        return parent
+            children.append(Object.from_points(pts, name=name))
+        result = Object(*obj.loc, children=children)
+        result.traits["decomp"] = "CO"
+        self.success(result)
+        return result
 
 
 class Tiling(Process):
-    def __init__(self):
-        pass
-
     def run(self, obj: Object) -> dict[str, Any] | None:
         R, C, _ = obj.order
         # If there's no tiling order, try making a base layer

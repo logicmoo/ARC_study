@@ -1,36 +1,30 @@
-from typing import Any, Literal, TypeAlias
 import numpy as np
-
-# Compiling certain methods gives some speedup
-# import numba as nb
 
 from arc.util import logger
 from arc.definitions import Constants as cst
 
 log = logger.fancy_logger("BoardMethods", level=30)
 
-from arc.types import PointList, Position, PositionList
+from arc.types import PointDict, PointList, Position
 
 
-def norm_pts(
-    points: PointList | PositionList,
-) -> tuple[Position, PointList | PositionList]:
+def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
     """Calculate the seed (min row and col) of a list of points and norm them.
 
-    Returns the seed coordinates and the normalized points.
+    Returns a tuple: seed coordinates, normalized point list.
     """
     minrow, mincol = cst.MAX_ROWS, cst.MAX_COLS
+    monochrome = True
+    color = points[0][2]
     for pt in points:
         minrow = min(minrow, pt[0])
         mincol = min(mincol, pt[1])
+        if color != pt[2]:
+            monochrome = False
     result = []
-    if len(points[0]) == 3:
-        for pt in points:
-            result.append((pt[0] - minrow, pt[1] - mincol, pt[2]))
-    elif len(points[0]) == 2:
-        for pt in points:
-            result.append((pt[0] - minrow, pt[1] - mincol))
-    return (minrow, mincol), result
+    for pt in points:
+        result.append((pt[0] - minrow, pt[1] - mincol, pt[2]))
+    return (minrow, mincol), result, monochrome
 
 
 # TODO Reconsider object use + modifying objects
@@ -48,17 +42,16 @@ def norm_children(children):
     return (minrow, mincol)
 
 
-def grid_filter(grid: np.ndarray, color: int) -> tuple[PositionList, PointList]:
+def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
     """Filter out a single color from a grid."""
-    match_pos: PositionList = []
+    match_pts: PointList = []
     other_pts: PointList = []
-    for row in range(grid.shape[0]):
-        for col in range(grid.shape[1]):
-            if (val := grid[row][col]) == color:
-                match_pos.append((row, col))
-            elif val != cst.NULL_COLOR:
-                other_pts.append((row, col, val))
-    return match_pos, other_pts
+    for (row, col), val in points.items():
+        if val == color:
+            match_pts.append((row, col, val))
+        else:
+            other_pts.append((row, col, val))
+    return match_pts, other_pts
 
 
 def intersect(grids: list[np.ndarray]) -> np.ndarray:
@@ -84,7 +77,7 @@ def expand(grid: np.ndarray, mult: tuple[int, int]) -> np.ndarray:
 
 
 # TODO Review
-def color_connect(marked, max_ct=10):
+def color_connect(marked: np.ndarray, max_ct: int = 10) -> tuple[list[PointList], str]:
     """Try connecting groups of points based on colors
 
     If we only produce 1 group, or more than max_ct, we Fail.
@@ -99,12 +92,12 @@ def color_connect(marked, max_ct=10):
         max_size = max(max_size, len(pts))
         blobs.append(pts)
         if len(blobs) > max_ct:
-            return [], True
+            return [], "Too many blobs"
     if len(blobs) <= 1:
-        return [], True
+        return [], "Only one blob"
     elif max_size <= 1:
-        return [], True
-    return blobs, False
+        return [], "All blobs are dots"
+    return blobs, ""
 
 
 # TODO Review

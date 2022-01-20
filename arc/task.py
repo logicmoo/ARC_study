@@ -3,7 +3,7 @@ from matplotlib.figure import Figure
 import numpy as np
 
 from arc.util import logger
-from arc.concepts import Act
+from arc.concepts import Action
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
 from arc.scene import Scene
@@ -182,9 +182,9 @@ class Task:
                 # Objects should start from an absolute, so we'll use anchor
                 obj.adult()
                 if trait is None:
-                    out_obj = Act()[code](obj, tmap)
+                    out_obj = Action()[code](obj, tmap)
                 else:
-                    out_obj = Act()[code](obj, tmap[obj.traits[trait]])
+                    out_obj = Action()[code](obj, tmap[obj.traits[trait]])
                 out_children.append(out_obj)
 
         result = Object(children=out_children, name="Solution")
