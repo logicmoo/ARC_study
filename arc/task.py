@@ -49,8 +49,8 @@ class Task:
         for scene_idx, scene_data in enumerate(task_data["test"]):
             self.tests.append(Scene(idx=scene_idx, data=scene_data))
 
-    def __getitem__(self, arg: int | str):
-        match arg:
+    def __getitem__(self, arg: int | str) -> Scene:
+        match arg:  # pragma: no cover
             case int(idx):
                 return self.cases[idx]
             case str(test_code):

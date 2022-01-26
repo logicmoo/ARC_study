@@ -1,17 +1,12 @@
-from typing import Any
 import collections
 
-import asciitree
-from matplotlib.figure import Figure
 import numpy as np
 
 from arc.comparisons import get_color_diff, get_order_diff, get_translation
-from arc.layouts import tree_layout
 from arc.util import logger
 from arc.object import Object, ObjectDelta
 from arc.processes import Process, MakeBase, ConnectObjects, SeparateColor
 from arc.types import BoardData
-from arc.viz import plot_layout
 
 log = logger.fancy_logger("Board", level=20)
 
@@ -39,30 +34,16 @@ class Board:
 
         # Used during decomposition process
         self.proc_q = collections.deque([self.rep])
-        self.bank = []
+        self.bank: list[Object] = []
 
-    def plot_tree(self, **kwargs) -> Figure:
-        return plot_layout(tree_layout(self.rep), show_axis=False, **kwargs)
-
-    def tree(self, obj: Object, ind: int = 0, level: int = 10) -> None:
-        """Log the Board as an hierarchy of named Objects."""
-        # Quit early if we can't print the output
-        if log.level > level:
-            return
-        obj = obj or self.rep
-        nodes = {obj._hdr: self._walk_tree(obj)}
-        output = asciitree.LeftAligned()(nodes).split("\n")
-        indent_str = "  " * ind
-        for line in output:
-            log.info(f"{indent_str}{line}")
-
-    def _walk_tree(self, base: Object) -> dict[str, Any]:
-        nodes = {}
-        for kid in base.children:
-            if kid.category == "Dot":
-                return {}
-            nodes[kid._hdr] = self._walk_tree(kid)
-        return nodes
+    def select_representation(self) -> None:
+        """Find the most compact representation from decomposition."""
+        best_props = self.rep.props
+        for obj in self.bank + list(self.proc_q):
+            if obj.props < best_props:
+                best_props = obj.props
+                self.rep = obj
+                log.debug(f"Selected obj: {obj}")
 
     def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
         """Determine the optimal representation of the Board.
@@ -73,14 +54,16 @@ class Board:
             max_iter: Maximum number of iterations of decomposition.
         """
         for ct in range(max_iter):
+            log.debug(f"== Begin decomposition rd{ct+1} with proc_q:")
+            for obj in self.proc_q:
+                log.debug(f"  {obj}")
             self.batch_decomposition(batch=batch)
-            log.debug(f"== Decomposition at {self.rep.props}p after {ct} rounds")
+            log.debug(f"== Decomposition at {self.rep.props}p after {ct+1} rounds")
             if not self.proc_q:
-                log.debug("===Ending decomposition due to empty processing queue")
+                log.debug("==! Ending decomposition due to empty processing queue")
                 break
-        final = sorted(self.bank + list(self.proc_q), key=lambda x: x.props)[0]
-        self.rep = final.flatten()[0]
-        self.rep.ppt("info")
+        self.select_representation()
+        self.rep.info("info")
 
     def batch_decomposition(self, batch: int = 10) -> None:
         """Decompose the top 'batch' candidates."""
@@ -88,11 +71,16 @@ class Board:
         while self.proc_q and ct < batch:
             ct += 1
             obj = self.proc_q.popleft()
+            log.debug(f" = Decomposing:")
+            obj.info(level="debug")
             new_objs = self._decomposition(obj)
             if not new_objs:
                 self.bank.append(obj)
+            for obj in new_objs:
+                log.debug(f" + {obj} to proc_q")
             self.proc_q.extend(new_objs)
-            log.debug(f" - Finished decomposition round {ct}, {len(self.bank)} in bank")
+            log.debug(f" - Finished decomposition item {ct}, {len(self.bank)} in bank")
+            self.select_representation()
 
     def _decomposition(self, obj: Object) -> list[Object]:
         """Attempts to find a more canonical or condensed way to represent the object"""
@@ -101,17 +89,17 @@ class Board:
             return []
         # Search for the first object that's not decomposed and apply decomposition
         # TODO Need to redo occlusion
-        elif obj.traits.get("decomp"):
+        elif obj.traits.get("finished"):
             # NOTE: We run in reverse order to handle occlusion
             decomps = []
-            for r_idx, child in enumerate(obj.children[::-1]):
+            for rev_idx, child in enumerate(obj.children[::-1]):
                 curr_dc = self._decomposition(child)
                 if curr_dc:
                     # Each new decomposition needs a new top-level object
                     for decomp in curr_dc:
                         new_obj = obj.spawn()
-                        new_obj.children[r_idx] = decomp
-                        decomps.append(new_obj)
+                        new_obj.children[-(1 + rev_idx)] = decomp
+                        decomps.append(new_obj.flatten())
                     break
             return decomps
 
@@ -124,18 +112,26 @@ class Board:
         candidates = self.generate_candidates(obj)
         log.debug(f" + {len(candidates)} candidates for {obj._id}:")
         for cand in candidates:
-            log.debug(f"  {cand._hdr}")
+            log.debug(f"  {cand}")
         return candidates
 
     def generate_candidates(self, obj: Object) -> list[Object]:
-        candidates = []
+        candidates: list[Object] = []
         for process in self.processes:
             if process.test(obj):
                 candidate = process.run(obj)
                 if candidate:
                     candidates.append(candidate)
 
-        return candidates
+        reviewed_candidates: list[Object] = []
+        for candidate in candidates:
+            if candidate == obj:
+                reviewed_candidates.append(candidate)
+            else:
+                log.debug(f"  goal: {obj}")
+                log.debug(f"   ...{candidate} requires fixing")
+
+        return reviewed_candidates
 
 
 default_comparisons = [get_order_diff, get_color_diff, get_translation]

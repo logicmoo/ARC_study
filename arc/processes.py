@@ -30,10 +30,11 @@ class Process(ABC):
         log.debug(f"Running {self.__class__.__name__} on {obj._id}")
 
     def fail(self, message: str) -> None:
-        log.debug(f"  ..failed: {message}")
+        log.debug(f"  ...failed: {message}")
 
-    def success(self, obj: Object) -> None:
-        log.debug(f"  ..finished: {(obj.props)} props")
+    def success(self, obj: Object, message: str = "") -> None:
+        msg_str = f"({message})" if message else ""
+        log.debug(f"  ...finished: {(obj.props)} props {msg_str}")
 
 
 class SeparateColor(Process):
@@ -50,6 +51,7 @@ class SeparateColor(Process):
         other = Object.from_points(other_pts)
         result = Object(*obj.loc, children=[match, other])
         result.traits["decomp"] = f"SC{color}"
+        result.traits["finished"] = True
         self.success(result)
         return result
 
@@ -74,17 +76,22 @@ class MakeBase(Process):
             codes.append(f"R{rows - 1}")
         generator = Generator.from_codes(codes) if codes else None
 
-        # For a single color present, this simplifies to a rectangle
+        # For a single color present, this simplifies to a single line/rect
         if len(obj.c_rank) == 1:
-            return Object(*obj.loc, color, generator=generator)
+            result = Object(*obj.loc, color, generator=generator)
+            result.traits["decomp"] = f"MB{color}"
+            self.success(result, "single color")
+            return result
 
         # Split off the base color from the "front matter"
         _, front_points = point_filter(obj.points, color)
         background = Object(*obj.loc, color, generator=generator)
         background.traits["decomp"] = "Base"
+        background.traits["finished"] = True
         front = Object.from_points(front_points)
         result = Object(*obj.seed, children=[background, front])
         result.traits["decomp"] = f"MB{color}"
+        result.traits["finished"] = True
         self.success(result)
         return result
 
@@ -109,6 +116,7 @@ class ConnectObjects(Process):
             children.append(Object.from_points(pts, name=name))
         result = Object(*obj.loc, children=children)
         result.traits["decomp"] = "CO"
+        result.traits["finished"] = True
         self.success(result)
         return result
 

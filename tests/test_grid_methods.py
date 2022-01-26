@@ -27,6 +27,8 @@ def _get_leading_order(grid):
 
 
 def test_order():
+    assert translational_order(np.array([[1]]), True) == [(1, 1)]
+
     tile2x2 = np.tile([[1, 2], [3, 4]], (3, 3))
     assert (2, 2) == _get_leading_order(tile2x2)
     tile1x4 = np.tile([np.arange(4)], (8, 2))

@@ -4,8 +4,6 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
-from arc.types import TaskData
-
 
 class PlotDef(TypedDict):
     grid: np.ndarray

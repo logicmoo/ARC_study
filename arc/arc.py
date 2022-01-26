@@ -57,7 +57,7 @@ class ARC:
 
     def __getitem__(self, arg: int | tuple[int, int] | tuple[int, int, str]) -> Any:
         """Convenience method so the user has easy access to ARC elements."""
-        match arg:
+        match arg:  # pragma: no cover
             case int(task_idx):
                 return self.tasks[task_idx]
             case (task_idx, scene_idx):
@@ -92,7 +92,7 @@ class ARC:
         Supply {"logger_name": <level int>, ...} as a convenient way to alter log content
         for your use case.
         """
-        match arg:
+        match arg:  # pragma: no cover
             case int(level):
                 for logname in [
                     "Task",
@@ -109,17 +109,16 @@ class ARC:
 
     def select(self, selector: set[str] = None, selection: set[int] = None) -> None:
         """Choose which tasks will be active, by direct selection or by a set of traits."""
-        if selector is None and selection is None:
-            self.selection = set(self.tasks.keys())
-        if selection is not None:
-            self.selection = set(sorted(selection))
+        all_idxs = set(self.tasks.keys())
+        self.selection = (selection or all_idxs) & all_idxs
+        # The selector will sub-select from any included selection
         if selector is not None:
-            self.selection = set(sorted(self._select(selector)))
+            self.selection = self._select(selector)
 
     def _select(self, selector: set[str]) -> set[int]:
         selection = set([])
-        for idx, task in self.tasks.items():
-            if selector.issubset(task.traits):
+        for idx in self.selection:
+            if selector.issubset(self.tasks[idx].traits):
                 selection.add(idx)
         remove = selection & self.blacklist
         if remove:

@@ -27,21 +27,6 @@ def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
     return (minrow, mincol), result, monochrome
 
 
-# TODO Reconsider object use + modifying objects
-def norm_children(children):
-    """Makes sure the parent/kid position relationship is normalized"""
-    if not children:
-        return (0, 0)
-    minrow, mincol = cst.MAX_ROWS, cst.MAX_COLS
-    for obj in children:
-        minrow = min(minrow, obj.row)
-        mincol = min(mincol, obj.col)
-    for obj in children:
-        obj.row -= minrow
-        obj.col -= mincol
-    return (minrow, mincol)
-
-
 def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
     """Filter out a single color from a grid."""
     match_pts: PointList = []
@@ -54,26 +39,26 @@ def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
     return match_pts, other_pts
 
 
-def intersect(grids: list[np.ndarray]) -> np.ndarray:
-    """WIP"""
-    base = grids[0].copy()
-    for comp in grids[1:]:
-        if base.shape != comp.shape:
-            base[:, :] = cst.MARKED_COLOR
-            return base
-        base[base != comp] = cst.MARKED_COLOR
-    return base
+# def intersect(grids: list[np.ndarray]) -> np.ndarray:
+#     """WIP"""
+#     base = grids[0].copy()
+#     for comp in grids[1:]:
+#         if base.shape != comp.shape:
+#             base[:, :] = cst.MARKED_COLOR
+#             return base
+#         base[base != comp] = cst.MARKED_COLOR
+#     return base
 
 
-def expand(grid: np.ndarray, mult: tuple[int, int]) -> np.ndarray:
-    M, N = grid.shape
-    out = np.full((M * mult[0], N * mult[1]), -1)
-    for i in range(M):
-        rows = slice(i * mult[0], (i + 1) * mult[0], 1)
-        for j in range(N):
-            cols = slice(j * mult[1], (j + 1) * mult[1], 1)
-            out[rows, cols] = grid[i, j]
-    return out
+# def expand(grid: np.ndarray, mult: tuple[int, int]) -> np.ndarray:
+#     M, N = grid.shape
+#     out = np.full((M * mult[0], N * mult[1]), -1)
+#     for i in range(M):
+#         rows = slice(i * mult[0], (i + 1) * mult[0], 1)
+#         for j in range(N):
+#             cols = slice(j * mult[1], (j + 1) * mult[1], 1)
+#             out[rows, cols] = grid[i, j]
+#     return out
 
 
 # TODO Review
@@ -118,7 +103,7 @@ def get_blob(marked, start):
     return pts
 
 
-# @nb.njit
+# @nb.njit  # (Numba JIT can speed this up)
 def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
     """Compiled subroutine to measure order in a strided grid"""
     R, C = grid.shape
@@ -137,14 +122,15 @@ def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
     return (stride, order)
 
 
-def _skewroll_grid(grid: np.ndarray, skew: tuple[int, int]) -> np.ndarray:
-    if 0 in skew:
-        log.warning("_skewroll_grid doesn't support uniform rolling")
-    result = np.ones(grid.shape, dtype=int)
-    for idx, row in enumerate(grid):
-        result[idx] = np.roll(row, idx * skew[1] // skew[0])
+# TODO WIP
+# def _skewroll_grid(grid: np.ndarray, skew: tuple[int, int]) -> np.ndarray:
+#     if 0 in skew:
+#         log.warning("_skewroll_grid doesn't support uniform rolling")
+#     result = np.ones(grid.shape, dtype=int)
+#     for idx, row in enumerate(grid):
+#         result[idx] = np.roll(row, idx * skew[1] // skew[0])
 
-    return result
+#     return result
 
 
 def translational_order(grid: np.ndarray, row_axis: bool) -> list[tuple[int, float]]:

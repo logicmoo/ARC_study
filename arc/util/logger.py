@@ -2,7 +2,15 @@ import logging
 import os
 import pprint
 import sys
-from typing import Optional
+from typing import Literal, Optional, TypeAlias
+
+LogLevel: TypeAlias = (
+    Literal["debug"]
+    | Literal["info"]
+    | Literal["warning"]
+    | Literal["error"]
+    | Literal["critical"]
+)
 
 
 # ANSI codes that will generate colored text

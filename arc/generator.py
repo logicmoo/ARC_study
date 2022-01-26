@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from arc.object import Object
 
 
-act_regex = re.compile(r"([A-Za-z]+)(\d?)")
+act_regex = re.compile(r"([A-Za-z]+)(\d*)")
 
 
 class Transform:
@@ -18,6 +18,9 @@ class Transform:
     def __str__(self) -> str:
         act_str = ", ".join([act.__name__ for act in self.actions])
         return f"({act_str}x{self.count})"
+
+    def spawn(self, **kwargs) -> "Transform":
+        return Transform(actions=self.actions, count=self.count, **kwargs)
 
     def apply(self, object: "Object") -> list["Object"]:
         """Creates a new object based on the set of actions, applied count times."""

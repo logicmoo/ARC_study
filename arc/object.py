@@ -1,11 +1,11 @@
 from collections import Counter
 from functools import cached_property
+import logging
 from typing import Any, Callable, TypeAlias
 
 import numpy as np
-from arc.types import PointDict, PositionList
 
-from arc.types import PointDict, PointList, PositionList
+from arc.types import Point, PointDict, PointList, PositionList
 from arc.util import dictutil, logger
 from arc.grid_methods import (
     norm_points,
@@ -26,7 +26,7 @@ class Object:
         children: list["Object"] = None,
         generator: Generator = None,
         name: str = "",
-        traits: dict[str, str] = None,
+        traits: dict[str, str | bool] = None,
     ):
         self.row = row
         self.col = col
@@ -38,15 +38,18 @@ class Object:
         # Used during selection process
         self.traits = traits or {}
 
+    ## Constructors
     @classmethod
-    def from_grid(cls, grid: np.ndarray, name: str = "") -> "Object":
+    def from_grid(
+        cls, grid: np.ndarray, seed: Point = (0, 0, cst.NULL_COLOR), name: str = ""
+    ) -> "Object":
         children = []
         M, N = grid.shape
         for i in range(M):
             for j in range(N):
-                children.append(cls(i, j, grid[i, j]))
-        obj = cls(children=children, name=name)
-        return obj
+                if grid[i, j] != cst.NULL_COLOR:
+                    children.append(cls(i, j, grid[i, j]))
+        return cls(*seed, children=children, name=name)
 
     @classmethod
     def from_points(cls, points: PointList, name: str = "") -> "Object":
@@ -65,6 +68,7 @@ class Object:
             children = [Object(*pt) for pt in normed]
             return cls(*seed, children=children, name=name)
 
+    ## Core properties
     @property
     def loc(self) -> tuple[int, int]:
         """The *local* position of the Object."""
@@ -161,7 +165,7 @@ class Object:
 
     ## Comparisons
     def __eq__(self, other: "Object") -> bool:
-        return self.seed == other.seed and self.points == other.points
+        return self.loc == other.loc and self.points == other.points
 
     def sim(self, other: "Object") -> bool:
         """Tests if objects are same up to translation"""
@@ -203,40 +207,44 @@ class Object:
         link = "*" if self.traits.get("decomp") == "Scene" else ""
         return f"{link}{self.category}{shape_str}@{self.seed}"
 
-    @property
-    def _hdr(self) -> str:
-        """Display decomposition-related information."""
-        decomp = self.traits.get("decomp", "")
-        return f"[{decomp}]{self._id}({self.props})"
-
     def __repr__(self) -> str:
         """One line description of what the object is"""
         if self.category == "Dot":
             info = ""
         else:
             info = f"({len(self.children)}ch, {self.size}pts, {self.props}p)"
-        header = f"{self._id}{info}"
-        return header
+        decomp = f"[{self.traits.get('decomp', '')}]"
+        return f"{decomp}{self._id}{info}"
 
-    def info(self, tab=0, cond=10) -> str:
+    def _hier_repr(self, tab: int = 0, max_lines: int = 10, max_dots: int = 5) -> str:
         """Detailed info on object and its children"""
-        ind = "  " * tab
-        output = [ind + self.__repr__()]
-        for idx, child in enumerate(self.children):
-            output.append(f"{child.info(tab=tab+1)}")
+        indent = "  " * tab
+        output = [indent + self.__repr__()]
+        dot_kids = 0
+        for child in self.children:
+            if child.category == "Dot":
+                dot_kids += 1
+            if dot_kids < max_dots:
+                output.append(f"{child._hier_repr(tab=tab+1)}")
+        if dot_kids >= max_dots:
+            output.append(f"{indent}  ...{dot_kids} Dots total")
+
         if self.generator:
-            output.append(f"{ind}  Gen{self.generator}")
-        # Condense output to just cond lines
-        if len(output) > cond and "..." not in output:
-            output = output[:cond] + ["..."]
+            output.append(f"{indent}  Gen{self.generator}")
+        # Limit output to 'max_lines' by truncating remainder
+        if len(output) > max_lines and "..." not in output:
+            output = output[:max_lines] + ["..."]
         return "\n".join(output)
 
     # TODO Redo printing of information to be more coherent with other methods
-    def ppt(self, level="info") -> None:
-        for line in self.info().split("\n"):
+    def info(self, level: logger.LogLevel = "debug", max_lines: int = 10) -> None:
+        """Log the Object's hierarchy, with full header info."""
+        # Quit early if we can't print the output
+        if log.level > getattr(logging, level.upper()):
+            return
+        for line in self._hier_repr().split("\n"):
             getattr(log, level)(line)
 
-    # TODO Finish refactor
     def spawn(self, seed: tuple[int, int, int] = None, **kwargs) -> "Object":
         seed = seed or self.seed
         if self.category == "Dot":
@@ -250,8 +258,7 @@ class Object:
         new_args.update(kwargs)
         return Object(*seed, **new_args)
 
-    # TODO Finish
-    def flatten(self) -> list["Object"]:
+    def flatten(self) -> "Object":
         """Eliminate unnecessary hierchical levels in Object representation.
 
         Recursively move through the representation and identify any Objects
@@ -260,21 +267,27 @@ class Object:
         points. These might start on different levels of the hierarchy, but
         could be all placed on the same level.
         """
+        # NOTE: We may also want to flatten objects with generators and non-dot
+        # children; perhaps it isn't too complicated.
+
         # Containers have no generators, and have some non-Dot children
         if self.category != "Container":
-            return [self]
+            return self
         new_children = []
         for kid in self.children:
-            new_children.extend(kid.flatten())
-        if self.color == cst.NULL_COLOR:
-            log.debug(f"Flattening {self}")
-            uplevel = []
-            for kid in new_children:
-                row, col = kid.row + self.row, kid.col + self.col
-                uplevel.append(kid.spawn(seed=(row, col, kid.color)))
-            return uplevel
-        else:
-            return [self.spawn(self.seed, children=new_children)]
+            flat_kid = kid.flatten()
+            if len(flat_kid.children) == 1 or (
+                flat_kid.category == "Container" and flat_kid.color == cst.NULL_COLOR
+            ):
+                log.debug(f"Flattening {flat_kid}")
+                uplevel = []
+                for gkid in flat_kid.children:
+                    row, col = gkid.row + kid.row, gkid.col + kid.col
+                    uplevel.append(gkid.spawn(seed=(row, col, gkid.color)))
+                new_children.extend(uplevel)
+            else:
+                new_children.append(flat_kid)
+        return self.spawn(self.seed, children=new_children)
 
     def overlap(self, other: "Object") -> tuple[float, float]:
         ct = np.sum(self.grid == other.grid)
@@ -290,7 +303,7 @@ class Object:
         for achieving success in applications.
         """
         # When we have a contextual reference, we already "know" the object
-        if "Scene" in self.traits:
+        if self.traits.get("decomp") == "scene":
             return 1
 
         # Calculate local information used (self existence, positions, and color)
@@ -321,6 +334,7 @@ class Object:
         # Also, the "default" order should be the full size of the dimension, not 1
         return (row_o[0], col_o[0], row_o[1] * col_o[1])
 
+    # TODO: WIP
     def inventory(self, leaf_only=False, depth=0, max_dots=10):
         if self.category == "Dot":
             return [self]
