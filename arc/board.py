@@ -42,8 +42,8 @@ class Board:
         for obj in self.bank + list(self.proc_q):
             if obj.props < best_props:
                 best_props = obj.props
-                self.rep = obj
-                log.debug(f"Selected obj: {obj}")
+                self.rep = obj.flatten()
+                log.debug(f"Selected flattened object: {self.rep}")
 
     def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
         """Determine the optimal representation of the Board.
@@ -54,13 +54,14 @@ class Board:
             max_iter: Maximum number of iterations of decomposition.
         """
         for ct in range(max_iter):
-            log.debug(f"== Begin decomposition rd{ct+1} with proc_q:")
+            log.info(f"== Begin decomposition round {ct+1}")
+            log.debug("  Processing queue:")
             for obj in self.proc_q:
                 log.debug(f"  {obj}")
             self.batch_decomposition(batch=batch)
-            log.debug(f"== Decomposition at {self.rep.props}p after {ct+1} rounds")
+            log.info(f"== Decomposition at {self.rep.props}p after {ct+1} rounds")
             if not self.proc_q:
-                log.debug("==! Ending decomposition due to empty processing queue")
+                log.info("==! Ending decomposition due to empty processing queue")
                 break
         self.select_representation()
         self.rep.info("info")
@@ -71,15 +72,15 @@ class Board:
         while self.proc_q and ct < batch:
             ct += 1
             obj = self.proc_q.popleft()
-            log.debug(f" = Decomposing:")
+            log.debug(f" = Batch item {ct}/{batch}")
             obj.info(level="debug")
             new_objs = self._decomposition(obj)
             if not new_objs:
-                self.bank.append(obj)
-            for obj in new_objs:
-                log.debug(f" + {obj} to proc_q")
+                self.bank.append(obj.flatten())
             self.proc_q.extend(new_objs)
-            log.debug(f" - Finished decomposition item {ct}, {len(self.bank)} in bank")
+            log.debug(
+                f" - Item {ct}, proc_q: {len(self.proc_q)}, bank: {len(self.bank)}"
+            )
             self.select_representation()
 
     def _decomposition(self, obj: Object) -> list[Object]:
@@ -91,17 +92,17 @@ class Board:
         # TODO Need to redo occlusion
         elif obj.traits.get("finished"):
             # NOTE: We run in reverse order to handle occlusion
-            decomps = []
+            decompositions = []
             for rev_idx, child in enumerate(obj.children[::-1]):
-                curr_dc = self._decomposition(child)
-                if curr_dc:
+                child_candidates = self._decomposition(child)
+                if child_candidates:
                     # Each new decomposition needs a new top-level object
-                    for decomp in curr_dc:
+                    for new_child in child_candidates:
                         new_obj = obj.spawn()
-                        new_obj.children[-(1 + rev_idx)] = decomp
-                        decomps.append(new_obj.flatten())
+                        new_obj.children[-(1 + rev_idx)] = new_child
+                        decompositions.append(new_obj)
                     break
-            return decomps
+            return decompositions
 
         # TODO
         # Begin decomposition process:  check for existing context representations
@@ -110,9 +111,8 @@ class Board:
             pass
 
         candidates = self.generate_candidates(obj)
-        log.debug(f" + {len(candidates)} candidates for {obj._id}:")
-        for cand in candidates:
-            log.debug(f"  {cand}")
+        for candidate in candidates:
+            log.debug(f"  {candidate}")
         return candidates
 
     def generate_candidates(self, obj: Object) -> list[Object]:
@@ -123,15 +123,7 @@ class Board:
                 if candidate:
                     candidates.append(candidate)
 
-        reviewed_candidates: list[Object] = []
-        for candidate in candidates:
-            if candidate == obj:
-                reviewed_candidates.append(candidate)
-            else:
-                log.debug(f"  goal: {obj}")
-                log.debug(f"   ...{candidate} requires fixing")
-
-        return reviewed_candidates
+        return candidates
 
 
 default_comparisons = [get_order_diff, get_color_diff, get_translation]

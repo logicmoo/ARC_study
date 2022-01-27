@@ -8,12 +8,14 @@ def decomposition_samples() -> ARC:
     return ARC(idxs={8, 10, 16, 30})
 
 
+# NOTE: This test is a little ambiguous, as the red object
+# might reasonably be a rectangle missing 2 points, or a line trace.
 def test_8(decomposition_samples: ARC):
     board = decomposition_samples.tasks[8].cases[0].input
     board.decompose()
     child_names = sorted([kid._id for kid in board.rep.children])
     assert child_names == [
-        "Cluster(2x4)@(2, 0, 2)",
+        "Container(2x4)@(2, 0, 10)",
         "Rect(14x9)@(0, 0, 0)",
         "Rect(2x2)@(10, 3, 8)",
     ]

@@ -22,6 +22,30 @@ class Process(ABC):
         """Check whether we believe we should run this process."""
         return True
 
+    def patch(self, input: Object, output: Object) -> Object | None:
+        """Repair any inconsistencies between input and output."""
+        if input == output:
+            return output
+        # TODO: For now, assume we can't fix missing points
+        missing_locs = input.points.keys() - output.points.keys()
+        if missing_locs:
+            log.debug("  Extra points during patch")
+            return None
+
+        extra_locs = output.points.keys() - input.points.keys()
+        cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
+        log.debug(f"  Cutting {len(cut_points)} points as patch")
+        loc = output.loc
+        out = output.spawn(seed=(0, 0, output.color))
+        cutout = Object.from_points(cut_points)
+        cutout.traits["decomp"] = "Cut"
+        # TODO: For now, assume we only patch up near a complete representation
+        cutout.traits["finished"] = True
+        cut_container = Object(*loc, children=[out, cutout])
+        cut_container.traits["decomp"] = output.traits["decomp"]
+        cut_container.traits["finished"] = output.traits["finished"]
+        return cut_container
+
     @abstractmethod
     def run(self, obj: Object) -> Object | None:
         pass
@@ -57,7 +81,7 @@ class SeparateColor(Process):
 
 
 class MakeBase(Process):
-    def run(self, obj: Object) -> Object:
+    def run(self, obj: Object) -> Object | None:
         self.info(obj)
         # NOTE: This currently assumes a black background if black is present
         # which should be altered later to be more data-driven.
@@ -80,7 +104,10 @@ class MakeBase(Process):
         if len(obj.c_rank) == 1:
             result = Object(*obj.loc, color, generator=generator)
             result.traits["decomp"] = f"MB{color}"
-            self.success(result, "single color")
+            result.traits["finished"] = True
+            result = self.patch(obj, result)
+            if result:
+                self.success(result, "single color")
             return result
 
         # Split off the base color from the "front matter"
@@ -92,7 +119,9 @@ class MakeBase(Process):
         result = Object(*obj.seed, children=[background, front])
         result.traits["decomp"] = f"MB{color}"
         result.traits["finished"] = True
-        self.success(result)
+        result = self.patch(obj, result)
+        if result:
+            self.success(result)
         return result
 
 

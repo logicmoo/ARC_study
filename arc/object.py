@@ -5,7 +5,7 @@ from typing import Any, Callable, TypeAlias
 
 import numpy as np
 
-from arc.types import Point, PointDict, PointList, PositionList
+from arc.types import Point, PointDict, PointList, Position, PositionList
 from arc.util import dictutil, logger
 from arc.grid_methods import (
     norm_points,
@@ -52,7 +52,9 @@ class Object:
         return cls(*seed, children=children, name=name)
 
     @classmethod
-    def from_points(cls, points: PointList, name: str = "") -> "Object":
+    def from_points(
+        cls, points: PointList, loc: Position = (0, 0), name: str = ""
+    ) -> "Object":
         """Create an Object from a list of Points.
 
         This is used during Generator.spawn to efficiently generate the
@@ -60,13 +62,14 @@ class Object:
         """
         if len(points) == 1:
             return cls(*points[0], name=name)
-        seed, normed, mono = norm_points(points)
+        norm_loc, normed, mono = norm_points(points)
+        loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])
         if mono:
             children = [Object(*pt[:2]) for pt in normed]
-            return cls(*seed, normed[0][2], children=children, name=name)
+            return cls(*loc, normed[0][2], children=children, name=name)
         else:
             children = [Object(*pt) for pt in normed]
-            return cls(*seed, children=children, name=name)
+            return cls(*loc, children=children, name=name)
 
     ## Core properties
     @property
@@ -104,8 +107,13 @@ class Object:
         # NOTE The order of children determines layering, bottom first
         for child in self.children:
             for loc, val in child.points.items():
-                color = val if val != cst.NULL_COLOR else self.color
-                pts[(child.row + loc[0], child.col + loc[1])] = color
+                new_loc = (child.row + loc[0], child.col + loc[1])
+                if val == cst.NEGATIVE_COLOR:
+                    pts.pop(new_loc, None)
+                elif val != cst.NULL_COLOR:
+                    pts[new_loc] = val
+                else:
+                    pts[new_loc] = self.color
         return pts
 
     @cached_property
@@ -130,7 +138,9 @@ class Object:
     @cached_property
     def category(self) -> str:
         """A single-word description of the Object."""
-        if not self.children:
+        if self.color == cst.NEGATIVE_COLOR:
+            return "Cutout"
+        elif not self.children:
             if not self.generator:
                 return "Dot"
             elif self.generator.dim == 1:
@@ -236,8 +246,15 @@ class Object:
             output = output[:max_lines] + ["..."]
         return "\n".join(output)
 
+    @cached_property
+    def history(self) -> list[str]:
+        hist = [str(self.traits.get("decomp")) or ""]
+        for kid in self.children:
+            hist.extend(kid.history)
+        return hist
+
     # TODO Redo printing of information to be more coherent with other methods
-    def info(self, level: logger.LogLevel = "debug", max_lines: int = 10) -> None:
+    def info(self, level: logger.LogLevel = "info", max_lines: int = 10) -> None:
         """Log the Object's hierarchy, with full header info."""
         # Quit early if we can't print the output
         if log.level > getattr(logging, level.upper()):
@@ -276,6 +293,11 @@ class Object:
         new_children = []
         for kid in self.children:
             flat_kid = kid.flatten()
+            # We can't currently flatten containers with cutouts. Food for thought?
+            if any([gkid.category == "Cutout" for gkid in flat_kid.children]):
+                new_children.append(flat_kid)
+                continue
+
             if len(flat_kid.children) == 1 or (
                 flat_kid.category == "Container" and flat_kid.color == cst.NULL_COLOR
             ):

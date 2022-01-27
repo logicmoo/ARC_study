@@ -31,6 +31,13 @@ def test_overlap():
     assert dot2.points == {(1, 1): 2}
 
 
+def test_cutout():
+    dot1 = Object(1, 1, 1)
+    cutout = Object(1, 1, cst.NEGATIVE_COLOR, children=[Object()])
+    dot2 = Object(1, 1, 2, children=[Object(), dot1, cutout])
+    assert dot2.points == {(0, 0): 2}
+
+
 def test_points_constructor():
     obj = Object.from_points([(1, 1, 1)])
     assert obj == Object(1, 1, 1)

@@ -13,7 +13,8 @@ class Constants:
     # Data specification
     N_COLORS = 11
     NULL_COLOR = 10
-    MARKED_COLOR = -1
+    NEGATIVE_COLOR = -1
+    MARKED_COLOR = -2
     MAX_ROWS = 30
     MAX_COLS = 30
 
