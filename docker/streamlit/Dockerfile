@@ -7,6 +7,8 @@ ADD requirements.txt requirements.txt
 RUN python3.10 -m pip install -r requirements.txt
 
 RUN python3.10 -m pip install streamlit==1.2.0
+
+# This resolves a conflict with NumPy's versioning
 RUN python3.10 -m pip install --upgrade numpy
 
 ADD arc arc

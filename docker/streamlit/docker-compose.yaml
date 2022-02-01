@@ -1,10 +1,10 @@
 version: "3.7"
 services:
-  arc_sl:
+  arc_ui:
     build:
       context: ${HOME}/${REPOS}/arc_study
       dockerfile: docker/streamlit/Dockerfile
-    image: arc_sl:latest
+    image: arc_ui:latest
     command: 
       - "streamlit"
       - "run"

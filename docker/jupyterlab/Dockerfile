@@ -7,4 +7,5 @@ WORKDIR /jupyterlab/
 ADD requirements.txt requirements.txt
 RUN python3.10 -m pip install -r requirements.txt
 
+# This resolves a conflict with NumPy's versioning
 RUN python3.10 -m pip install --upgrade numpy
