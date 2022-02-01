@@ -4,11 +4,13 @@ import numpy as np
 
 from arc.comparisons import get_color_diff, get_order_diff, get_translation
 from arc.util import logger
-from arc.object import Object, ObjectDelta
+from arc.object import Object, ObjectComparison, ObjectDelta
 from arc.processes import Process, MakeBase, ConnectObjects, SeparateColor
 from arc.types import BoardData
 
 log = logger.fancy_logger("Board", level=20)
+
+default_processes = [MakeBase(), ConnectObjects(), SeparateColor()]
 
 
 class Board:
@@ -22,7 +24,6 @@ class Board:
         name: An auto-generated, descriptive name for the board.
         proc_q: A priority queue for holding decomposition candidates.
         bank: Any decompositions with no further possible operations.
-
     """
 
     def __init__(
@@ -30,11 +31,12 @@ class Board:
     ):
         self.name = name
         self.rep = Object.from_grid(grid=np.array(data))
-        self.processes = processes or [MakeBase(), ConnectObjects(), SeparateColor()]
+        self.processes = processes or default_processes
 
         # Used during decomposition process
         self.proc_q = collections.deque([self.rep])
         self.bank: list[Object] = []
+        self.inventory: Inventory = Inventory(Object())
 
     def select_representation(self) -> None:
         """Find the most compact representation from decomposition."""
@@ -57,7 +59,7 @@ class Board:
             log.info(f"== Begin decomposition round {ct+1}")
             log.debug("  Processing queue:")
             for obj in self.proc_q:
-                log.debug(f"  {obj}")
+                log.debug(f"  - {obj}")
             self.batch_decomposition(batch=batch)
             log.info(f"== Decomposition at {self.rep.props}p after {ct+1} rounds")
             if not self.proc_q:
@@ -88,6 +90,7 @@ class Board:
         # No children means nothing to simplify
         if len(obj.children) == 0:
             return []
+
         # Search for the first object that's not decomposed and apply decomposition
         # TODO Need to redo occlusion
         elif obj.traits.get("finished"):
@@ -103,12 +106,16 @@ class Board:
                         decompositions.append(new_obj)
                     break
             return decompositions
-
-        # TODO
-        # Begin decomposition process:  check for existing context representations
-        if check := find_closest(obj, [], threshold=0.75):
-            # banked = check.right.spawn()
-            pass
+        elif match := self.inventory.find_closest(obj, threshold=4):
+            log.debug(f"Match at distance: {match.dist}")
+            log.debug(f"  {obj} to")
+            log.debug(f"  {match.right}")
+            # TODO: Figure out full set of operations/links we need for use
+            # of objects prescribed from context.
+            linked = match.right.spawn(anchor=obj.anchor)
+            linked.traits["decomp"] = "Ctxt"
+            linked.traits["finished"] = True
+            return [linked]
 
         candidates = self.generate_candidates(obj)
         for candidate in candidates:
@@ -125,22 +132,44 @@ class Board:
 
         return candidates
 
+    def set_inventory(self, obj: Object) -> None:
+        self.inventory = Inventory(obj)
+
 
 default_comparisons = [get_order_diff, get_color_diff, get_translation]
 
 
-def find_closest(
-    obj: Object, inventory: list[Object], threshold: float = None
-) -> ObjectDelta | None:
-    if not inventory:
-        return None
-    match = ObjectDelta(obj, inventory[0], comparisons=default_comparisons)
-    for source in inventory[1:]:
-        delta = ObjectDelta(obj, source, comparisons=default_comparisons)
-        if delta.dist < match.dist:
-            match = delta
-    if threshold is not None and match.dist > threshold:
-        log.debug(f"{obj} No matches meeting threshold (best {match.dist})")
-        return None
-    log.info(f"{obj} Match! Distance: {match.dist}")
-    return match
+class Inventory:
+    def __init__(
+        self, obj: Object, comparisons: list[ObjectComparison] = default_comparisons
+    ):
+        self.inventory = self.create_inventory(obj)
+        self.comparisons = comparisons
+
+    def create_inventory(self, obj: Object) -> dict[int, list[Object]]:
+        """Recursively find all non-Dot objects in the hierarchy."""
+        inventory: dict[int, list[Object]] = collections.defaultdict(list)
+        if obj.category == "Dot":
+            return {}
+        inventory[obj.size].append(obj)
+        for kid in obj.children:
+            child_inv = self.create_inventory(kid)
+            for key, obj_list in child_inv.items():
+                inventory[key].extend(obj_list)
+        return inventory
+
+    def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
+        candidates = self.inventory.get(obj.size, [])
+        if not candidates:
+            return None
+        best = threshold + 0.5
+        match = None
+        for candidate in candidates:
+            delta = ObjectDelta(obj, candidate, comparisons=self.comparisons)
+            if delta.dist < best:
+                match = delta
+                best = delta.dist
+        if not match:
+            log.debug(f"No matches meeting threshold: {threshold}")
+            return None
+        return match

@@ -20,6 +20,7 @@ class Constants:
 
     # Processing
     MAX_DIST = 10000
+    CHILD_DIST = 2  # TODO: Additional measure of distance when comparing children?
     BATCH = 10  # Number of decomposition candidates to keep in a round
     MAX_ITER = 10  # Maximum rounds of decomposition
 

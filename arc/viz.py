@@ -1,6 +1,7 @@
 from typing import TypeAlias, TypedDict
 import matplotlib
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -10,11 +11,11 @@ class PlotDef(TypedDict):
     name: str
 
 
-Layout: TypeAlias = list[list[PlotDef | None]]
+Layout: TypeAlias = list[list[PlotDef]]
 
 color_map = matplotlib.colors.ListedColormap(  # type: ignore
     [
-        "#555555",
+        "#888888",
         "#000000",
         "#0074D9",
         "#FF2222",
@@ -25,16 +26,17 @@ color_map = matplotlib.colors.ListedColormap(  # type: ignore
         "#FF8C00",
         "#7FDBFF",
         "#870C25",
-        "#555555",
+        "#444444",
     ]
 )
 norm = matplotlib.colors.Normalize(vmin=-1, vmax=10)  # type: ignore
 
 
 def plot_color_map() -> Figure:
-    # -1, 10: dark grey (transparent for purposes of a board)
+    # -1: light grey, (for Cutout)
     # 0:black, 1:blue, 2:red, 3:greed, 4:yellow,
     # 5:gray, 6:magenta, 7:orange, 8:sky, 9:brown
+    # 10: dark grey, (for Transparency)
     fig = plt.figure(figsize=(3, 1), dpi=200)
     plt.imshow([list(range(11))], cmap=color_map, norm=norm)
     plt.xticks(list(range(11)))
@@ -43,36 +45,37 @@ def plot_color_map() -> Figure:
 
 
 def plot_layout(layout: Layout, scale: float = 1.0, show_axis: bool = True) -> Figure:
+    """Plot a 2D array of grids specified by a Layout.
+
+    A jagged Layout (uneven row lengths) is handled in this function.
+    """
     M, N = len(layout), max([len(row) for row in layout])
-    fig, axs = plt.subplots(M, N, figsize=(10 * scale, 10 * scale), dpi=100)
-    for r, row in enumerate(layout):
-        for c, args in enumerate(row):
-            if M == 1 and N == 1:
-                curr = axs
-            elif M == 1:
-                curr = axs[c]
-            elif N == 1:
-                curr = axs[r]
-            else:
-                curr = axs[r][c]
-            if args is None:
-                curr.axis("off")
+    fig, axs = plt.subplots(M, N, squeeze=False, figsize=(2 * N * scale, 2 * M * scale))
+    for r_idx, row in enumerate(layout):
+        for c_idx in range(N):
+            curr_axes = axs[r_idx][c_idx]
+            if c_idx >= len(row):
+                curr_axes.axis("off")
                 continue
-            if not show_axis:
-                curr.axis("off")
-            grid = args["grid"]
-            curr.set_title(args["name"], {"fontsize": 6})
-            curr.imshow(grid, cmap=color_map, norm=norm)
-            curr.set_yticks(list(range(grid.shape[0])))
-            curr.set_xticks(list(range(grid.shape[1])))
+            args = row[c_idx]
+            _add_plot(args["grid"], curr_axes, args["name"], show_axis)
     plt.tight_layout()
     return fig
 
 
-def plot_grid(grid: np.ndarray) -> Figure:
-    fig, axs = plt.subplots(1, 1, figsize=(4, 4), dpi=50)
-    axs.imshow(grid, cmap=color_map, norm=norm)
-    axs.set_yticks(list(range(grid.shape[0])))
-    axs.set_xticks(list(range(grid.shape[1])))
-    # plt.tight_layout()
+def plot_grid(grid: np.ndarray, title: str = "", show_axis: bool = True) -> Figure:
+    fig, axes = plt.subplots(1, 1, figsize=(4, 4))
+    _add_plot(grid, axes, title=title, show_axis=show_axis)
     return fig
+
+
+def _add_plot(
+    grid: np.ndarray, axes: Axes, title: str = "", show_axis: bool = True
+) -> None:
+    """Plot an ARC grid, uses axes if supplied."""
+    axes.set_title(title, {"fontsize": 8})
+    if not show_axis:
+        axes.axis("off")
+    axes.imshow(grid, cmap=color_map, norm=norm)
+    axes.set_yticks(list(range(grid.shape[0])))
+    axes.set_xticks(list(range(grid.shape[1])))

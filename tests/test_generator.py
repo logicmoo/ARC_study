@@ -2,6 +2,7 @@ import numpy as np
 
 from arc.object import Object
 from arc.generator import Generator
+from arc.definitions import Constants as cst
 
 
 def test_line():
@@ -28,6 +29,14 @@ def test_chessboard():
     gen = Generator.from_codes(["R3", "C3"])
     cb = Object(children=[tile2x2], generator=gen)
     assert np.array_equal(cb.grid, np.tile(tile_grid, (4, 4)))
+
+
+def test_3x_generator():
+    checked = Generator.from_codes(["dr1", "dd1", "rr1"])
+    obj = Object(color=1, generator=checked)
+    true_grid = np.tile([[1, cst.NULL_COLOR], [cst.NULL_COLOR, 1]], (2, 2))
+    assert obj.category == "Compound"
+    assert np.array_equal(obj.grid, true_grid)
 
 
 def test_deep_generators():

@@ -1,5 +1,7 @@
 from arc.viz import Layout, PlotDef
 from arc.object import Object, ObjectDelta
+from arc.scene import Scene
+from arc.task import Task
 
 
 def tree_layout(obj: Object) -> Layout:
@@ -10,32 +12,40 @@ def tree_layout(obj: Object) -> Layout:
         objs = [
             kid for obj in objs for kid in obj.children if not kid.category == "Dot"
         ]
-
-    # Pad the layout with blanks so each row has a fixed size
-    max_width = max([len(row) for row in layout])
-    for row in layout:
-        for i in range(max_width - len(row)):
-            row.append(None)
     return layout
 
 
-def match_layout(path: list[ObjectDelta]) -> Layout:
+def task_layout(task: Task, **kwargs) -> Layout:
+    layout: Layout = [[], []]
+    for scene_idx, scene in enumerate(task.cases):
+        layout[0].append(
+            {"grid": scene.input.rep.grid, "name": f"Case {scene_idx}: Input"}
+        )
+        layout[1].append(
+            {"grid": scene.output.rep.grid, "name": f"Case {scene_idx}: Output"}
+        )
+    for scene_idx, scene in enumerate(task.tests):
+        layout[0].append(
+            {"grid": scene.input.rep.grid, "name": f"Test {scene_idx}: Input"}
+        )
+        layout[1].append(
+            {"grid": scene.output.rep.grid, "name": f"Test {scene_idx}: Output"}
+        )
+    return layout
+
+
+def scene_layout(scene: Scene) -> Layout:
+    inp_obj, out_obj = scene.input.rep, scene.output.rep
+    left: PlotDef = {"grid": inp_obj.grid, "name": "Input"}
+    right: PlotDef = {"grid": out_obj.grid, "name": "Output"}
+    return [[left, right]]
+
+
+def match_layout(scene: Scene) -> Layout:
     layout: Layout = []
-    for delta in path:
+    for delta in scene._path:
         inp, out, trans = delta.right, delta.left, delta.transform
         left: PlotDef = {"grid": inp.grid, "name": inp.category}
         right: PlotDef = {"grid": out.grid, "name": str(trans.items())}
         layout.append([left, right])
     return layout
-
-
-# def leaf_layout(inp, out=None):
-#     in_row = []
-#     for obj in inp.inventory(leaf_only=True):
-#         in_row.append({"grid": obj.grid, "name": obj._name})
-#     out_row = []
-#     for obj in out.inventory(leaf_only=True):
-#         out_row.append({"grid": obj.grid, "name": obj._name})
-#     pad_check = sorted([in_row, out_row], key=lambda x: len(x))
-#     pad_check[0] += [0] * (len(pad_check[1]) - len(pad_check[0]))
-#     return [in_row, out_row]

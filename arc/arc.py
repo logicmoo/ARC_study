@@ -3,13 +3,19 @@ import json
 import logging
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 from arc.definitions import Constants as cst
 from arc.task import Task
 from arc.util import logger
 
 log = logger.fancy_logger("ARC", level=20)
+
+Index: TypeAlias = int | str | tuple[int, int] | tuple[int, int, str]
+
+
+class FailedSolve(Exception):
+    pass
 
 
 class ARC:
@@ -55,9 +61,9 @@ class ARC:
         with open(f"{pid}.pkl", "wb") as fh:
             pickle.dump(self, fh)
 
-    def __getitem__(self, arg: int | tuple[int, int] | tuple[int, int, str]) -> Any:
+    def __getitem__(self, index: Index) -> Any:
         """Convenience method so the user has easy access to ARC elements."""
-        match arg:  # pragma: no cover
+        match index:  # pragma: no cover
             case int(task_idx):
                 return self.tasks[task_idx]
             case (task_idx, scene_idx):
@@ -129,13 +135,11 @@ class ARC:
 
     def solve_tasks(self, N: int = None) -> None:
         """TODO needs updating"""
-        N = N or self.N
         for idx in self.selection:
-            if idx >= N:
-                break
             log.info(f"Solving Task {idx}")
             try:
                 self.tasks[idx].complete_run()
             except Exception as exc:
                 msg = f"{type(exc).__name__} {exc}"
-                log.warning(f"Failed solve of task {idx} {msg}")
+                log.warning(f"Error during solve of task {idx} {msg}")
+                raise FailedSolve from exc

@@ -65,24 +65,6 @@ class Task:
         log.info(f"Task {self.idx} UID = {self.uid} | First input board:")
         log.info(self.raw["train"][0]["input"], extra={"fmt": "bare"})
 
-    def plot(self, **kwargs) -> Figure:
-        layout: Layout = [[], []]
-        for scene_idx, scene in enumerate(self.cases):
-            layout[0].append(
-                {"grid": scene.input.rep.grid, "name": f"Case {scene_idx}: Input"}
-            )
-            layout[1].append(
-                {"grid": scene.output.rep.grid, "name": f"Case {scene_idx}: Output"}
-            )
-        for scene_idx, scene in enumerate(self.tests):
-            layout[0].append(
-                {"grid": scene.input.rep.grid, "name": f"Test {scene_idx}: Input"}
-            )
-            layout[1].append(
-                {"grid": scene.output.rep.grid, "name": f"Test {scene_idx}: Output"}
-            )
-        return plot_layout(layout, **kwargs)
-
     @property
     def ppp(self) -> float:
         """Average properties-per-point across cases."""
@@ -102,25 +84,25 @@ class Task:
         """Execute every step of the solution pipeline for the Task."""
         self.decompose()
         self.match()
-        self.solve()
-        self.test()
+        # self.solve()
+        # self.test()
 
     def decompose(self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
         # TODO apply context
+        log.info(f" + Decomposition")
         for scene in self.cases:
-            log.info(f" ++ Decomposing ({self.idx}, {scene.idx}) for {max_iter} rounds")
             scene.decompose(batch=batch, max_iter=max_iter)
-            log.info(f"Scene PpP -> {scene.ppp:.3f}")
-        log.info(f"Average PpP -> {self.ppp:.3f}")
+        scene_ppps = [round(scene.ppp, 2) for scene in self.cases]
+        log.info(f"Scene PpPs {scene_ppps} -> avg {self.ppp:.3f}")
 
     def match(self) -> None:
         """Match input and output objects for each case."""
+        log.info(f" + Matching")
         for scene in self.cases:
-            log.info(f" ++ Matching ({self.idx}, {scene.idx})")
             scene.match()
-            log.info(f"Scene distance -> {scene.dist}")
-        log.info(f"Average Distance -> {self.dist:.1f}")
+        scene_dists = [scene.dist for scene in self.cases]
+        log.info(f"Scene distances {scene_dists} -> avg {self.dist:.1f}")
 
     # TODO Below needs review/updating
     def select(self):

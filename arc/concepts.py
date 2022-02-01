@@ -37,7 +37,7 @@ class Action:
     @classmethod
     def move(cls, object: "Object", dr: int, dc: int) -> "Object":
         """Returns a new Object/Shape with transformed coordinates"""
-        a_row, a_col, color = object.seed
+        a_row, a_col, color = object.anchor
         return object.spawn((a_row + dr, a_col + dc, color))
 
     @classmethod
@@ -122,13 +122,13 @@ class Action:
         turned = object.grid
         for i in range(num):
             turned = np.rot90(turned)
-        return object.__class__.from_grid(grid=turned, seed=object.seed)
+        return object.__class__.from_grid(grid=turned, anchor=object.anchor)
 
     @classmethod
     def flip(cls, object: "Object", axis: int) -> "Object":
         """Flip the object via the specified axis."""
         grid = np.flip(object.grid, axis)
-        return object.__class__.from_grid(grid=grid, seed=object.seed)
+        return object.__class__.from_grid(grid=grid, anchor=object.anchor)
 
     @classmethod
     def flip_v(cls, object: "Object") -> "Object":
@@ -141,4 +141,4 @@ class Action:
     ## COLOR
     @classmethod
     def recolor(cls, object: "Object", color: int) -> "Object":
-        return object.spawn(seed=(*object.loc, color))
+        return object.spawn(anchor=(*object.loc, color))

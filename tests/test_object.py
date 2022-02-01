@@ -9,13 +9,13 @@ def test_basics():
     """Test the simple properties of objects: row, column, color, inheritance."""
     dot1 = Object()
     assert dot1.loc == (0, 0)
-    assert dot1.seed == (0, 0, cst.NULL_COLOR)
+    assert dot1.anchor == (0, 0, cst.NULL_COLOR)
     assert dot1.shape == (1, 1)
     assert dot1.size == 1
     assert dot1.category == "Dot"
 
     cluster1 = Object(1, 1, 1, children=[Object(0, 0, 2), Object(1, 1)])
-    assert cluster1.seed == (1, 1, 1)
+    assert cluster1.anchor == (1, 1, 1)
     assert (cluster1.grid == np.array([[2, cst.NULL_COLOR], [cst.NULL_COLOR, 1]])).all()
     assert cluster1.shape == (2, 2)
     assert cluster1.size == 2
@@ -46,7 +46,7 @@ def test_points_constructor():
 def test_grid_constructor():
     grid = np.array([[0, 1], [1, 0]])
     obj = Object.from_grid(grid)
-    assert obj.seed == (0, 0, cst.NULL_COLOR)
+    assert obj.anchor == (0, 0, cst.NULL_COLOR)
     assert obj.points == {(0, 0): 0, (0, 1): 1, (1, 0): 1, (1, 1): 0}
     assert obj.shape == (2, 2)
     assert obj.size == 4
@@ -62,7 +62,7 @@ def test_comparisons():
     assert dot1 != dot2
     assert not dot1.sim(dot2)
     assert dot1.sil(dot2)
-    assert dot1 < dot2  # Compares seed (here color is smaller)
+    assert dot1 < dot2  # Compares anchor (here color is smaller)
 
     # Two adjacent pointsdefined different ways, obj3 is translated
     obj1 = Object.from_grid(np.array([[0, 1]]))
@@ -73,7 +73,7 @@ def test_comparisons():
     assert obj1 != obj3
     assert obj1.sim(obj3)
     assert obj1.sil(obj3)
-    assert obj1 < obj3  # Compares seed (here row is smaller)
+    assert obj1 < obj3  # Compares anchor (here row is smaller)
 
     # Compare the first children of these objects
     assert obj2[0] == obj3[0]

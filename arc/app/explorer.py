@@ -1,3 +1,4 @@
+import numpy as np
 import streamlit as st
 
 from arc.app.settings import Settings
@@ -6,17 +7,16 @@ from arc.app.util import cached_plot
 
 def explorer():
     _arc = st.session_state.arc
-    pages = []
-    grid = [[] for i in range(Settings.grid_width)]
-    curr_col = 0
-    for i in _arc.selection:
-        grid[curr_col].append(i)
-        curr_col = (curr_col + 1) % Settings.grid_width
-        if len(grid[-1]) >= Settings.grid_height:
-            pages.append(grid)
-            grid = [[] for i in range(Settings.grid_width)]
+    pages: dict[int, list[list[int]]] = {}
+    tasks = list(_arc.selection)
+    H, W = Settings.grid_height, Settings.grid_width
+    page_size = H * W
+    for page_idx in range(len(tasks) // page_size + 1):
+        base_idx = page_idx * page_size
+        page = np.array(tasks[base_idx : base_idx + page_size])
+        page.resize(page_size)
+        pages[page_idx] = page.reshape((W, H), order="F").tolist()
 
-    pages.append(grid)
     page_idx = 0
     title_col, slider_col, _ = st.columns([3, 1, 1])
     with title_col:
@@ -28,10 +28,10 @@ def explorer():
             )
 
     grid = pages[int(page_idx)]
-    columns = st.columns(Settings.grid_width)
+    columns = st.columns(W)
     for column, task_idxs in zip(columns, grid):
         with column:
-            for task_idx in task_idxs:
+            for task_idx in filter(None, task_idxs):
 
                 def on_click(_idx: int):
                     def action():

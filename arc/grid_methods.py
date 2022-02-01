@@ -9,9 +9,9 @@ from arc.types import PointDict, PointList, Position
 
 
 def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
-    """Calculate the seed (min row and col) of a list of points and norm them.
+    """Calculate the anchor (min row and col) of a list of points and norm them.
 
-    Returns a tuple: seed coordinates, normalized point list.
+    Returns a tuple: anchor coordinates, normalized point list.
     """
     minrow, mincol = cst.MAX_ROWS, cst.MAX_COLS
     monochrome = True
@@ -73,7 +73,7 @@ def color_connect(marked: np.ndarray, max_ct: int = 10) -> tuple[list[PointList]
     for start in zip(*np.where(marked != cst.MARKED_COLOR)):
         if marked[start] == cst.MARKED_COLOR:
             continue
-        pts = get_blob(marked, start)
+        pts = get_blob(marked, start)  # type: ignore
         max_size = max(max_size, len(pts))
         blobs.append(pts)
         if len(blobs) > max_ct:
@@ -86,7 +86,7 @@ def color_connect(marked: np.ndarray, max_ct: int = 10) -> tuple[list[PointList]
 
 
 # TODO Review
-def get_blob(marked, start):
+def get_blob(marked: np.ndarray, start: Position):
     M, N = marked.shape
     pts = [(*start, marked[start])]
     marked[start] = cst.MARKED_COLOR

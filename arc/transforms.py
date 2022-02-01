@@ -10,7 +10,7 @@ code_trait_map = {
     "r": "col",
 }
 
-traits = ["category", "seed", "color", "size", "big", "width"]
+traits = ["category", "anchor", "color", "size", "big", "width"]
 
 
 def const_map(group, code):

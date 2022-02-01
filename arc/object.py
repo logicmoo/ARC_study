@@ -41,7 +41,7 @@ class Object:
     ## Constructors
     @classmethod
     def from_grid(
-        cls, grid: np.ndarray, seed: Point = (0, 0, cst.NULL_COLOR), name: str = ""
+        cls, grid: np.ndarray, anchor: Point = (0, 0, cst.NULL_COLOR), name: str = ""
     ) -> "Object":
         children = []
         M, N = grid.shape
@@ -49,7 +49,7 @@ class Object:
             for j in range(N):
                 if grid[i, j] != cst.NULL_COLOR:
                     children.append(cls(i, j, grid[i, j]))
-        return cls(*seed, children=children, name=name)
+        return cls(*anchor, children=children, name=name)
 
     @classmethod
     def from_points(
@@ -78,7 +78,7 @@ class Object:
         return (self.row, self.col)
 
     @property
-    def seed(self) -> tuple[int, int, int]:
+    def anchor(self) -> tuple[int, int, int]:
         """The *local* position and color information of the Object."""
         return (self.row, self.col, self.color)
 
@@ -91,7 +91,7 @@ class Object:
             color=self.color,
             children=[obj.normalized for obj in self.children],
         )
-        new_obj = Object(*self.seed, children=self.generator.materialize(kernel))
+        new_obj = Object(*self.anchor, children=self.generator.materialize(kernel))
         return new_obj
 
     @cached_property
@@ -118,8 +118,8 @@ class Object:
 
     @cached_property
     def locs(self) -> PositionList:
-        """Contains list of coordinates relative to the object's seed location"""
-        return list(self.points.keys())
+        """Contains list of coordinates relative to the object's anchor location"""
+        return sorted(list(self.points.keys()))
 
     @cached_property
     def grid(self) -> np.ndarray:
@@ -167,11 +167,11 @@ class Object:
         return (maxrow + 1, maxcol + 1)
 
     # TODO Unused, eliminate?
-    @cached_property
-    def center(self):
-        row = self.seed[0] + (self.shape[0] - 1) / 2
-        col = self.seed[1] + (self.shape[1] - 1) / 2
-        return (row, col)
+    # @cached_property
+    # def center(self):
+    #     row = self.anchor[0] + (self.shape[0] - 1) / 2
+    #     col = self.anchor[1] + (self.shape[1] - 1) / 2
+    #     return (row, col)
 
     ## Comparisons
     def __eq__(self, other: "Object") -> bool:
@@ -194,8 +194,8 @@ class Object:
             return self.size < other.size
         elif self.shape != other.shape:
             return self.shape < other.shape
-        elif self.seed != other.seed:
-            return self.seed < other.seed
+        elif self.anchor != other.anchor:
+            return self.anchor < other.anchor
         else:
             return False
 
@@ -214,8 +214,7 @@ class Object:
             shape_str = ""
         else:
             shape_str = f"({self.shape[0]}x{self.shape[1]})"
-        link = "*" if self.traits.get("decomp") == "Scene" else ""
-        return f"{link}{self.category}{shape_str}@{self.seed}"
+        return f"{self.category}{shape_str}@{self.anchor}"
 
     def __repr__(self) -> str:
         """One line description of what the object is"""
@@ -262,10 +261,10 @@ class Object:
         for line in self._hier_repr().split("\n"):
             getattr(log, level)(line)
 
-    def spawn(self, seed: tuple[int, int, int] = None, **kwargs) -> "Object":
-        seed = seed or self.seed
+    def spawn(self, anchor: tuple[int, int, int] = None, **kwargs) -> "Object":
+        anchor = anchor or self.anchor
         if self.category == "Dot":
-            return Object(*seed)
+            return Object(*anchor)
         # Perhaps altering children isn't necessary in most cases
         new_args = {
             "children": [kid.spawn() for kid in self.children],
@@ -273,7 +272,7 @@ class Object:
             "traits": None if self.traits is None else self.traits.copy(),
         }
         new_args.update(kwargs)
-        return Object(*seed, **new_args)
+        return Object(*anchor, **new_args)
 
     def flatten(self) -> "Object":
         """Eliminate unnecessary hierchical levels in Object representation.
@@ -305,11 +304,11 @@ class Object:
                 uplevel = []
                 for gkid in flat_kid.children:
                     row, col = gkid.row + kid.row, gkid.col + kid.col
-                    uplevel.append(gkid.spawn(seed=(row, col, gkid.color)))
+                    uplevel.append(gkid.spawn(anchor=(row, col, gkid.color)))
                 new_children.extend(uplevel)
             else:
                 new_children.append(flat_kid)
-        return self.spawn(self.seed, children=new_children)
+        return self.spawn(self.anchor, children=new_children)
 
     def overlap(self, other: "Object") -> tuple[float, float]:
         ct = np.sum(self.grid == other.grid)
@@ -325,7 +324,7 @@ class Object:
         for achieving success in applications.
         """
         # When we have a contextual reference, we already "know" the object
-        if self.traits.get("decomp") == "scene":
+        if self.traits.get("decomp") == "Ctxt":
             return 1
 
         # Calculate local information used (self existence, positions, and color)
@@ -355,24 +354,6 @@ class Object:
         # TODO The product of individual dimension order fraction is almost certainly wrong...
         # Also, the "default" order should be the full size of the dimension, not 1
         return (row_o[0], col_o[0], row_o[1] * col_o[1])
-
-    # TODO: WIP
-    def inventory(self, leaf_only=False, depth=0, max_dots=10):
-        if self.category == "Dot":
-            return [self]
-        elif self.category == "Cluster":
-            # If we have a cluster, only accept child dots if there aren't many
-            if len(self.children) <= max_dots:
-                return [self] + self.children
-            else:
-                return [self]
-        res = [self]
-        if leaf_only and self.children:
-            res = []
-        for kid in self.children:
-            add = kid.inventory(leaf_only=leaf_only, depth=depth + 1, max_dots=max_dots)
-            res.extend(add)
-        return res
 
 
 ObjectComparison: TypeAlias = Callable[[Object, Object], tuple[int, dict[str, Any]]]

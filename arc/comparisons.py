@@ -66,7 +66,7 @@ def get_translation(left: Object, right: Object) -> tuple[int, dict[str, Any]]:
     if r1 == 0 and c1 == 0:
         dist += 1
         transform["z"] = 0
-    elif r2 != r1:
+    if r2 != r1:
         # Justifying a single dimension is also special
         if r1 == 0:
             dist += 1
@@ -74,7 +74,7 @@ def get_translation(left: Object, right: Object) -> tuple[int, dict[str, Any]]:
         else:
             dist += 2
             transform["w"] = r1 - r2
-    elif c2 != c1:
+    if c2 != c1:
         if c1 == 0:
             dist += 1
             transform["j"] = 1

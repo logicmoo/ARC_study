@@ -36,7 +36,7 @@ class Process(ABC):
         cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
         log.debug(f"  Cutting {len(cut_points)} points as patch")
         loc = output.loc
-        out = output.spawn(seed=(0, 0, output.color))
+        out = output.spawn(anchor=(0, 0, output.color))
         cutout = Object.from_points(cut_points)
         cutout.traits["decomp"] = "Cut"
         # TODO: For now, assume we only patch up near a complete representation
@@ -116,7 +116,7 @@ class MakeBase(Process):
         background.traits["decomp"] = "Base"
         background.traits["finished"] = True
         front = Object.from_points(front_points)
-        result = Object(*obj.seed, children=[background, front])
+        result = Object(*obj.anchor, children=[background, front])
         result.traits["decomp"] = f"MB{color}"
         result.traits["finished"] = True
         result = self.patch(obj, result)

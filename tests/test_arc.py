@@ -1,8 +1,9 @@
 import os
 
 import numpy as np
+import pytest
 
-from arc.arc import ARC
+from arc.arc import ARC, FailedSolve
 
 
 def test_pickling() -> None:
@@ -34,3 +35,12 @@ def test_selection() -> None:
 
     arc.select(selection={1, 3}, selector={"small"})
     assert arc.selection == {1}
+
+
+def test_complete_run() -> None:
+    arc = ARC(idxs={1})
+    with pytest.raises(FailedSolve):
+        arc.solve_tasks()
+
+    arc = ARC(idxs={10})
+    arc.solve_tasks()
