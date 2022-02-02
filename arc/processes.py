@@ -1,8 +1,8 @@
 from typing import Any
 import numpy as np
-from arc.contexts import Context
 from abc import ABC, abstractmethod
 from arc.generator import Generator
+from arc.types import Point, PointList, Position
 
 from arc.util import logger
 from arc.grid_methods import color_connect, point_filter
@@ -22,29 +22,41 @@ class Process(ABC):
         """Check whether we believe we should run this process."""
         return True
 
-    def patch(self, input: Object, output: Object) -> Object | None:
+    def repair(self, input: Object, output: Object) -> Object | None:
         """Repair any inconsistencies between input and output."""
         if input == output:
             return output
+
+        log.debug(f"Patching {output} -> {output}")
         # TODO: For now, assume we can't fix missing points
         missing_locs = input.points.keys() - output.points.keys()
         if missing_locs:
-            log.debug("  Extra points during patch")
+            log.debug("  Missing output points during patch")
             return None
 
         extra_locs = output.points.keys() - input.points.keys()
-        cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
-        log.debug(f"  Cutting {len(cut_points)} points as patch")
-        loc = output.loc
+        if extra_locs:
+            cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
+            log.debug(f"  Cutting {len(cut_points)} points as patch")
+            return self.add_layer(output, cut_points, "Cut")
+
+        # Some colors must be different between input and output
+        recolor_pts = []
+        for loc, color in input.points.items():
+            if output.points[loc] != color:
+                recolor_pts.append((*loc, color))
+        log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
+        return self.add_layer(output, recolor_pts, "Reco")
+
+    def add_layer(self, output: Object, points: PointList, tag: str) -> Object:
         out = output.spawn(anchor=(0, 0, output.color))
-        cutout = Object.from_points(cut_points)
-        cutout.traits["decomp"] = "Cut"
-        # TODO: For now, assume we only patch up near a complete representation
-        cutout.traits["finished"] = True
-        cut_container = Object(*loc, children=[out, cutout])
-        cut_container.traits["decomp"] = output.traits["decomp"]
-        cut_container.traits["finished"] = output.traits["finished"]
-        return cut_container
+        layer = Object.from_points(points)
+        layer.traits["finished"] = True
+        layer.traits["decomp"] = tag
+        container = Object(*output.loc, children=[out, layer])
+        container.traits["decomp"] = output.traits["decomp"]
+        container.traits["finished"] = output.traits["finished"]
+        return container
 
     @abstractmethod
     def run(self, obj: Object) -> Object | None:
@@ -73,11 +85,11 @@ class SeparateColor(Process):
         match_pts, other_pts = point_filter(obj.points, color)
         match = Object.from_points(match_pts)
         other = Object.from_points(other_pts)
-        result = Object(*obj.loc, children=[match, other])
-        result.traits["decomp"] = f"SC{color}"
-        result.traits["finished"] = True
-        self.success(result)
-        return result
+        candidate = Object(*obj.loc, children=[match, other])
+        candidate.traits["decomp"] = f"SC{color}"
+        candidate.traits["finished"] = True
+        self.success(candidate)
+        return candidate
 
 
 class MakeBase(Process):
@@ -102,13 +114,13 @@ class MakeBase(Process):
 
         # For a single color present, this simplifies to a single line/rect
         if len(obj.c_rank) == 1:
-            result = Object(*obj.loc, color, generator=generator)
-            result.traits["decomp"] = f"MB{color}"
-            result.traits["finished"] = True
-            result = self.patch(obj, result)
-            if result:
-                self.success(result, "single color")
-            return result
+            candidate = Object(*obj.loc, color, generator=generator)
+            candidate.traits["decomp"] = f"MB{color}"
+            candidate.traits["finished"] = True
+            candidate = self.repair(obj, candidate)
+            if candidate:
+                self.success(candidate, "single color")
+            return candidate
 
         # Split off the base color from the "front matter"
         _, front_points = point_filter(obj.points, color)
@@ -116,13 +128,13 @@ class MakeBase(Process):
         background.traits["decomp"] = "Base"
         background.traits["finished"] = True
         front = Object.from_points(front_points)
-        result = Object(*obj.anchor, children=[background, front])
-        result.traits["decomp"] = f"MB{color}"
-        result.traits["finished"] = True
-        result = self.patch(obj, result)
-        if result:
-            self.success(result)
-        return result
+        candidate = Object(*obj.anchor, children=[background, front])
+        candidate.traits["decomp"] = f"MB{color}"
+        candidate.traits["finished"] = True
+        candidate = self.repair(obj, candidate)
+        if candidate:
+            self.success(candidate)
+        return candidate
 
 
 class ConnectObjects(Process):
@@ -143,17 +155,26 @@ class ConnectObjects(Process):
         for idx, pts in enumerate(obj_pts):
             name = f"Conn{idx}"
             children.append(Object.from_points(pts, name=name))
-        result = Object(*obj.loc, children=children)
-        result.traits["decomp"] = "CO"
-        result.traits["finished"] = True
-        self.success(result)
-        return result
+        candidate = Object(*obj.loc, children=children)
+        candidate.traits["decomp"] = "CO"
+        candidate.traits["finished"] = True
+        self.success(candidate)
+        return candidate
 
 
 class Tiling(Process):
-    def run(self, obj: Object) -> dict[str, Any] | None:
+    """Determine an optimal tiling of the object.
+
+    First, determine the most probable size for a unit cell (R, C).
+    Then, loop through each point in the unit cell and determine the color
+    by majority vote.
+    """
+
+    def run(self, obj: Object) -> Object | None:
+        self.info(obj)
         R, C, _ = obj.order
-        # If there's no tiling order, try making a base layer
+        # TODO: Consider whether the 1x1 order situation can replace
+        # using MakeBase for rect-decomp
         if R == 1 and C == 1:
             return None
         # Check for a uniaxial tiling, indicated by a "1" for one of the axes
@@ -163,9 +184,9 @@ class Tiling(Process):
         elif C == 1:
             C = obj.grid.shape[1]
 
-        # Track the points in the repeated block, also which colors cause noise
-        tile_pts, noise = [], np.zeros(cst.N_COLORS)
-        # For each i,j in the repeated block, figure out the most likely color
+        # Identify each point that's part of the unit cell
+        cell_pts: list[Point] = []
+        noise = np.zeros(cst.N_COLORS)
         for i in range(R):
             for j in range(C):
                 # Count how many times each color shows up in the sub-mesh
@@ -177,22 +198,27 @@ class Tiling(Process):
                 # if task and hasattr(task.context, "noise_colors"):
                 #     for noise_color in task.context.noise_colors:
                 #         cts[noise_color] = 0
-                color = np.argmax(cts)
+                color = int(np.argmax(cts))
                 cts[color] = 0
                 noise += cts
-                tile_pts.append((i, j, color))
+                cell_pts.append((i, j, color))
         r_ct = np.ceil(obj.shape[0] / R)
         c_ct = np.ceil(obj.shape[1] / C)
         bound = None
         if obj.shape[0] % R or obj.shape[1] % C:
             bound = obj.shape
-        args = dict(
-            gens=[f"R{r_ct - 1}", f"C{c_ct - 1}"],
-            children=[dict(pts=tile_pts, name=f"TBlock({R},{C})")],
-            bound=bound,
-            name=f"Tiling({R},{C})",
-            decomposed="Tile",
+        log.debug(f"Tiling with {R}x{C} cell, bound: {bound}")
+        gen = Generator.from_codes([f"R{r_ct - 1}", f"C{c_ct - 1}"], bound=bound)
+        cell = Object.from_points(cell_pts, name=f"TBlock({R},{C})")
+        cell.traits["decomp"] = "Cell"
+        # TODO For now, assume unit cells are not worth sub-analyzing
+        cell.traits["finished"] = True
+        candidate = Object(
+            *obj.loc, generator=gen, children=[cell], name=f"Tiling({R},{C})"
         )
-        # if task:
-        #     task.context.noise += noise
-        return args
+        candidate.traits["decomp"] = "Tile"
+        candidate.traits["finished"] = True
+        candidate = self.repair(obj, candidate)
+        if candidate:
+            self.success(candidate)
+        return candidate

@@ -101,7 +101,15 @@ class Object:
             return {(0, 0): self.color}
 
         if self.generator:
-            return self.normalized.points
+            if not self.generator.bound:
+                return self.normalized.points
+
+            bounded_pts = {}
+            row_b, col_b = self.generator.bound
+            for loc, color in self.normalized.points.items():
+                if loc[0] < row_b and loc[1] < col_b:
+                    bounded_pts[loc] = color
+            return bounded_pts
 
         pts: PointDict = {}
         # NOTE The order of children determines layering, bottom first
@@ -214,7 +222,8 @@ class Object:
             shape_str = ""
         else:
             shape_str = f"({self.shape[0]}x{self.shape[1]})"
-        return f"{self.category}{shape_str}@{self.anchor}"
+        name = "" if not self.name else f" '{self.name}' "
+        return f"{self.category}{shape_str}@{self.anchor}{name}"
 
     def __repr__(self) -> str:
         """One line description of what the object is"""
@@ -269,6 +278,7 @@ class Object:
         new_args = {
             "children": [kid.spawn() for kid in self.children],
             "generator": self.generator,
+            "name": self.name,
             "traits": None if self.traits is None else self.traits.copy(),
         }
         new_args.update(kwargs)
@@ -286,7 +296,7 @@ class Object:
         # NOTE: We may also want to flatten objects with generators and non-dot
         # children; perhaps it isn't too complicated.
 
-        # Containers have no generators, and have some non-Dot children
+        # Containers are flattenable: they have no generators, and have children
         if self.category != "Container":
             return self
         new_children = []
@@ -294,6 +304,11 @@ class Object:
             flat_kid = kid.flatten()
             # We can't currently flatten containers with cutouts. Food for thought?
             if any([gkid.category == "Cutout" for gkid in flat_kid.children]):
+                new_children.append(flat_kid)
+                continue
+
+            # We can't flatten through a generator
+            if kid.generator:
                 new_children.append(flat_kid)
                 continue
 

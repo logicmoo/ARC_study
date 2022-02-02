@@ -5,7 +5,7 @@ from arc import ARC
 
 @pytest.fixture(scope="module")
 def decomposition_samples() -> ARC:
-    return ARC(idxs={8, 10, 16, 30})
+    return ARC(idxs={8, 10, 16, 17, 30})
 
 
 # NOTE: This test is a little ambiguous, as the red object
@@ -42,6 +42,16 @@ def test_16(decomposition_samples: ARC):
         "Line(3x1)@(0, 0, 3)",
         "Line(3x1)@(0, 1, 1)",
         "Line(3x1)@(0, 2, 2)",
+    ]
+
+
+def test_17(decomposition_samples: ARC):
+    board = decomposition_samples.tasks[17].cases[0].input
+    board.decompose(batch=3, max_iter=3)
+    child_names = sorted([kid._id for kid in board.rep.children])
+    assert child_names == [
+        "Cluster(15x17)@(4, 3, 0)",
+        "Tile(21x21)@(0, 0, 10) 'Tiling(6,6)' ",
     ]
 
 
