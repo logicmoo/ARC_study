@@ -40,4 +40,4 @@ def explorer():
                     return action
 
                 st.button(str(task_idx), on_click=on_click(task_idx))
-                st.image(cached_plot((task_idx, 0)))
+                st.image(cached_plot((task_idx, 0, "input")))

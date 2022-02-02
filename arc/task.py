@@ -11,7 +11,6 @@ from arc.selector import group_inputs, create_selectors, base_describe, describe
 from arc.object import Object
 from arc.transforms import const_map, t2t_map
 from arc.types import TaskData
-from arc.viz import Layout, plot_layout
 
 log = logger.fancy_logger("Task", level=20)
 

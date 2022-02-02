@@ -22,8 +22,8 @@ def init_session() -> None:
     if "arc" not in st.session_state:
         st.session_state.arc = None
 
-    if "ticker" not in st.session_state:
-        st.session_state.ticker = st.sidebar.empty()
+    if "logs" not in st.session_state:
+        st.session_state.logs = ""
 
 
 def mode_selector() -> None:
@@ -40,8 +40,7 @@ def mode_selector() -> None:
         N = 10
 
     st.session_state.arc = ARC(N=N, folder=Settings.folder)
-    # with st.session_state.ticker.container():
-    #     st.write(f"Loading ARC dataset ({N} tasks)...")
+    st.session_state.logs = f"Loading ARC dataset ({N} tasks)..."
 
 
 def task_selector() -> None:
