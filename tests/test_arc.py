@@ -22,19 +22,17 @@ def test_pickling() -> None:
 
 def test_selection() -> None:
     arc = ARC(N=5)
-    arc[1].traits.add("small")
-    arc[2].traits.add("small")
-    arc[4].traits.add("small")
+    arc.scan()
     arc.blacklist = {4}
 
     arc.select(selection={1, 3, 5})
     assert arc.selection == {1, 3, 5}
 
-    arc.select(selector={"small"})
-    assert arc.selection == {1, 2}
+    arc.select(selector={"constant_size"})
+    assert arc.selection == {2, 5}
 
-    arc.select(selection={1, 3}, selector={"small"})
-    assert arc.selection == {1}
+    arc.select(selection={2, 4}, selector={"constant_size"})
+    assert arc.selection == {2}
 
 
 def test_complete_run() -> None:

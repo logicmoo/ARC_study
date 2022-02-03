@@ -170,15 +170,21 @@ class Tiling(Process):
     by majority vote.
     """
 
+    def test(self, obj: Object) -> bool:
+        # TODO: Consider whether the 1x1 order situation can replace
+        # using MakeBase for rect-decomp
+        R, C, level = obj.order
+        if R == 1 and C == 1:
+            return False
+        if level < 0.9:
+            return False
+        return True
+
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         R, C, _ = obj.order
-        # TODO: Consider whether the 1x1 order situation can replace
-        # using MakeBase for rect-decomp
-        if R == 1 and C == 1:
-            return None
         # Check for a uniaxial tiling, indicated by a "1" for one of the axes
-        elif R == 1:
+        if R == 1:
             # NOTE this just needs to check R to switch the default axis, as above
             R = obj.grid.shape[0]
         elif C == 1:

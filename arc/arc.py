@@ -4,9 +4,11 @@ import logging
 import pickle
 from pathlib import Path
 from typing import Any, TypeAlias
+from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
+from arc.task_analysis import TaskTraits
 from arc.util import logger
 
 log = logger.fancy_logger("ARC", level=20)
@@ -49,6 +51,7 @@ class ARC:
 
         # TODO find a way to incorporate using blacklist coherently
         self.blacklist: set[int] = set([])
+        self.stats = Counter()
 
     @staticmethod
     def load(pid: str | int) -> "ARC":
@@ -112,6 +115,13 @@ class ARC:
             case {**levels}:
                 for name, loglevel in levels.items():
                     logging.getLogger(name).setLevel(loglevel)
+
+    def scan(self, methods=TaskTraits.methods) -> None:
+        self.stats = Counter()
+        for task in self.tasks.values():
+            for method in methods:
+                getattr(TaskTraits, method)(task)
+            self.stats.update(task.traits)
 
     def select(self, selector: set[str] = None, selection: set[int] = None) -> None:
         """Choose which tasks will be active, by direct selection or by a set of traits."""

@@ -17,9 +17,9 @@ def solver(task_idx: int):
     with st.expander(f"Decomposition of Scene {scene_idx}", expanded=True):
         left, right = st.columns(2)
         with left:
-            st.image(cached_plot((task_idx, int(scene_idx), "input")))
+            st.image(cached_plot((task_idx, int(scene_idx), "input"), "Tree"))
         with right:
-            st.image(cached_plot((task_idx, int(scene_idx), "output")))
+            st.image(cached_plot((task_idx, int(scene_idx), "output"), "Tree"))
 
     # Matching
     _arc[task_idx][scene_idx].match()

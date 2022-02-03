@@ -12,7 +12,7 @@ from arc.arc import Index
 
 
 @st.cache(allow_output_mutation=True, ttl=None)
-def cached_plot(plot_idx: Index) -> BytesIO:
+def cached_plot(plot_idx: Index, tag: str = "") -> BytesIO:
     _arc = st.session_state.arc
     image_buffer = BytesIO()
     fig: Figure = plot(_arc[plot_idx], show_axis=False)
