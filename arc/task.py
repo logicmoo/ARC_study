@@ -3,7 +3,7 @@ from matplotlib.figure import Figure
 import numpy as np
 
 from arc.util import logger
-from arc.concepts import Action
+from arc.actions import Action
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
 from arc.scene import Scene

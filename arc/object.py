@@ -8,6 +8,7 @@ import numpy as np
 from arc.types import Point, PointDict, PointList, Position, PositionList
 from arc.util import dictutil, logger
 from arc.grid_methods import (
+    mirror_order,
     norm_points,
     translational_order,
 )
@@ -369,6 +370,15 @@ class Object:
         # TODO The product of individual dimension order fraction is almost certainly wrong...
         # Also, the "default" order should be the full size of the dimension, not 1
         return (row_o[0], col_o[0], row_o[1] * col_o[1])
+
+    @cached_property
+    def symmetry(self) -> tuple[float, float]:
+        """Determine symmetry across axial grid reflections."""
+        if self.category == "Dot":
+            return (0, 0)
+        row_o = mirror_order(self.grid, row_axis=True)
+        col_o = mirror_order(self.grid, row_axis=False)
+        return (row_o, col_o)
 
 
 ObjectComparison: TypeAlias = Callable[[Object, Object], tuple[int, dict[str, Any]]]

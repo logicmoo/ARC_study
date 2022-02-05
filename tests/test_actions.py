@@ -1,6 +1,6 @@
 from arc.generator import Generator
 from arc.object import Object
-from arc.concepts import Action
+from arc.actions import Action
 
 
 def test_translations():

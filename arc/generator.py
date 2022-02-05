@@ -1,7 +1,7 @@
 import re
 from typing import TYPE_CHECKING, Any
 
-from arc.concepts import Action
+from arc.actions import Action
 
 if TYPE_CHECKING:
     from arc.object import Object

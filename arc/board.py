@@ -5,12 +5,25 @@ import numpy as np
 from arc.comparisons import get_color_diff, get_order_diff, get_translation
 from arc.util import logger
 from arc.object import Object, ObjectComparison, ObjectDelta
-from arc.processes import Process, MakeBase, ConnectObjects, SeparateColor, Tiling
+from arc.processes import (
+    Process,
+    MakeBase,
+    ConnectObjects,
+    Reflection,
+    SeparateColor,
+    Tiling,
+)
 from arc.types import BoardData
 
 log = logger.fancy_logger("Board", level=20)
 
-default_processes = [MakeBase(), ConnectObjects(), SeparateColor(), Tiling()]
+default_processes = [
+    MakeBase(),
+    ConnectObjects(),
+    SeparateColor(),
+    Tiling(),
+    Reflection(),
+]
 
 
 class Board:

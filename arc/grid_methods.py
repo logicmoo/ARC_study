@@ -142,3 +142,9 @@ def translational_order(grid: np.ndarray, row_axis: bool) -> list[tuple[int, flo
     for stride in range(1, grid.shape[0] // 2 + 1):
         params.append(_eval_mesh(grid, stride))
     return sorted(params, key=lambda x: x[1], reverse=True)
+
+
+def mirror_order(grid: np.ndarray, row_axis: bool) -> float:
+    """Measure and rank the order for every 2D stride"""
+    grid = grid if row_axis else grid.T
+    return np.sum(np.flip(grid, 0) == grid) / grid.size

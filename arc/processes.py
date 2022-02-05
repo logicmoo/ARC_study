@@ -215,7 +215,7 @@ class Tiling(Process):
             bound = obj.shape
         log.debug(f"Tiling with {R}x{C} cell, bound: {bound}")
         gen = Generator.from_codes([f"R{r_ct - 1}", f"C{c_ct - 1}"], bound=bound)
-        cell = Object.from_points(cell_pts, name=f"TBlock({R},{C})")
+        cell = Object.from_points(cell_pts, name=f"TCell({R},{C})")
         cell.traits["decomp"] = "Cell"
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell.traits["finished"] = True
@@ -223,6 +223,62 @@ class Tiling(Process):
             *obj.loc, generator=gen, children=[cell], name=f"Tiling({R},{C})"
         )
         candidate.traits["decomp"] = "Tile"
+        candidate.traits["finished"] = True
+        candidate = self.repair(obj, candidate)
+        if candidate:
+            self.success(candidate)
+        return candidate
+
+
+class Reflection(Process):
+    """Determine any mirror symmetries."""
+
+    threshold = 0.9
+
+    def test(self, obj: Object) -> bool:
+        r_level, c_level = obj.symmetry
+        if r_level < self.threshold and c_level < self.threshold:
+            return False
+        return True
+
+    def run(self, obj: Object) -> Object | None:
+        self.info(obj)
+        axes = [False, False]
+        R, C = obj.shape
+        rs, cs = R, C
+        if obj.symmetry[0] >= self.threshold:
+            rs = R // 2 + R % 2
+            axes[0] = True
+        if obj.symmetry[1] >= self.threshold:
+            cs = C // 2 + C % 2
+            axes[1] = True
+
+        # grid_v = np.flip(obj.grid, 0)
+        # grid_h = np.flip(obj.grid, 1)
+        # Identify each point that's part of the unit cell
+        cell_pts: list[Point] = []
+        for i in range(rs):
+            for j in range(cs):
+                base_color = obj.grid[i, j]
+
+                # TODO will need to handle noise similar to Tiling
+                # if base_color != ref_color:
+                # pass
+                if base_color != cst.NULL_COLOR:
+                    cell_pts.append((i, j, base_color))
+
+        codes = []
+        if axes[0]:
+            codes.append("d" * (rs - R % 2) + "v1")
+        if axes[1]:
+            codes.append("r" * (cs - C % 2) + "h1")
+        gen = Generator.from_codes(codes)
+        cell = Object.from_points(cell_pts)
+        cell.traits["decomp"] = "RCell"
+        # TODO For now, assume unit cells are not worth sub-analyzing
+        cell.traits["finished"] = True
+        candidate = Object(*obj.loc, generator=gen, children=[cell])
+        candidate.traits["decomp"] = "Refl"
         candidate.traits["finished"] = True
         candidate = self.repair(obj, candidate)
         if candidate:
