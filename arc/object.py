@@ -6,7 +6,7 @@ from typing import Any, Callable, TypeAlias
 import numpy as np
 
 from arc.types import Point, PointDict, PointList, Position, PositionList
-from arc.util import dictutil, logger
+from arc.util import logger
 from arc.grid_methods import (
     mirror_order,
     norm_points,
@@ -420,13 +420,17 @@ class ObjectDelta:
     def __lt__(self, other: "ObjectDelta") -> bool:
         return self.dist < other.dist
 
-    # TODO Does this make sense?
-    def __sub__(self, other):
-        """Returns a distance between transforms, used for selection grouping"""
+    def diff(self, other: "ObjectDelta") -> float:
+        """Returns a similarity measure between ObjectDeltas."""
         # First is the distance between base objects (uses ObjectDelta)
         dist = ObjectDelta(self.right, other.right, self.comparisons).dist
 
         # Then, add in the difference in transforms
-        d_xor = dictutil.dict_xor(self.transform, other.transform)
-        dist += len(d_xor)
+        self_transform = self.transform.copy()
+        for key, val in other.transform.items():
+            if key not in self_transform:
+                dist += 2
+            elif val != self_transform.pop(key):
+                dist += 1
+        dist += 2 * len(self_transform)
         return dist

@@ -10,6 +10,7 @@ def run_ui() -> None:
     """Central UI logic governing components to display."""
     init_session()
     mode_selector()
+    task_filter()
     task_selector()
 
     if st.session_state.task_idx > 0:
@@ -43,12 +44,30 @@ def mode_selector() -> None:
     st.session_state.logs = f"Loading ARC dataset ({N} tasks)..."
 
 
+def task_filter() -> None:
+    if st.session_state.arc is None:
+        st.write("No ARC dataset loaded")
+        return
+    _arc = st.session_state.arc
+    _arc.scan()
+    title = "Filter tasks"
+    options = sorted(_arc.stats.keys())
+
+    def labeler(option: int) -> str:
+        return f"{option} ({_arc.stats[option]})"
+
+    st.sidebar.multiselect(title, options, format_func=labeler, key="filters")
+    st.write(st.session_state.filters)
+
+
 def task_selector() -> None:
     if st.session_state.arc is None:
         st.write("No ARC dataset loaded")
         return
     title = "Choose a task"
-    options = [0] + list(st.session_state.arc.selection)
+    _arc = st.session_state.arc
+    _arc.select(set(st.session_state.filters))
+    options = [0] + list(_arc.selection)
 
     def labeler(option: int) -> str:
         if option == 0:

@@ -51,14 +51,14 @@ class Board:
         self.bank: list[Object] = []
         self.inventory: Inventory = Inventory(Object())
 
-    def select_representation(self) -> None:
+    def choose_representation(self) -> None:
         """Find the most compact representation from decomposition."""
         best_props = self.rep.props
         for obj in self.bank + list(self.proc_q):
             if obj.props < best_props:
                 best_props = obj.props
                 self.rep = obj.flatten()
-                log.debug(f"Selected flattened object: {self.rep}")
+                log.debug(f"Chose flattened object: {self.rep}")
 
     def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
         """Determine the optimal representation of the Board.
@@ -78,7 +78,7 @@ class Board:
             if not self.proc_q:
                 log.info("==! Ending decomposition due to empty processing queue")
                 break
-        self.select_representation()
+        self.choose_representation()
         self.rep.info("info")
 
     def batch_decomposition(self, batch: int = 10) -> None:
@@ -96,7 +96,7 @@ class Board:
             log.debug(
                 f" - Item {ct}, proc_q: {len(self.proc_q)}, bank: {len(self.bank)}"
             )
-            self.select_representation()
+            self.choose_representation()
 
     def _decomposition(self, obj: Object) -> list[Object]:
         """Attempts to find a more canonical or condensed way to represent the object"""

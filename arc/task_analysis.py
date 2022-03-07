@@ -18,7 +18,10 @@ class TaskTraits:
                 colors[color] = 1
             for color, _ in scene.output.rep.c_rank:
                 colors[color] = 1
-        task.traits.add(f"{sum(colors)}-color")
+        label = sum(colors)
+        if label > 5:
+            label = "many"
+        task.traits.add(f"{label}-color")
 
     @classmethod
     def const_size(cls, task: Task) -> None:
@@ -29,20 +32,20 @@ class TaskTraits:
 
     @classmethod
     def size(cls, task: Task) -> None:
-        small, large = (6, 6), (15, 15)
-        if all([scene.input.rep.shape <= small for scene in task.cases]) and all(
-            [scene.output.rep.shape <= small for scene in task.cases]
+        small, large = 36, 225  # e.g. 6x6 and 15x15
+        if all([scene.input.rep.size <= small for scene in task.cases]) and all(
+            [scene.output.rep.size <= small for scene in task.cases]
         ):
             task.traits.add("small")
-        elif all([scene.input.rep.shape >= large for scene in task.cases]) or all(
-            [scene.output.rep.shape >= large for scene in task.cases]
+        elif all([scene.input.rep.size >= large for scene in task.cases]) or all(
+            [scene.output.rep.size >= large for scene in task.cases]
         ):
             task.traits.add("large")
 
     @classmethod
     def tiled(cls, task: Task) -> None:
         threshold = 0.95
-        # Test if each either all inputs or outputs have high ordering
+        # Test if either all inputs or outputs have high ordering
         ordered = False
         for scene in task.cases:
             R, C, order = scene.input.rep.order
