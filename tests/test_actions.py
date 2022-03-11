@@ -30,7 +30,7 @@ def test_deformations():
     pt1 = Object(1, 1, 1)
     assert Action.scale(pt1, "R", 2) == pt1
 
-    sq_gen = Generator.from_codes(["R4", "C4"])
+    sq_gen = Generator.from_codes(["R*4", "C*4"])
     square = Object(1, 1, 1, generator=sq_gen)
 
     flat = Action.r_scale(square, 2)

@@ -107,9 +107,9 @@ class MakeBase(Process):
         codes = []
         rows, cols = obj.grid.shape
         if cols > 1:
-            codes.append(f"C{cols - 1}")
+            codes.append(f"C*{cols - 1}")
         if rows > 1:
-            codes.append(f"R{rows - 1}")
+            codes.append(f"R*{rows - 1}")
         generator = Generator.from_codes(codes) if codes else None
 
         # For a single color present, this simplifies to a single line/rect
@@ -214,7 +214,7 @@ class Tiling(Process):
         if obj.shape[0] % R or obj.shape[1] % C:
             bound = obj.shape
         log.debug(f"Tiling with {R}x{C} cell, bound: {bound}")
-        gen = Generator.from_codes([f"R{r_ct - 1}", f"C{c_ct - 1}"], bound=bound)
+        gen = Generator.from_codes([f"R*{r_ct - 1}", f"C*{c_ct - 1}"], bound=bound)
         cell = Object.from_points(cell_pts, name=f"TCell({R},{C})")
         cell.traits["decomp"] = "Cell"
         # TODO For now, assume unit cells are not worth sub-analyzing
@@ -269,9 +269,9 @@ class Reflection(Process):
 
         codes = []
         if axes[0]:
-            codes.append("d" * (rs - R % 2) + "v1")
+            codes.append("d" * (rs - R % 2) + "v")
         if axes[1]:
-            codes.append("r" * (cs - C % 2) + "h1")
+            codes.append("r" * (cs - C % 2) + "h")
         gen = Generator.from_codes(codes)
         cell = Object.from_points(cell_pts)
         cell.traits["decomp"] = "RCell"

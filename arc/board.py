@@ -40,7 +40,7 @@ class Board:
     """
 
     def __init__(
-        self, data: BoardData, name: str = "", processes: list[Process] = None
+        self, data: BoardData, name: str = "", processes: list[Process] | None = None
     ):
         self.name = name
         self.rep = Object.from_grid(grid=np.array(data))

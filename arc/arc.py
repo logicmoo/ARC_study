@@ -38,7 +38,7 @@ class ARC:
     def __init__(
         self,
         N: int = cst.N_TRAIN,
-        idxs: set[int] = None,
+        idxs: set[int] | None = None,
         folder: str = cst.FOLDER_TRAIN,
     ):
         if not idxs:
@@ -95,7 +95,7 @@ class ARC:
             f"Loaded {len(self.tasks)} Tasks, with {boards} boards and {tests} tests."
         )
 
-    def set_log(self, arg: int | dict[str, int] = None) -> None:
+    def set_log(self, arg: int | dict[str, int] | None = None) -> None:
         """Set the logging level for ARC, or any named logger.
 
         Supply {"logger_name": <level int>, ...} as a convenient way to alter log content
@@ -123,7 +123,9 @@ class ARC:
                 getattr(TaskTraits, method)(task)
             self.stats.update(task.traits)
 
-    def select(self, selector: set[str] = None, selection: set[int] = None) -> None:
+    def select(
+        self, selector: set[str] | None = None, selection: set[int] | None = None
+    ) -> None:
         """Choose which tasks will be active, by direct selection or by a set of traits."""
         all_idxs = set(self.tasks.keys())
         self.selection = (selection or all_idxs) & all_idxs
@@ -143,7 +145,7 @@ class ARC:
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
 
-    def solve_tasks(self, N: int = None) -> None:
+    def solve_tasks(self, N: int = 0) -> None:
         """TODO needs updating"""
         for idx in self.selection:
             log.info(f"Solving Task {idx}")

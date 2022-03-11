@@ -13,7 +13,7 @@ from arc.grid_methods import (
     translational_order,
 )
 from arc.definitions import Constants as cst
-from arc.generator import Generator
+from arc.generator import Generator, Transform
 
 log = logger.fancy_logger("Object", level=30)
 
@@ -24,10 +24,10 @@ class Object:
         row: int = 0,
         col: int = 0,
         color: int = cst.NULL_COLOR,
-        children: list["Object"] = None,
-        generator: Generator = None,
+        children: list["Object"] | None = None,
+        generator: Generator | None = None,
         name: str = "",
-        traits: dict[str, str | bool] = None,
+        traits: dict[str, str | int | bool] | None = None,
     ):
         self.row = row
         self.col = col
@@ -175,6 +175,14 @@ class Object:
         maxcol = max([pos[1] for pos in self.points])
         return (maxrow + 1, maxcol + 1)
 
+    @cached_property
+    def width(self) -> int:
+        return self.shape[0]
+
+    @cached_property
+    def height(self) -> int:
+        return self.shape[1]
+
     # TODO Unused, eliminate?
     # @cached_property
     # def center(self):
@@ -271,7 +279,7 @@ class Object:
         for line in self._hier_repr().split("\n"):
             getattr(log, level)(line)
 
-    def spawn(self, anchor: tuple[int, int, int] = None, **kwargs) -> "Object":
+    def spawn(self, anchor: tuple[int, int, int] | None = None, **kwargs) -> "Object":
         anchor = anchor or self.anchor
         if self.category == "Dot":
             return Object(*anchor)
@@ -381,7 +389,7 @@ class Object:
         return (row_o, col_o)
 
 
-ObjectComparison: TypeAlias = Callable[[Object, Object], tuple[int, dict[str, Any]]]
+ObjectComparison: TypeAlias = Callable[[Object, Object], list[Transform | None]]
 
 
 class ObjectDelta:
@@ -393,24 +401,46 @@ class ObjectDelta:
     """
 
     def __init__(self, obj1: Object, obj2: Object, comparisons: list[ObjectComparison]):
-        self.dist = 0
-        self.left = obj1
-        self.right = obj2
-        self.transform = {}
+        self.left: Object = obj1
+        self.right: Object = obj2
+        self.null: bool = False
+        self.generator: Generator = Generator([])
         self.comparisons = comparisons
         if obj1 == obj2:
             return
 
         for comparison in comparisons:
-            dist, trans = comparison(self.left, self.right)
-            self.dist += dist
-            self.transform.update(trans)
+            raw_transforms = comparison(self.left, self.right)
+            if None in raw_transforms:
+                self.null = True
+            self.generator.transforms.extend(filter(None, raw_transforms))
+
+    @property
+    def dist(self) -> int:
+        """Returns the 'transformation distance' metric between objects.
+
+        The transformation distance is the total number of parameters required to
+        transform the 'left' object to the 'right'. This is equal to the sum of the
+        number of Actions plus the sum of the total number of additional arguments
+        supplied to the Actions.
+        """
+        if self.null:
+            return cst.MAX_DIST
+
+        return self.generator.props
+
+    @property
+    def actions(self) -> set[Any]:
+        """Returns the set of Actions used in the transformation"""
+        return set(
+            [act for trans in self.generator.transforms for act in trans.actions]
+        )
 
     @property
     def _name(self):
         header = f"Delta({self.dist}): "
         trans = ""
-        for item in self.transform:
+        for item in self.generator.transforms:
             trans += f"{item}"
         return header + f"[{trans}]"
 
@@ -420,17 +450,6 @@ class ObjectDelta:
     def __lt__(self, other: "ObjectDelta") -> bool:
         return self.dist < other.dist
 
-    def diff(self, other: "ObjectDelta") -> float:
+    def diff(self, other: "ObjectDelta") -> int:
         """Returns a similarity measure between ObjectDeltas."""
-        # First is the distance between base objects (uses ObjectDelta)
-        dist = ObjectDelta(self.right, other.right, self.comparisons).dist
-
-        # Then, add in the difference in transforms
-        self_transform = self.transform.copy()
-        for key, val in other.transform.items():
-            if key not in self_transform:
-                dist += 2
-            elif val != self_transform.pop(key):
-                dist += 1
-        dist += 2 * len(self_transform)
-        return dist
+        return len(self.actions & other.actions)

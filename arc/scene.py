@@ -65,8 +65,8 @@ class Scene:
         )
         log.info(f"Minimal distance transformation ({self.dist}):")
         for delta in self._path:
-            obj1, obj2, trans = delta.right, delta.left, delta.transform
-            log.info(f"Tr {trans} | {obj1._id} -> {obj2._id}")
+            obj1, obj2, gen = delta.right, delta.left, delta.generator
+            log.info(f"Gen {gen} | {obj1._id} -> {obj2._id}")
 
     def recreate(
         self, obj: Object, inventory: Inventory

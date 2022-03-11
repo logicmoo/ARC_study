@@ -12,7 +12,7 @@ class Action:
     action_map = {
         "c": "recolor",
         "w": "vertical",
-        "s": "sideways",
+        "s": "horizontal",
         "f": "r_scale",  # 'flatten'
         "p": "c_scale",  # 'pinch'
         "R": "rtile",
@@ -27,6 +27,9 @@ class Action:
         "j": "justify",
         "z": "zero",
     }
+
+    def __init__(self) -> None:
+        self.rev_map = {val: key for key, val in self.action_map.items()}
 
     @classmethod
     def __getitem__(cls, code: str):
@@ -103,7 +106,7 @@ class Action:
         for trans in object.generator.transforms:
             # TODO This is temporary, it will only work with single char gens
             if len(trans.actions) == 1 and trans.actions[0] == action:
-                new_transforms.append(trans.__class__(trans.actions, value))
+                new_transforms.append(trans.__class__(trans.actions, None, value))
             else:
                 new_transforms.append(trans.spawn())
         return object.spawn(generator=object.generator.__class__(new_transforms))

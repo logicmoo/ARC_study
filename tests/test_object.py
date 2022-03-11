@@ -96,11 +96,11 @@ def test_simple_flatten():
 
 
 def test_deep_flatten():
-    l31 = Object(color=3, generator=Generator.from_codes(["R2"]))
-    l32 = Object(0, 1, 4, generator=Generator.from_codes(["R2"]))
-    l21 = Object(color=2, generator=Generator.from_codes(["R2"]))
+    l31 = Object(color=3, generator=Generator.from_codes(["R*2"]))
+    l32 = Object(0, 1, 4, generator=Generator.from_codes(["R*2"]))
+    l21 = Object(color=2, generator=Generator.from_codes(["R*2"]))
     l22 = Object(0, 1, children=[l31, l32])
-    l11 = Object(color=1, generator=Generator.from_codes(["R2"]))
+    l11 = Object(color=1, generator=Generator.from_codes(["R*2"]))
     l12 = Object(0, 1, children=[l21, l22])
     l0 = Object(children=[l11, l12])
 
