@@ -97,7 +97,7 @@ class Object:
 
     @cached_property
     def points(self) -> PointDict:
-        """Dict of all internal points defined by the Object."""
+        """Dict of all points defined by the Object and its children."""
         if self.category == "Dot":
             return {(0, 0): self.color}
 
@@ -445,7 +445,7 @@ class ObjectDelta:
         return header + f"[{trans}]"
 
     def __repr__(self) -> str:
-        return f"{self._name}: {self.right._id} -> {self.left._id}"
+        return f"{self._name}: {self.left._id} -> {self.right._id}"
 
     def __lt__(self, other: "ObjectDelta") -> bool:
         return self.dist < other.dist

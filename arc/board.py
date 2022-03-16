@@ -1,4 +1,5 @@
 import collections
+from functools import cached_property
 
 import numpy as np
 
@@ -50,6 +51,9 @@ class Board:
         self.proc_q = collections.deque([self.rep])
         self.bank: list[Object] = []
         self.inventory: Inventory = Inventory(Object())
+
+    def __repr__(self) -> str:
+        return self.rep._hier_repr()
 
     def choose_representation(self) -> None:
         """Find the most compact representation from decomposition."""
@@ -159,6 +163,10 @@ class Inventory:
         self.inventory = self.create_inventory(obj)
         self.comparisons = comparisons
 
+    @cached_property
+    def all(self) -> list[Object]:
+        return [obj for sized_objs in self.inventory.values() for obj in sized_objs]
+
     def create_inventory(self, obj: Object) -> dict[int, list[Object]]:
         """Recursively find all non-Dot objects in the hierarchy."""
         inventory: dict[int, list[Object]] = collections.defaultdict(list)
@@ -172,13 +180,16 @@ class Inventory:
         return inventory
 
     def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
+        # NOTE temporary, filtering by size assumes we can't add expand a Generator
+        # to create the object.
         candidates = self.inventory.get(obj.size, [])
+
         if not candidates:
             return None
         best = threshold + 0.5
         match = None
         for candidate in candidates:
-            delta = ObjectDelta(obj, candidate, comparisons=self.comparisons)
+            delta = ObjectDelta(candidate, obj, comparisons=self.comparisons)
             if delta.dist < best:
                 match = delta
                 best = delta.dist

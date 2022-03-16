@@ -1,5 +1,4 @@
 from arc.actions import Action
-from arc.definitions import Constants as cst
 from arc.generator import Transform
 from arc.util import logger
 from arc.object import Object
@@ -16,7 +15,7 @@ def get_order_diff(left: Object, right: Object) -> list[Transform | None]:
         if left.sil(right):
             log.debug("  Sillhouettes match")
 
-    # Without a matching silhouette, only an ordered transformation works here
+    # Without a matching silhouette, only a fully ordered transformation works here
     # NOTE Including flooding and similar ops will change this
     if left.order[2] != 1 or right.order[2] != 1:
         transforms.append(None)
@@ -24,7 +23,7 @@ def get_order_diff(left: Object, right: Object) -> list[Transform | None]:
         # There could exist one or more generators to create the other object
         for axis, code in [(0, "R"), (1, "C")]:
             if left.shape[axis] != right.shape[axis]:
-                ct = left.shape[axis]
+                ct = right.shape[axis]
                 scaler = Action.r_scale if code == "R" else Action.c_scale
                 transforms.append(Transform([scaler], [(ct,)]))
     return transforms
@@ -38,7 +37,7 @@ def get_color_diff(left: Object, right: Object) -> list[Transform | None]:
     if c1 != c2:
         # Color remapping is a basic transform
         if len(c1) == 1 and len(c2) == 1:
-            transforms.append(Transform([Action.recolor], [(list(c1)[0],)]))
+            transforms.append(Transform([Action.recolor], [(list(c2)[0],)]))
         # However, partial or multiple remapping is not
         else:
             transforms.append(None)

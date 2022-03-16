@@ -7,7 +7,6 @@ def test_translation():
     dot1 = Object(1, 1, 1)
     dot2 = Object(2, 1, 1)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
-    print(delta)
     assert delta.generator.codes == ["s1"]
 
     dot3 = Object(1, 2, 1)
@@ -32,3 +31,11 @@ def test_justification():
     dot4 = Object(0, 0, 1)
     delta = ObjectDelta(dot1, dot4, default_comparisons)
     assert delta.generator.codes == ["z"]
+
+
+def test_recoloring():
+    """Test changes in color for a given object."""
+    dot1 = Object(1, 1, 1)
+    dot2 = Object(1, 1, 4)
+    delta = ObjectDelta(dot1, dot2, default_comparisons)
+    assert delta.generator.codes == ["c4"]
