@@ -1,3 +1,4 @@
+from collections import defaultdict
 from arc.board import Board, Inventory
 from arc.contexts import SceneContext
 from arc.definitions import Constants as cst
@@ -26,9 +27,10 @@ class Scene:
         # Context is built between input/output, and might influence a redo
         self.context = SceneContext()
 
-        # Initially, we start at shallow representations and proceed outward
-        self._dist = -1
-        self._path = []
+        # A Scene aims to create a 'transformation path' between the inputs and
+        # outputs that minimizes the required parameters.
+        self._dist: float = -1
+        self.path: dict[str, list[ObjectDelta]] = {}
 
     @property
     def props(self) -> int:
@@ -56,17 +58,22 @@ class Scene:
             # self.output.decompose(batch=batch, max_iter=max_iter, source=self.input)
             log.info(f"Output decomposition at {self.output.rep.props}")
 
-    # TODO Below needs review/updating
     def match(self):
         """Identify the minimal transformation set needed from input -> output Board."""
         # TODO Handle inventory
-        self._dist, self._path = self.recreate(
-            self.output.rep, Inventory(self.input.rep)
-        )
+        self._dist, deltas = self.recreate(self.output.rep, Inventory(self.input.rep))
+
+        # Group the inputs to the match by the Generator characteristic
+        self.path = defaultdict(list)
+        for delta in deltas:
+            self.path[delta.generator.char].append(delta)
+
         log.info(f"Minimal distance transformation ({self.dist}):")
-        for delta in self._path:
-            obj1, obj2, gen = delta.right, delta.left, delta.generator
-            log.info(f"Gen {gen} | {obj1._id} -> {obj2._id}")
+        for char, deltas in self.path.items():
+            log.info(f"Generator Characteristic: {char or 'None'}")
+            for delta in deltas:
+                obj1, obj2, gen = delta.right, delta.left, delta.generator
+                log.info(f"  Gen {gen} | {obj1._id} -> {obj2._id}")
 
     def recreate(
         self, obj: Object, inventory: Inventory

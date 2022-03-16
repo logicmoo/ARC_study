@@ -14,8 +14,7 @@ def merge(d_base, d_in, loc=None):
             if isinstance(d_base[key], dict) and isinstance(d_in[key], dict):
                 merge(d_base[key], d_in[key], loc + [str(key)])
             elif isinstance(d_base[key], list) and isinstance(d_in[key], list):
-                for item in d_in[key]:
-                    d_base[key].append(item)
+                d_base[key].extend(d_in[key])
             elif d_base[key] != d_in[key]:
                 d_base[key] = d_in[key]
         else:

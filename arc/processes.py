@@ -2,7 +2,7 @@ from typing import Any
 import numpy as np
 from abc import ABC, abstractmethod
 from arc.generator import Generator
-from arc.types import Point, PointList, Position
+from arc.types import Point, PointList
 
 from arc.util import logger
 from arc.grid_methods import color_connect, point_filter

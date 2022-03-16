@@ -37,6 +37,7 @@ def plot(item: Any, **kwargs: Any) -> Figure:
             return plot_layout(task_layout(item), **kwargs)
         case _:
             log.warning(f"Unsupported class for plotting: {item.__class__.__name__}")
+            return plt.figure()
 
 
 def tree_layout(obj: Object) -> Layout:
@@ -78,11 +79,12 @@ def scene_layout(scene: Scene) -> Layout:
 
 def match_layout(scene: Scene) -> Layout:
     layout: Layout = []
-    for delta in scene._path:
-        inp, out, trans = delta.right, delta.left, delta.transform
-        left: PlotDef = {"grid": inp.grid, "name": inp.category}
-        right: PlotDef = {"grid": out.grid, "name": str(trans.items())}
-        layout.append([left, right])
+    for delta_list in scene.path.values():
+        for delta in delta_list:
+            inp, out, trans = delta.right, delta.left, delta.generator
+            left: PlotDef = {"grid": inp.grid, "name": inp.category}
+            right: PlotDef = {"grid": out.grid, "name": trans.char}
+            layout.append([left, right])
     return layout
 
 
@@ -128,7 +130,7 @@ def plot_layout(layout: Layout, scale: float = 1.0, show_axis: bool = True) -> F
     fig, axs = plt.subplots(M, N, squeeze=False, figsize=(2 * N * scale, 2 * M * scale))
     for r_idx, row in enumerate(layout):
         for c_idx in range(N):
-            curr_axes = axs[r_idx][c_idx]
+            curr_axes = axs[r_idx][c_idx]  # type: ignore
             if c_idx >= len(row):
                 curr_axes.axis("off")
                 continue

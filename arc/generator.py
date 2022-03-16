@@ -20,11 +20,12 @@ if TYPE_CHECKING:
     from arc.object import Object
 
 
-# This regex parses the series of actions represented in a Generator 'code'
+# This regex parses the series of actions represented in a Generator 'code'.
 # It expects a series of alphabet characters each optionally followed by
-# a comma-delimited set of signed integers. The trailing, optional 'count'
+# a comma-delimited set of signed integers. These correspond to an Action and
+# any associated arguments to the call. The trailing, optional 'count'
 # (represented by an asterisk and positive integer) is handled by the
-# 'count_regex' below.
+# 'count_regex' below, which indicates repeated application of the Actions.
 act_regex = re.compile(r"([a-zA-Z])(-?\d*(?:,-?\d+)*)")
 count_regex = re.compile(r"\*(\d+)")
 
@@ -51,6 +52,14 @@ class Transform:
         if self.count != 1:
             output += f" x{self.count}"
         return output
+
+    @property
+    def char(self) -> str:
+        """Characteristic of the Transform: the unique, sorted Actions involved."""
+        characteristic = set()
+        for action in self.actions:
+            characteristic.add(Action().rev_map[action.__name__])
+        return "".join(sorted(characteristic))
 
     @property
     def code(self) -> str:
@@ -126,6 +135,14 @@ class Generator:
                 new_results.extend(transform.apply(current))
             results = new_results
         return results
+
+    @property
+    def char(self) -> str:
+        """Characteristic of the Generator: the unique, sorted Actions involved."""
+        characteristic = set()
+        for transform in self.transforms:
+            characteristic |= set(transform.char)
+        return "".join(sorted(characteristic))
 
     @property
     def dim(self) -> int:
