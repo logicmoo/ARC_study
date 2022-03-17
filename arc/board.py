@@ -182,7 +182,8 @@ class Inventory:
     def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
         # NOTE temporary, filtering by size assumes we can't add expand a Generator
         # to create the object.
-        candidates = self.inventory.get(obj.size, [])
+        # candidates = self.inventory.get(obj.size, [])
+        candidates = self.all
 
         if not candidates:
             return None

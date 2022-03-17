@@ -14,6 +14,7 @@ def get_order_diff(left: Object, right: Object) -> list[Transform | None]:
         # A monochrome, matching silhouette means no internal positioning differences
         if left.sil(right):
             log.debug("  Sillhouettes match")
+            return transforms
 
     # Without a matching silhouette, only a fully ordered transformation works here
     # NOTE Including flooding and similar ops will change this
@@ -49,7 +50,12 @@ def get_translation(left: Object, right: Object) -> list[Transform | None]:
     transforms: list[Transform | None] = []
     r1, c1 = left.loc
     r2, c2 = right.loc
+    if r2 == r1 and c2 == c1:
+        return transforms
     # Check for zeroing, which is special
+    # NOTE We will also need to include some way to handle determining between
+    # equivalent operations. For example, if an object is moved from (3, 0) to (0, 0)
+    # this could be a 'zeroing', a 'row-justify' or an upward move of 3 units.
     if r2 == 0 and c2 == 0:
         transforms.append(Transform([Action.zero]))
         return transforms
@@ -58,10 +64,10 @@ def get_translation(left: Object, right: Object) -> list[Transform | None]:
         if r2 == 0:
             transforms.append(Transform([Action.justify], [(0,)]))
         else:
-            transforms.append(Transform([Action.horizontal], [(r2 - r1,)]))
+            transforms.append(Transform([Action.vertical], [(r2 - r1,)]))
     if c2 != c1:
         if c2 == 0:
             transforms.append(Transform([Action.justify], [(1,)]))
         else:
-            transforms.append(Transform([Action.vertical], [(c2 - c1,)]))
+            transforms.append(Transform([Action.horizontal], [(c2 - c1,)]))
     return transforms

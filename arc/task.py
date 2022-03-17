@@ -1,14 +1,13 @@
-from matplotlib.figure import Figure
-
 import numpy as np
+from arc.object import Object
+from arc.selector import Selector
+from arc.solution import Solution
 
-from arc.util import logger
-from arc.actions import Action
+from arc.util import logger, dictutil
+from arc.labeler import Labeler
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
 from arc.scene import Scene
-from arc.selector import group_inputs, create_selectors, base_describe, describe, select
-from arc.object import Object
 from arc.transforms import const_map, t2t_map
 from arc.types import TaskData
 
@@ -38,7 +37,8 @@ class Task:
 
         # WIP
         self.context = TaskContext()
-        self.solution = []
+        self.input_groups: dict[str, list[Object]]
+        self.solution: Solution = Solution()
         self.traits: set[str] = set([])
 
         # Load scenes, cases ("train" data) and tests
@@ -103,82 +103,35 @@ class Task:
         scene_dists = [scene.dist for scene in self.cases]
         log.info(f"Scene distances {scene_dists} -> avg {self.dist:.1f}")
 
-    # TODO Below needs review/updating
-    def select(self):
-        fails, variant, selectors = 1, 0, {}
-        while fails and variant < 2:
-            log.info(f" ++ Selecting {self.idx} with variant {variant}")
-            self.groups, self.codes, self.links = group_inputs(self, variant)
-            selectors, fails = create_selectors(self)
-            variant += 1
-        log.info(f"Average link distance -> {self.links}")
-        return selectors
-
-    def transform(self, groups, codes):
-        t_maps = {}
-        for g_idx, group in groups.items():
-            if g_idx not in codes:
-                log.warning(f"No transform codes for group {g_idx}")
-                continue
-            code = codes[g_idx]
-            if code is None:
-                t_maps[g_idx] = None
-                continue
-            for map_func in [const_map, t2t_map]:
-                log.info(f"Trying map_func: {map_func.__name__}")
-                curr_map = map_func(group, code)
-                if curr_map:
-                    t_maps[g_idx] = curr_map
-                    break
-        return t_maps
-
     def solve(self):
-        selectors = self.select()
-        transforms = self.transform(self.groups, self.codes)
-        self.solution = [(sel, transforms.get(idx)) for idx, sel in selectors.items()]
+        self.bundle()
+        self.solution.label(self.input_groups)
+        self.solution.create_selector(self.input_groups)
+        # transforms = self.transform(self.groups, self.codes)
+        # self.solution = [(sel, transforms.get(idx)) for idx, sel in selectors.items()]
 
-    def generate(self, test_case: int = 0):
-        soln_input = self.tests[test_case].input
+    def bundle(self) -> None:
+        """Bundle objects together in order to identify a proper Selector."""
+        self.input_groups = {}
+        for scene in self.cases:
+            scene_inputs = {
+                char: [delta.left for delta in group]
+                for char, group in scene.path.items()
+            }
+            dictutil.merge(self.input_groups, scene_inputs)
+        log.debug(self.input_groups)
 
-        soln_input.decompose()
-        output = self._generate_out(soln_input.rep, self.solution)
-        return output
-
-    def _generate_out(self, board, solution):
-        out_children = []
-        # Then, apply our selection criteria
-        for selector, trans in solution:
-            inputs = board.inventory()
-            base_describe(inputs)
-            describe(inputs)
-            selected = select(inputs, selector)
-            log.debug(f"Selected\n{selected}")
-            if not trans:
-                out_children.extend(selected)
-                continue
-            code, trait, tmap = trans
-            log.info(f"Apply {code} based on {trait} via {tmap}")
-            for obj in selected:
-                # TODO Figure out a smoother way to do this?
-                # Objects should start from an absolute, so we'll use anchor
-                obj.adult()
-                if trait is None:
-                    out_obj = Action()[code](obj, tmap)
-                else:
-                    out_obj = Action()[code](obj, tmap[obj.traits[trait]])
-                out_children.append(out_obj)
-
-        result = Object(children=out_children, name="Solution")
-        return result
+    def generate(self, test_idx: int = 0) -> Object:
+        return self.solution.solve(self.tests[test_idx])
 
     def test(self):
         success = 0
         log.info("Testing:")
-        for idx, scene in enumerate(self.tests):
-            if scene.output.rep == self.generate(idx):
-                log.info("  Passed")
+        for test_idx, scene in enumerate(self.tests):
+            if scene.output.rep == self.generate(test_idx):
                 success += 1
             else:
-                log.info("  Failed")
+                log.warning(f"  Failed test {test_idx}")
         if success == len(self.tests):
-            self.traits.add("passed")
+            self.traits.add("Solved")
+        log.info(f"Passed {success} / {len(self.tests)} tests")

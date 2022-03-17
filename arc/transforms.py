@@ -18,10 +18,10 @@ def const_map(group, code):
     val = None
     for s_idx, seg in group.items():
         for delta in seg:
-            if len(delta.transform) > 1:
+            if len(delta.transforms) > 1:
                 log.warning("Multiple transforms per group not supported")
                 return None
-            tgt = list(delta.transform.values())[0]
+            tgt = list(delta.transforms.values())[0]
             if val is None:
                 val = tgt
             elif val != tgt:
@@ -42,11 +42,11 @@ def t2t_map(group, code):
             log.debug(f"{s_idx}: {seg}")
             for delta in seg:
                 total += 1
-                if len(delta.transform) > 1:
+                if len(delta.transforms) > 1:
                     log.warning("Multiple transforms per group not supported")
                     return None
                 obj = delta.right
-                tgt = list(delta.transform.values())[0]
+                tgt = list(delta.transforms.values())[0]
                 # Try a constant mapping
                 if obj.traits[trait] not in trial_map:
                     trial_map[obj.traits[trait]] = tgt

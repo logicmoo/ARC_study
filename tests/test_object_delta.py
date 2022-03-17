@@ -7,14 +7,14 @@ def test_translation():
     dot1 = Object(1, 1, 1)
     dot2 = Object(2, 1, 1)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
-    assert delta.generator.codes == ["s1"]
+    assert delta.generator.codes == ["w1"]
 
     dot3 = Object(1, 2, 1)
     delta = ObjectDelta(dot1, dot3, default_comparisons)
-    assert delta.generator.codes == ["w1"]
+    assert delta.generator.codes == ["s1"]
 
     delta = ObjectDelta(dot2, dot3, default_comparisons)
-    assert delta.generator.codes == ["s-1", "w1"]
+    assert delta.generator.codes == ["w-1", "s1"]
 
 
 def test_justification():

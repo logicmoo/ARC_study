@@ -72,7 +72,7 @@ class Scene:
         for char, deltas in self.path.items():
             log.info(f"Generator Characteristic: {char or 'None'}")
             for delta in deltas:
-                obj1, obj2, gen = delta.right, delta.left, delta.generator
+                obj1, obj2, gen = delta.left, delta.right, delta.generator
                 log.info(f"  Gen {gen} | {obj1._id} -> {obj2._id}")
 
     def recreate(
@@ -86,6 +86,7 @@ class Scene:
         total_deltas = []
         for kid in obj.children:
             kid_dist, kid_deltas = self.recreate(kid, inventory)
+            log.debug(f"{kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist + cst.CHILD_DIST
             total_deltas.extend(kid_deltas)
         if total_deltas and total_dist < result[0]:
