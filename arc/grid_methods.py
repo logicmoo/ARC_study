@@ -1,3 +1,5 @@
+from collections import Counter
+
 import numpy as np
 
 from arc.util import logger
@@ -106,14 +108,12 @@ def get_blob(marked: np.ndarray, start: Position):
 # @nb.njit  # (Numba JIT can speed this up)
 def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
     """Compiled subroutine to measure order in a strided grid"""
-    R, C = grid.shape
+    R, _ = grid.shape
     hits = 0
     for j in range(stride):
-        active_mesh = grid[j::stride]
-        rebase = (active_mesh + (cst.N_COLORS * np.arange(C))).ravel()
-        cts = np.bincount(rebase, minlength=cst.N_COLORS * C).reshape(C, -1).T
-        for k in range(C):
-            hits += np.max(cts[:, k])
+        active_mesh = grid[:, j::stride]
+        for row in active_mesh:
+            hits += Counter(row).most_common()[0][1]
     # We adjust the order measurement to unbias larger order params.
     # A given order defect will fractionally count against a smaller grid more,
     # so without adjusting we will end up favoring larger order strides.
@@ -134,17 +134,17 @@ def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
 
 
 def translational_order(grid: np.ndarray, row_axis: bool) -> list[tuple[int, float]]:
-    """Measure and rank the order for every 2D stride"""
-    grid = grid if row_axis else grid.T
+    """Measure the order along an axis for every stride value."""
+    grid = grid.T if row_axis else grid
     params = []
-    if grid.shape[0] == 1:
+    if grid.shape[1] == 1:
         return [(1, 1)]
-    for stride in range(1, grid.shape[0] // 2 + 1):
+    for stride in range(1, grid.shape[1] // 2 + 1):
         params.append(_eval_mesh(grid, stride))
     return sorted(params, key=lambda x: x[1], reverse=True)
 
 
 def mirror_order(grid: np.ndarray, row_axis: bool) -> float:
-    """Measure and rank the order for every 2D stride"""
+    """Measure the level of mirror symmetry."""
     grid = grid if row_axis else grid.T
     return np.sum(np.flip(grid, 0) == grid) / grid.size
