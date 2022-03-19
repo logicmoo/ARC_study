@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
 
+from arc.definitions import Constants as cst
 from arc.object import Object
 from arc.scene import Scene
 from arc.task import Task
@@ -90,31 +91,27 @@ def match_layout(scene: Scene) -> Layout:
 
 color_map = matplotlib.colors.ListedColormap(  # type: ignore
     [
-        "#888888",
-        "#000000",
-        "#0074D9",
-        "#FF2222",
-        "#2ECC40",
-        "#FFDC00",
-        "#AAAAAA",
-        "#F012BE",
-        "#FF8C00",
-        "#7FDBFF",
-        "#870C25",
-        "#444444",
+        "#000000",  # 0: black
+        "#0074D9",  # 1: blue
+        "#FF2222",  # 2: red
+        "#2ECC40",  # 3: green
+        "#FFDC00",  # 4: yellow
+        "#AAAAAA",  # 5: gray
+        "#F012BE",  # 6: magenta
+        "#FF8C00",  # 7: orange
+        "#7FDBFF",  # 8: sky
+        "#870C25",  # 9: brown
+        "#444444",  # 10: dark grey, (for Transparency)
+        "#888888",  # 11: light grey, (for Cutout)
     ]
 )
-norm = matplotlib.colors.Normalize(vmin=-1, vmax=10)  # type: ignore
+norm = matplotlib.colors.Normalize(vmin=-1, vmax=cst.N_COLORS)  # type: ignore
 
 
 def plot_color_map() -> Figure:
-    # -1: light grey, (for Cutout)
-    # 0:black, 1:blue, 2:red, 3:greed, 4:yellow,
-    # 5:gray, 6:magenta, 7:orange, 8:sky, 9:brown
-    # 10: dark grey, (for Transparency)
     fig = plt.figure(figsize=(3, 1), dpi=200)
-    plt.imshow([list(range(11))], cmap=color_map, norm=norm)
-    plt.xticks(list(range(11)))
+    plt.imshow([list(range(cst.N_COLORS))], cmap=color_map, norm=norm)
+    plt.xticks(list(range(cst.N_COLORS)))
     plt.yticks([])
     return fig
 

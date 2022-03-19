@@ -11,9 +11,9 @@ class Constants:
     FOLDER_TRAIN = "data/training"
 
     # Data specification
-    N_COLORS = 11
+    N_COLORS = 12
     NULL_COLOR = 10
-    NEGATIVE_COLOR = -1
+    NEGATIVE_COLOR = 11
     MARKED_COLOR = -2
     MAX_ROWS = 30
     MAX_COLS = 30
@@ -33,7 +33,6 @@ class Constants:
     NON_DOT_PROPS = 2  # 'entropic weight' of a container object
 
     cname = {
-        -1: "Trans",
         0: "Black",
         1: "Blue",
         2: "Red",
@@ -45,4 +44,5 @@ class Constants:
         8: "SkyBlue",
         9: "Brown",
         10: "Trans",
+        -1: "Cutout",
     }
