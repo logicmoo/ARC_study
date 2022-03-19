@@ -3,9 +3,14 @@ from functools import cached_property
 
 import numpy as np
 
-from arc.comparisons import get_color_diff, get_order_diff, get_translation
+from arc.comparisons import (
+    ObjectComparison,
+    get_color_diff,
+    get_order_diff,
+    get_translation,
+)
 from arc.util import logger
-from arc.object import Object, ObjectComparison, ObjectDelta
+from arc.object import Object, ObjectDelta
 from arc.processes import (
     Process,
     MakeBase,
@@ -23,7 +28,7 @@ default_processes = [
     ConnectObjects(),
     SeparateColor(),
     Tiling(),
-    Reflection(),
+    # Reflection(),  # TODO: Broken, Action.vertical not receiving arg
 ]
 
 

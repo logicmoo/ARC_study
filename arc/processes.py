@@ -1,9 +1,10 @@
-from typing import Any
-import numpy as np
 from abc import ABC, abstractmethod
+from collections import Counter
+
+import numpy as np
+
 from arc.generator import Generator
 from arc.types import Point, PointList
-
 from arc.util import logger
 from arc.grid_methods import color_connect, point_filter
 from arc.definitions import Constants as cst
@@ -26,8 +27,11 @@ class Process(ABC):
         """Repair any inconsistencies between input and output."""
         if input == output:
             return output
+        elif len(output.points) == 0:
+            log.warning("Generated empty object")
+            return None
 
-        log.debug(f"Patching {output} -> {output}")
+        log.debug(f"Patching {output} -> {input}")
         # TODO: For now, assume we can't fix missing points
         missing_locs = input.points.keys() - output.points.keys()
         if missing_locs:
@@ -183,30 +187,21 @@ class Tiling(Process):
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         R, C, _ = obj.order
-        # Check for a uniaxial tiling, indicated by a "1" for one of the axes
+        # Check for a constant-valued axis, indicated by a "1" for an axis order
         if R == 1:
-            # NOTE this just needs to check R to switch the default axis, as above
             R = obj.grid.shape[0]
         elif C == 1:
             C = obj.grid.shape[1]
 
         # Identify each point that's part of the unit cell
         cell_pts: list[Point] = []
-        noise = np.zeros(cst.N_COLORS)
         for i in range(R):
             for j in range(C):
-                # Count how many times each color shows up in the sub-mesh
-                active_mesh = obj.grid[i::R, j::C]
-                cts = np.zeros(cst.N_COLORS)
-                for row in active_mesh:
-                    cts += np.bincount(row, minlength=cst.N_COLORS)
-                # Eliminate colors from consideration based on context
-                # if task and hasattr(task.context, "noise_colors"):
-                #     for noise_color in task.context.noise_colors:
-                #         cts[noise_color] = 0
-                color = int(np.argmax(cts))
-                cts[color] = 0
-                noise += cts
+                # Count how many times each color shows up in a sub-mesh
+                # defined by a row and column stride (R, C) starting from
+                # a position (i, j)
+                cts = Counter(obj.grid[i::R, j::C].ravel())  # Count the 1D grid array
+                color = cts.most_common()[0][0]  # most_common() -> [(key, ct), ...]
                 cell_pts.append((i, j, color))
         r_ct = np.ceil(obj.shape[0] / R)
         c_ct = np.ceil(obj.shape[1] / C)
@@ -214,7 +209,12 @@ class Tiling(Process):
         if obj.shape[0] % R or obj.shape[1] % C:
             bound = obj.shape
         log.debug(f"Tiling with {R}x{C} cell, bound: {bound}")
-        gen = Generator.from_codes([f"R*{r_ct - 1}", f"C*{c_ct - 1}"], bound=bound)
+        codes = []
+        if r_ct > 1:
+            codes.append(f"R*{r_ct-1}")
+        if c_ct > 1:
+            codes.append(f"C*{c_ct-1}")
+        gen = Generator.from_codes(codes, bound=bound)
         cell = Object.from_points(cell_pts, name=f"TCell({R},{C})")
         cell.traits["decomp"] = "Cell"
         # TODO For now, assume unit cells are not worth sub-analyzing
@@ -269,9 +269,9 @@ class Reflection(Process):
 
         codes = []
         if axes[0]:
-            codes.append("d" * (rs - R % 2) + "v")
+            codes.append("w{(rs - R % 2)}v")
         if axes[1]:
-            codes.append("r" * (cs - C % 2) + "h")
+            codes.append("s{(cs - C % 2)}h")
         gen = Generator.from_codes(codes)
         cell = Object.from_points(cell_pts)
         cell.traits["decomp"] = "RCell"

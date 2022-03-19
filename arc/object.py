@@ -1,7 +1,7 @@
 from collections import Counter
 from functools import cached_property
 import logging
-from typing import Any, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -13,7 +13,10 @@ from arc.grid_methods import (
     translational_order,
 )
 from arc.definitions import Constants as cst
-from arc.generator import Generator, Transform
+from arc.generator import Generator
+
+if TYPE_CHECKING:
+    from arc.comparisons import ObjectComparison
 
 log = logger.fancy_logger("Object", level=30)
 
@@ -389,9 +392,6 @@ class Object:
         return (row_o, col_o)
 
 
-ObjectComparison: TypeAlias = Callable[[Object, Object], list[Transform | None]]
-
-
 class ObjectDelta:
     """Determine the 'difference' between two objects.
 
@@ -400,7 +400,9 @@ class ObjectDelta:
     'distance', as well as the series of standard transformations to apply.
     """
 
-    def __init__(self, obj1: Object, obj2: Object, comparisons: list[ObjectComparison]):
+    def __init__(
+        self, obj1: Object, obj2: Object, comparisons: list["ObjectComparison"]
+    ):
         self.left: Object = obj1
         self.right: Object = obj2
         self.null: bool = False
@@ -411,9 +413,12 @@ class ObjectDelta:
 
         for comparison in comparisons:
             raw_transforms = comparison(self.left, self.right)
-            if None in raw_transforms:
-                self.null = True
-            self.generator.transforms.extend(filter(None, raw_transforms))
+            for trans, copies in raw_transforms:
+                if trans is None:
+                    self.null = True
+                    continue
+                self.generator.transforms.append(trans)
+                self.generator.copies.append(copies)
 
     @property
     def dist(self) -> int:

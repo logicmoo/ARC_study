@@ -1,8 +1,23 @@
 import numpy as np
+from arc.actions import Action
 
 from arc.object import Object
-from arc.generator import Generator
+from arc.generator import Generator, Transform
 from arc.definitions import Constants as cst
+
+
+def test_transform():
+    obj = Object(1, 1, 1)
+    trans = Transform([Action.left, Action.up])
+    assert trans.apply(obj) == Object(0, 0, 1)
+
+    trans = Transform([Action.zero], args=[])
+    assert trans.args == [tuple()]
+
+
+def test_codes():
+    gen = Generator.from_codes(["zR1M2,3*9", "j1z"])
+    assert gen.char == "MRjz"
 
 
 def test_line():
@@ -32,7 +47,7 @@ def test_chessboard():
 
 
 def test_3x_generator():
-    checked = Generator.from_codes(["dr", "dd", "rr"])
+    checked = Generator.from_codes(["dr*1", "w2*1", "s2*1"])
     obj = Object(color=1, generator=checked)
     true_grid = np.tile([[1, cst.NULL_COLOR], [cst.NULL_COLOR, 1]], (2, 2))
     assert obj.category == "Compound"
@@ -40,8 +55,8 @@ def test_3x_generator():
 
 
 def test_deep_generators():
-    rect1_gen = Generator.from_codes(["R*2", "C"])
-    rect2_gen = Generator.from_codes(["R", "C*2"])
+    rect1_gen = Generator.from_codes(["R*2", "C*1"])
+    rect2_gen = Generator.from_codes(["R*1", "C*2"])
     sq_gen = Generator.from_codes(["R*2", "C*2"])
     children = [
         Object(0, 0, 1, generator=rect2_gen),

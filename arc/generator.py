@@ -12,45 +12,41 @@ Transform class that can capture one series of Actions. Then, the more
 universal Generator class is defined as a series of transforms.
 """
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from arc.actions import Action
+
 
 if TYPE_CHECKING:
     from arc.object import Object
 
+ActionType: TypeAlias = Callable[..., "Object"]
 
 # This regex parses the series of actions represented in a Generator 'code'.
 # It expects a series of alphabet characters each optionally followed by
 # a comma-delimited set of signed integers. These correspond to an Action and
-# any associated arguments to the call. The trailing, optional 'count'
+# any associated arguments to the call. The trailing, optional 'copies'
 # (represented by an asterisk and positive integer) is handled by the
-# 'count_regex' below, which indicates repeated application of the Actions.
+# 'copies_regex' below, which indicates repeated application of the Actions.
 act_regex = re.compile(r"([a-zA-Z])(-?\d*(?:,-?\d+)*)")
-count_regex = re.compile(r"\*(\d+)")
+copies_regex = re.compile(r"\*(\d+)")
 
-# TODO Seems cleaner to move 'count' to a 'copies'(?) param on Generator
-# leaving Transform as a non-generative means to mutate objects. This will
-# probably be important for handling Scene input->output
+
 class Transform:
     def __init__(
         self,
-        actions: list[Any],
+        actions: list[ActionType],
         args: list[tuple[int, ...]] | None = None,
-        count: int = 1,
     ):
         self.actions = actions
         self.args = args or [tuple()] * len(self.actions)
         if len(self.args) < len(self.actions):
             self.args.extend([tuple()] * (len(self.actions) - len(self.args)))
-        self.count = count
 
     def __str__(self) -> str:
         output = ", ".join(
             [f"{act.__name__}{args}" for act, args in zip(self.actions, self.args)]
         )
-        if self.count != 1:
-            output += f" x{self.count}"
         return output
 
     @property
@@ -66,75 +62,76 @@ class Transform:
         msg = ""
         for action, args in zip(self.actions, self.args):
             msg += f"{Action().rev_map[action.__name__]}{','.join(map(str, args))}"
-
-        if self.count != 1:
-            msg += f"*{self.count}"
         return msg
 
     @property
     def props(self) -> int:
-        count_ct = 1 if self.count != 1 else 0
         action_ct = len(self.actions)
         arg_ct = sum([len(args) for args in self.args])
-        return action_ct + arg_ct + count_ct
+        return action_ct + arg_ct
 
     def spawn(self, **kwargs) -> "Transform":
         return Transform(
             actions=self.actions.copy(),
             args=self.args.copy(),
-            count=self.count,
             **kwargs,
         )
 
-    def apply(self, object: "Object") -> list["Object"]:
-        """Creates a new object based on the set of actions, applied count times."""
-        results = [object.spawn()]
-        current = object
-        for i in range(self.count):
-            for action, args in zip(self.actions, self.args):
-                current = action(current, *args)
-            results.append(current)
-        return results
+    def apply(self, object: "Object") -> "Object":
+        """Creates a new object based on the set of actions and arguments."""
+        result = object
+        for action, args in zip(self.actions, self.args):
+            result = action(result, *args)
+        return result
 
 
 class Generator:
-    def __init__(self, transforms: list[Transform], bound=None):
+    def __init__(
+        self,
+        transforms: list[Transform],
+        copies: list[int] = [],
+        bound: tuple[int, int] | None = None,
+    ):
         self.transforms = transforms
+        self.copies = copies or [0] * len(self.transforms)
         self.bound = bound
 
     def __str__(self) -> str:
-        trans_str = ",".join([str(tr) for tr in self.transforms])
-        return f"({trans_str})"
+        msg = []
+        for trans, copies in zip(self.transforms, self.copies):
+            curr = str(trans)
+            if copies is not None:
+                curr += f"*{copies}"
+            msg.append(curr)
+        return f"({','.join(msg)})"
 
     @property
     def codes(self) -> list[str]:
-        return [trans.code for trans in self.transforms]
+        codes = []
+        for trans, copies in zip(self.transforms, self.copies):
+            curr = trans.code
+            if copies:
+                curr += f"*{copies}"
+            codes.append(curr)
+        return codes
 
     @classmethod
     def from_codes(cls, codes: list[str], bound: tuple[int, int] | None = None):
         transforms = []
+        arg_copies = []
         for code in codes:
             chars, raw_args = zip(*act_regex.findall(code))
-            count = 1
-            if search_obj := count_regex.search(code):
-                count = int(search_obj.groups()[0])
+            copies = None
+            if search_obj := copies_regex.search(code):
+                copies = int(search_obj.groups()[0])
             actions = [Action()[char] for char in chars]
             args = [
                 tuple(map(int, item.split(","))) if item else tuple()
                 for item in raw_args
             ]
-            transforms.append(Transform(actions, args, count))
-        return cls(transforms=transforms, bound=bound)
-
-    def materialize(self, object: "Object") -> list["Object"]:
-        """Creates a normalized (no generators) object hierarchy."""
-        results = [object.spawn()]
-        for transform in self.transforms:
-            new_results = []
-            for current in results:
-                new_results.extend(transform.apply(current))
-            results = new_results
-        return results
+            transforms.append(Transform(actions, args))
+            arg_copies.append(copies)
+        return cls(transforms=transforms, copies=arg_copies, bound=bound)
 
     @property
     def char(self) -> str:
@@ -150,4 +147,29 @@ class Generator:
 
     @property
     def props(self) -> int:
-        return sum([trans.props for trans in self.transforms])
+        copies_props = sum([1 if val != 0 else 0 for val in self.copies])
+        return sum([trans.props for trans in self.transforms]) + copies_props
+
+    def spawn(self, **kwargs) -> "Generator":
+        new_args = {
+            "transforms": [trans.spawn() for trans in self.transforms],
+            "copies": self.copies.copy(),
+        }
+        new_args.update(kwargs)
+        return Generator(**new_args)
+
+    def materialize(self, object: "Object") -> list["Object"]:
+        """Creates a normalized (no generators) object hierarchy."""
+        results = [object.spawn()]
+        for transform, copies in zip(self.transforms, self.copies):
+            new_results = []
+            for current in results:
+                if copies:
+                    new_results.append(current)
+                    for i in range(copies):
+                        current = transform.apply(current)
+                        new_results.append(current)
+                else:
+                    new_results.append(transform.apply(current))
+            results = new_results
+        return results

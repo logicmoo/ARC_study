@@ -5,7 +5,6 @@ import numpy as np
 
 if TYPE_CHECKING:
     from arc.object import Object
-    from arc.generator import Transform
 
 
 class Action:
@@ -15,6 +14,7 @@ class Action:
         "s": "horizontal",
         "f": "r_scale",  # 'flatten'
         "p": "c_scale",  # 'pinch'
+        "M": "mtile",
         "R": "rtile",
         "C": "ctile",
         "t": "turn",
@@ -101,15 +101,11 @@ class Action:
         """Changes the value associated with a generator"""
         if not object.generator:
             return object.spawn()
-        action = Action()[code]
-        new_transforms: list["Transform"] = []
-        for trans in object.generator.transforms:
-            # TODO This is temporary, it will only work with single char gens
-            if len(trans.actions) == 1 and trans.actions[0] == action:
-                new_transforms.append(trans.__class__(trans.actions, None, value))
-            else:
-                new_transforms.append(trans.spawn())
-        return object.spawn(generator=object.generator.__class__(new_transforms))
+        copies = object.generator.copies.copy()
+        for idx, trans in enumerate(object.generator.transforms):
+            if trans.char == code:
+                copies[idx] = value
+        return object.spawn(generator=object.generator.spawn(copies=copies))
 
     @classmethod
     def r_scale(cls, object: "Object", value: int) -> "Object":
