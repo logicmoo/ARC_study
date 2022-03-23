@@ -66,14 +66,14 @@ class Scene:
         # Group the inputs to the match by the Generator characteristic
         self.path = defaultdict(list)
         for delta in deltas:
-            self.path[delta.generator.char].append(delta)
+            self.path[delta.transform.char].append(delta)
 
         log.info(f"Minimal distance transformation ({self.dist}):")
         for char, deltas in self.path.items():
             log.info(f"Generator Characteristic: {char or 'None'}")
             for delta in deltas:
-                obj1, obj2, gen = delta.left, delta.right, delta.generator
-                log.info(f"  Gen {gen} | {obj1._id} -> {obj2._id}")
+                obj1, obj2, trans = delta.left, delta.right, delta.transform
+                log.info(f"  Gen {trans} | {obj1._id} -> {obj2._id}")
 
     def recreate(
         self, obj: Object, inventory: Inventory

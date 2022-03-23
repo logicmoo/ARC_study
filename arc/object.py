@@ -13,7 +13,7 @@ from arc.grid_methods import (
     translational_order,
 )
 from arc.definitions import Constants as cst
-from arc.generator import Generator
+from arc.generator import Generator, Transform
 
 if TYPE_CHECKING:
     from arc.comparisons import ObjectComparison
@@ -406,19 +406,17 @@ class ObjectDelta:
         self.left: Object = obj1
         self.right: Object = obj2
         self.null: bool = False
-        self.generator: Generator = Generator([])
+        self.transform: Transform = Transform([])
         self.comparisons = comparisons
         if obj1 == obj2:
             return
 
         for comparison in comparisons:
-            raw_transforms = comparison(self.left, self.right)
-            for trans, copies in raw_transforms:
-                if trans is None:
-                    self.null = True
-                    continue
-                self.generator.transforms.append(trans)
-                self.generator.copies.append(copies)
+            transform = comparison(self.left, self.right)
+            if transform is None:
+                self.null = True
+                continue
+            self.transform = self.transform.concat(transform)
 
     @property
     def dist(self) -> int:
@@ -432,22 +430,16 @@ class ObjectDelta:
         if self.null:
             return cst.MAX_DIST
 
-        return self.generator.props
+        return self.transform.props
 
     @property
     def actions(self) -> set[Any]:
         """Returns the set of Actions used in the transformation"""
-        return set(
-            [act for trans in self.generator.transforms for act in trans.actions]
-        )
+        return set([act for act in self.transform.actions])
 
     @property
     def _name(self):
-        header = f"Delta({self.dist}): "
-        trans = ""
-        for item in self.generator.transforms:
-            trans += f"{item}"
-        return header + f"[{trans}]"
+        return f"Delta({self.dist}): {self.transform}"
 
     def __repr__(self) -> str:
         return f"{self._name}: {self.left._id} -> {self.right._id}"

@@ -7,14 +7,14 @@ def test_translation():
     dot1 = Object(1, 1, 1)
     dot2 = Object(2, 1, 1)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
-    assert delta.generator.codes == ["w1"]
+    assert delta.transform.code == "w1"
 
     dot3 = Object(1, 2, 1)
     delta = ObjectDelta(dot1, dot3, default_comparisons)
-    assert delta.generator.codes == ["s1"]
+    assert delta.transform.code == "s1"
 
     delta = ObjectDelta(dot2, dot3, default_comparisons)
-    assert delta.generator.codes == ["w-1", "s1"]
+    assert delta.transform.code == "w-1s1"
 
 
 def test_justification():
@@ -22,15 +22,15 @@ def test_justification():
     dot1 = Object(1, 1, 1)
     dot2 = Object(0, 1, 1)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
-    assert delta.generator.codes == ["j0"]
+    assert delta.transform.code == "j0"
 
     dot3 = Object(1, 0, 1)
     delta = ObjectDelta(dot1, dot3, default_comparisons)
-    assert delta.generator.codes == ["j1"]
+    assert delta.transform.code == "j1"
 
     dot4 = Object(0, 0, 1)
     delta = ObjectDelta(dot1, dot4, default_comparisons)
-    assert delta.generator.codes == ["z"]
+    assert delta.transform.code == "z"
 
 
 def test_recoloring():
@@ -38,4 +38,4 @@ def test_recoloring():
     dot1 = Object(1, 1, 1)
     dot2 = Object(1, 1, 4)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
-    assert delta.generator.codes == ["c4"]
+    assert delta.transform.code == "c4"

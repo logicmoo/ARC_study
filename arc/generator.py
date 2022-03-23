@@ -70,6 +70,13 @@ class Transform:
         arg_ct = sum([len(args) for args in self.args])
         return action_ct + arg_ct
 
+    def concat(self, other: "Transform") -> "Transform":
+        """Combine two transforms together."""
+        return Transform(
+            actions=self.actions.copy() + other.actions.copy(),
+            args=self.args.copy() + other.args.copy(),
+        )
+
     def spawn(self, **kwargs) -> "Transform":
         return Transform(
             actions=self.actions.copy(),

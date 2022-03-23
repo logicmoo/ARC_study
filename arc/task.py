@@ -1,15 +1,12 @@
 import numpy as np
-from arc.object import Object
-from arc.selector import Selector
-from arc.solution import Solution
 
-from arc.util import logger, dictutil
-from arc.labeler import Labeler
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
+from arc.object import Object
 from arc.scene import Scene
-from arc.transforms import const_map, t2t_map
+from arc.solution import Solution
 from arc.types import TaskData
+from arc.util import logger, dictutil
 
 log = logger.fancy_logger("Task", level=20)
 
@@ -35,11 +32,13 @@ class Task:
         self.cases: list[Scene] = []
         self.tests: list[Scene] = []
 
-        # WIP
-        self.context = TaskContext()
-        self.input_groups: dict[str, list[Object]]
         self.solution: Solution = Solution()
         self.traits: set[str] = set([])
+
+        # WIP
+        self.context = TaskContext()
+        # TODO Temporary, find a good home for input_groups
+        self.input_groups: dict[str, list[Object]]
 
         # Load scenes, cases ("train" data) and tests
         for scene_idx, scene_data in enumerate(task_data["train"]):
