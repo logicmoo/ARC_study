@@ -23,7 +23,10 @@ def merge(
             elif d_base[key] != d_in[key]:
                 d_base[key] = d_in[key]
         else:
-            d_base[key] = d_in[key]
+            if isinstance(d_in[key], list | dict):
+                d_base[key] = d_in[key].copy()
+            else:
+                d_base[key] = d_in[key]
     return d_base
 
 
