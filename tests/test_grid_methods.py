@@ -1,6 +1,11 @@
 import numpy as np
 
-from arc.grid_methods import color_connect, norm_points, translational_order
+from arc.grid_methods import (
+    color_connect,
+    norm_points,
+    translational_order,
+    mirror_order,
+)
 from arc.definitions import Constants as cst
 
 
@@ -64,3 +69,18 @@ def test_order():
     assert (2, 2) == _get_leading_order(_disorder(tile2x2))
     assert (1, 4) == _get_leading_order(_disorder(tile1x4))
     assert (4, 4) == _get_leading_order(_disorder(tile4x4))
+
+
+def test_mirror_order():
+    tile4x4x2 = np.tile([np.arange(4) + i for i in range(4)], (2, 2))
+    assert mirror_order(tile4x4x2, False) == 0
+    assert mirror_order(tile4x4x2, True) == 0
+
+    tilebase = np.array([np.arange(4) + i for i in range(4)])
+    row_mirrored = tilebase + tilebase[::-1]
+    assert mirror_order(row_mirrored, True) == 1
+    assert mirror_order(row_mirrored, False) == 0
+
+    col_mirrored = np.concatenate([tilebase, tilebase[:, ::-1]], 1)
+    assert mirror_order(col_mirrored, True) == 0
+    assert mirror_order(col_mirrored, False) == 1

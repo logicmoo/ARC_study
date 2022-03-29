@@ -8,6 +8,46 @@ if TYPE_CHECKING:
     from arc.object import Object
 
 
+## Helper methods
+# TODO: Find a better solution for these?
+def chebyshev_vector(left: "Object", right: "Object") -> tuple[int, int]:
+    left_min_row, left_min_col = left.loc
+    left_max_row = left.row + left.shape[0]
+    left_max_col = left.col + left.shape[1]
+
+    right_min_row, right_min_col = right.loc
+    right_max_row = right.row + right.shape[0]
+    right_max_col = right.col + right.shape[1]
+
+    dist: list[int | None] = [None, None]
+    # Check for any horizontal overlap
+    if left_min_row >= right_max_row:
+        dist[0] = right_max_row - left_min_row
+    elif left_max_row <= right_min_row:
+        dist[0] = right_min_row - left_max_row
+    # Check for any vertical overlap
+    if left_min_col >= right_max_col:
+        dist[1] = right_max_col - left_min_col
+    elif left_max_col <= right_min_col:
+        dist[1] = right_min_col - left_max_col
+
+    match dist:
+        # Objects' bounding boxes overlap
+        case [None, None]:
+            return (0, 0)
+        case [int(row_dist), None]:
+            return (row_dist, 0)
+        case [None, int(col_dist)]:
+            return (0, col_dist)
+        case [int(row_dist), int(col_dist)]:
+            if abs(col_dist) > abs(row_dist):
+                return (row_dist, 0)
+            else:
+                return (0, col_dist)
+        case _:  # pragma: no cover
+            return (0, 0)
+
+
 class Action:
     action_map = {
         "c": "recolor",
@@ -142,3 +182,31 @@ class Action:
     @classmethod
     def recolor(cls, object: "Object", color: int) -> "Object":
         return object.spawn(anchor=(*object.loc, color))
+
+    ## 2-OBJECT ACTIONS
+    # These actions leverage another object as the source of information
+    # on how to transform the primary object.
+    @classmethod
+    def resize(cls, object: "Object", secondary: "Object") -> "Object":
+        """Alter the primary object so its shape matches the secondary."""
+        result = object.spawn()
+        if object.shape[0] != secondary.shape[0]:
+            result = cls.r_scale(result, secondary.shape[0] - 1)
+        if object.shape[1] != secondary.shape[1]:
+            result = cls.c_scale(result, secondary.shape[1] - 1)
+        return result
+
+    @classmethod
+    def adjoin(cls, object: "Object", secondary: "Object") -> "Object":
+        """Move the primary in one direction towards the secondary.
+
+        The primary will not intersect the secondary.
+        """
+        # Find the direction of smallest Chebyshev distance
+        result = object.spawn()
+        ch_vector = chebyshev_vector(object, secondary)
+        if ch_vector[0]:
+            result = Action().vertical(result, ch_vector[0])
+        elif ch_vector[1]:
+            result = Action().horizontal(result, ch_vector[1])
+        return result

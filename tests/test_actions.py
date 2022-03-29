@@ -1,6 +1,6 @@
 from arc.generator import Generator
 from arc.object import Object
-from arc.actions import Action
+from arc.actions import Action, chebyshev_vector
 
 
 def test_translations():
@@ -81,3 +81,54 @@ def test_color():
     pt1 = Object(1, 1, 1)
     assert Action.recolor(pt1, 2).color == 2
     assert Action.recolor(Action.recolor(pt1, 0), 1) == pt1
+
+
+def test_resize():
+    obj1 = Object(generator=Generator.from_codes(["R*5", "C*3"]))
+    obj2 = Object(2, 1, generator=Generator.from_codes(["R*1", "C*1"]))
+    obj3 = Object(generator=Generator.from_codes(["R*1", "C*1"]))
+    assert Action().resize(obj1, obj2) == obj3
+
+    obj4 = Object(1, 5, generator=Generator.from_codes(["R*5", "C*1"]))
+    obj5 = Object(generator=Generator.from_codes(["R*5", "C*1"]))
+    assert Action().resize(obj1, obj4) == obj5
+
+    obj6 = Object(generator=Generator.from_codes(["R*3", "C*3"]))
+    obj7 = Object(generator=Generator.from_codes(["R*3", "C*3"]))
+    assert Action().resize(obj1, obj6) == obj7
+
+
+def test_chebyshev():
+    obj1 = Object(5, 5, generator=Generator.from_codes(["R*2", "C*3"]))
+    obj2 = Object(2, 1, generator=Generator.from_codes(["R*1", "C*1"]))
+    assert chebyshev_vector(obj2, obj1) == (1, 0)
+    assert chebyshev_vector(obj1, obj2) == (-1, 0)
+
+    obj3 = Object(2, 1, generator=Generator.from_codes(["R*5", "C*1"]))
+    assert chebyshev_vector(obj3, obj1) == (0, 2)
+    assert chebyshev_vector(obj1, obj3) == (0, -2)
+
+    obj4 = Object(4, 4, generator=Generator.from_codes(["R*1", "C*2"]))
+    assert chebyshev_vector(obj1, obj4) == (0, 0)
+    assert chebyshev_vector(obj4, obj1) == (0, 0)
+
+    obj5 = Object(10, 1)
+    assert chebyshev_vector(obj5, obj1) == (-2, 0)
+    assert chebyshev_vector(obj1, obj5) == (2, 0)
+
+    obj6 = Object(10, 10)
+    assert chebyshev_vector(obj6, obj1) == (0, -1)
+    assert chebyshev_vector(obj1, obj6) == (0, 1)
+
+    obj7 = Object(10, 6, generator=Generator.from_codes(["C*6"]))
+    assert chebyshev_vector(obj7, obj1) == (-2, 0)
+    assert chebyshev_vector(obj1, obj7) == (2, 0)
+
+
+def test_adjoin():
+    obj1 = Object(5, 5, generator=Generator.from_codes(["R*2", "C*3"]))
+    obj2 = Object(2, 1, generator=Generator.from_codes(["R*1", "C*1"]))
+    assert Action().adjoin(obj2, obj1) == Action().vertical(obj2, 1)
+
+    obj6 = Object(10, 10)
+    assert Action().adjoin(obj6, obj1) == Action().horizontal(obj6, -1)
