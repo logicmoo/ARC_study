@@ -24,8 +24,8 @@ class Constants:
     BATCH = 10  # Number of decomposition candidates to keep in a round
     MAX_ITER = 10  # Maximum rounds of decomposition
 
-    STEPS_BASE = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    STEPS_DIAG = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+    STEPS_BASE: list[tuple[int, int]] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    STEPS_DIAG: list[tuple[int, int]] = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
     ALL_STEPS = STEPS_BASE + STEPS_DIAG
 
     # Information

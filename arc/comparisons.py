@@ -1,16 +1,16 @@
 from typing import Callable, TypeAlias
 from arc.actions import Action
 from arc.generator import Transform
-from arc.util import logger
 from arc.object import Object
+from arc.util import logger
 
 log = logger.fancy_logger("Comparisons", level=30)
 
 ComparisonReturn: TypeAlias = Transform | None
-ObjectComparison: TypeAlias = Callable[[Object, Object], ComparisonReturn]
+ObjectComparison: TypeAlias = Callable[["Object", "Object"], ComparisonReturn]
 
 
-def get_order_diff(left: Object, right: Object) -> ComparisonReturn:
+def get_order_diff(left: "Object", right: "Object") -> ComparisonReturn:
     """Checks for differences in the arrangement of points"""
     log.debug("Comparing Order")
     transform: ComparisonReturn = Transform([])
@@ -35,7 +35,7 @@ def get_order_diff(left: Object, right: Object) -> ComparisonReturn:
     return transform
 
 
-def get_color_diff(left: Object, right: Object) -> ComparisonReturn:
+def get_color_diff(left: "Object", right: "Object") -> ComparisonReturn:
     log.debug("Comparing Color")
     transform: ComparisonReturn = Transform([])
     c1 = set([item[0] for item in left.c_rank])
@@ -51,7 +51,7 @@ def get_color_diff(left: Object, right: Object) -> ComparisonReturn:
     return transform
 
 
-def get_translation(left: Object, right: Object) -> ComparisonReturn:
+def get_translation(left: "Object", right: "Object") -> ComparisonReturn:
     log.debug("Comparing Position")
     transform: ComparisonReturn = Transform([])
     r1, c1 = left.loc

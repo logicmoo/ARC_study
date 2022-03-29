@@ -10,12 +10,13 @@ from arc.comparisons import (
     get_translation,
 )
 from arc.util import logger
-from arc.object import Object, ObjectDelta
+from arc.object import Object
+from arc.object_delta import ObjectDelta
 from arc.processes import (
     Process,
     MakeBase,
     ConnectObjects,
-    Reflection,
+    # Reflection,
     SeparateColor,
     Tiling,
 )
@@ -49,7 +50,7 @@ class Board:
         self, data: BoardData, name: str = "", processes: list[Process] | None = None
     ):
         self.name = name
-        self.rep = Object.from_grid(grid=np.array(data))
+        self.rep = Object.from_grid(grid=np.array(data))  # type: ignore
         self.processes = processes or default_processes
 
         # Used during decomposition process
@@ -58,7 +59,7 @@ class Board:
         self.inventory: Inventory = Inventory(Object())
 
     def __repr__(self) -> str:
-        return self.rep._hier_repr()
+        return self.rep.hier_repr()
 
     def choose_representation(self) -> None:
         """Find the most compact representation from decomposition."""
@@ -117,7 +118,7 @@ class Board:
         # TODO Need to redo occlusion
         elif obj.traits.get("finished"):
             # NOTE: We run in reverse order to handle occlusion
-            decompositions = []
+            decompositions: list[Object] = []
             for rev_idx, child in enumerate(obj.children[::-1]):
                 child_candidates = self._decomposition(child)
                 if child_candidates:

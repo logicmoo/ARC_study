@@ -1,5 +1,4 @@
 import logging
-import os
 import pprint
 import sys
 from typing import Literal, Optional, TypeAlias
@@ -119,7 +118,7 @@ class FancyFormatter(logging.Formatter):
         return formatter.format(**record_dict)
 
 
-def fancy_logger(name: str, style: dict[str, str] = styles["default"], level=None):
+def fancy_logger(name: str, style: dict[str, str] = styles["default"], level: int = 30):
     name_logger = logging.getLogger(name)
     name_logger.setLevel(level)
     name_logger.propagate = False

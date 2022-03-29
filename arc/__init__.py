@@ -1,2 +1,2 @@
-from arc.arc import ARC  # noqa
-from arc.viz import plot  # noqa
+from arc.arc import ARC  # type: ignore
+from arc.viz import plot  # type: ignore

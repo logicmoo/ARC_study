@@ -45,7 +45,7 @@ class Process(ABC):
             return self.add_layer(output, cut_points, "Cut")
 
         # Some colors must be different between input and output
-        recolor_pts = []
+        recolor_pts: PointList = []
         for loc, color in input.points.items():
             if output.points[loc] != color:
                 recolor_pts.append((*loc, color))
@@ -67,7 +67,7 @@ class Process(ABC):
         pass
 
     def info(self, obj: Object) -> None:
-        log.debug(f"Running {self.__class__.__name__} on {obj._id}")
+        log.debug(f"Running {self.__class__.__name__} on {obj.id}")
 
     def fail(self, message: str) -> None:
         log.debug(f"  ...failed: {message}")
@@ -108,7 +108,7 @@ class MakeBase(Process):
             color = obj.c_rank[0][0]
 
         # Create a Generator based on the grid size
-        codes = []
+        codes: list[str] = []
         rows, cols = obj.grid.shape
         if cols > 1:
             codes.append(f"C*{cols - 1}")
@@ -150,12 +150,12 @@ class ConnectObjects(Process):
         off_colors = [cst.NULL_COLOR]
 
         for color in off_colors:
-            marked[marked == color] = cst.MARKED_COLOR
+            marked[marked == color] = cst.MARKED_COLOR  # type: ignore
         obj_pts, fail_message = color_connect(marked)
         if fail_message:
             self.fail(fail_message)
             return None
-        children = []
+        children: list[Object] = []
         for idx, pts in enumerate(obj_pts):
             name = f"Conn{idx}"
             children.append(Object.from_points(pts, name=name))
@@ -186,41 +186,46 @@ class Tiling(Process):
 
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
-        R, C, _ = obj.order
+        row_stride, col_stride, _ = obj.order
         # Check for a constant-valued axis, indicated by a "1" for an axis order
-        if R == 1:
-            R = obj.grid.shape[0]
-        elif C == 1:
-            C = obj.grid.shape[1]
+        if row_stride == 1:
+            row_stride = obj.grid.shape[0]
+        elif col_stride == 1:
+            col_stride = obj.grid.shape[1]
 
         # Identify each point that's part of the unit cell
         cell_pts: list[Point] = []
-        for i in range(R):
-            for j in range(C):
+        for i in range(row_stride):
+            for j in range(col_stride):
                 # Count how many times each color shows up in a sub-mesh
                 # defined by a row and column stride (R, C) starting from
                 # a position (i, j)
-                cts = Counter(obj.grid[i::R, j::C].ravel())  # Count the 1D grid array
+                cts = Counter(
+                    obj.grid[i::row_stride, j::col_stride].ravel()
+                )  # Count the 1D grid array
                 color = cts.most_common()[0][0]  # most_common() -> [(key, ct), ...]
                 cell_pts.append((i, j, color))
-        r_ct = np.ceil(obj.shape[0] / R)
-        c_ct = np.ceil(obj.shape[1] / C)
+        r_ct = np.ceil(obj.shape[0] / row_stride)
+        c_ct = np.ceil(obj.shape[1] / col_stride)
         bound = None
-        if obj.shape[0] % R or obj.shape[1] % C:
+        if obj.shape[0] % row_stride or obj.shape[1] % col_stride:
             bound = obj.shape
-        log.debug(f"Tiling with {R}x{C} cell, bound: {bound}")
-        codes = []
+        log.debug(f"Tiling with {row_stride}x{col_stride} cell, bound: {bound}")
+        codes: list[str] = []
         if r_ct > 1:
             codes.append(f"R*{r_ct-1}")
         if c_ct > 1:
             codes.append(f"C*{c_ct-1}")
         gen = Generator.from_codes(codes, bound=bound)
-        cell = Object.from_points(cell_pts, name=f"TCell({R},{C})")
+        cell = Object.from_points(cell_pts, name=f"TCell({row_stride},{col_stride})")
         cell.traits["decomp"] = "Cell"
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell.traits["finished"] = True
         candidate = Object(
-            *obj.loc, generator=gen, children=[cell], name=f"Tiling({R},{C})"
+            *obj.loc,
+            generator=gen,
+            children=[cell],
+            name=f"Tiling({row_stride},{col_stride})",
         )
         candidate.traits["decomp"] = "Tile"
         candidate.traits["finished"] = True
@@ -267,7 +272,7 @@ class Reflection(Process):
                 if base_color != cst.NULL_COLOR:
                     cell_pts.append((i, j, base_color))
 
-        codes = []
+        codes: list[str] = []
         if axes[0]:
             codes.append("w{(rs - R % 2)}v")
         if axes[1]:

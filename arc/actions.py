@@ -4,6 +4,7 @@ import numpy as np
 
 
 if TYPE_CHECKING:
+    from arc.types import Grid
     from arc.object import Object
 
 
@@ -119,14 +120,14 @@ class Action:
     @classmethod
     def turn(cls, object: "Object", num: int) -> "Object":
         turned = object.grid
-        for i in range(num):
-            turned = np.rot90(turned)
+        for _ in range(num):
+            turned: Grid = np.rot90(turned)  # type: ignore
         return object.__class__.from_grid(grid=turned, anchor=object.anchor)
 
     @classmethod
     def flip(cls, object: "Object", axis: int) -> "Object":
         """Flip the object via the specified axis."""
-        grid = np.flip(object.grid, axis)
+        grid: Grid = np.flip(object.grid, axis)  # type: ignore
         return object.__class__.from_grid(grid=grid, anchor=object.anchor)
 
     @classmethod

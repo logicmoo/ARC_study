@@ -8,7 +8,7 @@ from arc.task import Task
 
 
 class TaskTraits:
-    methods = ["color_ct", "const_size", "size", "tiled"]
+    methods: list[str] = ["color_ct", "const_size", "size", "tiled"]
 
     @classmethod
     def color_ct(cls, task: Task) -> None:
@@ -61,8 +61,8 @@ class TaskTraits:
             return
 
         for scene in task.cases:
-            R, C, order = scene.output.rep.order
-            if R == 1 and C == 1:
+            rows, cols, order = scene.output.rep.order
+            if rows == 1 and cols == 1:
                 continue
             elif order < threshold:
                 ordered = False

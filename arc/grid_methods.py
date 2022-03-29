@@ -7,7 +7,7 @@ from arc.definitions import Constants as cst
 
 log = logger.fancy_logger("BoardMethods", level=30)
 
-from arc.types import PointDict, PointList, Position
+from arc.types import Grid, PointDict, PointList, Position
 
 
 def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
@@ -23,7 +23,7 @@ def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
         mincol = min(mincol, pt[1])
         if color != pt[2]:
             monochrome = False
-    result = []
+    result: PointList = []
     for pt in points:
         result.append((pt[0] - minrow, pt[1] - mincol, pt[2]))
     return (minrow, mincol), result, monochrome
@@ -64,15 +64,15 @@ def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
 
 
 # TODO Review
-def color_connect(marked: np.ndarray, max_ct: int = 10) -> tuple[list[PointList], str]:
+def color_connect(marked: Grid, max_ct: int = 10) -> tuple[list[PointList], str]:
     """Try connecting groups of points based on colors
 
     If we only produce 1 group, or more than max_ct, we Fail.
     If all groups are only size 1, we Fail.
     """
-    blobs = []
+    blobs: list[PointList] = []
     max_size = 0
-    for start in zip(*np.where(marked != cst.MARKED_COLOR)):
+    for start in zip(*np.where(marked != cst.MARKED_COLOR)):  # type: ignore
         if marked[start] == cst.MARKED_COLOR:
             continue
         pts = get_blob(marked, start)  # type: ignore
@@ -88,9 +88,9 @@ def color_connect(marked: np.ndarray, max_ct: int = 10) -> tuple[list[PointList]
 
 
 # TODO Review
-def get_blob(marked: np.ndarray, start: Position):
+def get_blob(marked: Grid, start: Position) -> PointList:
     M, N = marked.shape
-    pts = [(*start, marked[start])]
+    pts: PointList = [(*start, marked[start])]
     marked[start] = cst.MARKED_COLOR
     idx = 0
     while idx < len(pts):
@@ -106,7 +106,7 @@ def get_blob(marked: np.ndarray, start: Position):
 
 
 # @nb.njit  # (Numba JIT can speed this up)
-def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
+def _eval_mesh(grid: Grid, stride: int) -> tuple[int, float]:
     """Compiled subroutine to measure order in a strided grid"""
     R, _ = grid.shape
     hits = 0
@@ -133,10 +133,10 @@ def _eval_mesh(grid: np.ndarray, stride: int) -> tuple[int, float]:
 #     return result
 
 
-def translational_order(grid: np.ndarray, row_axis: bool) -> list[tuple[int, float]]:
+def translational_order(grid: Grid, row_axis: bool) -> list[tuple[int, float]]:
     """Measure the order along an axis for every stride value."""
     grid = grid.T if row_axis else grid
-    params = []
+    params: list[tuple[int, float]] = []
     if grid.shape[1] == 1:
         return [(1, 1)]
     for stride in range(1, grid.shape[1] // 2 + 1):
@@ -144,7 +144,7 @@ def translational_order(grid: np.ndarray, row_axis: bool) -> list[tuple[int, flo
     return sorted(params, key=lambda x: x[1], reverse=True)
 
 
-def mirror_order(grid: np.ndarray, row_axis: bool) -> float:
+def mirror_order(grid: Grid, row_axis: bool) -> float:
     """Measure the level of mirror symmetry."""
     grid = grid if row_axis else grid.T
-    return np.sum(np.flip(grid, 0) == grid) / grid.size
+    return np.sum(np.flip(grid, 0) == grid) / grid.size  # type: ignore

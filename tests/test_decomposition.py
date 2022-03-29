@@ -13,7 +13,7 @@ def decomposition_samples() -> ARC:
 def test_8(decomposition_samples: ARC):
     board = decomposition_samples.tasks[8].cases[0].input
     board.decompose()
-    child_names = sorted([kid._id for kid in board.rep.children])
+    child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Container(2x4)@(2, 0, 10)",
         "Rect(14x9)@(0, 0, 0)",
@@ -24,7 +24,7 @@ def test_8(decomposition_samples: ARC):
 def test_10(decomposition_samples: ARC):
     board = decomposition_samples.tasks[10].cases[0].input
     board.decompose()
-    child_names = sorted([kid._id for kid in board.rep.children])
+    child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Line(3x1)@(6, 7, 5)",
         "Line(6x1)@(3, 3, 5)",
@@ -37,7 +37,7 @@ def test_10(decomposition_samples: ARC):
 def test_16(decomposition_samples: ARC):
     board = decomposition_samples.tasks[16].cases[0].input
     board.decompose()
-    child_names = sorted([kid._id for kid in board.rep.children])
+    child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Line(3x1)@(0, 0, 3)",
         "Line(3x1)@(0, 1, 1)",
@@ -48,7 +48,7 @@ def test_16(decomposition_samples: ARC):
 def test_17(decomposition_samples: ARC):
     board = decomposition_samples.tasks[17].cases[0].input
     board.decompose(batch=3, max_iter=3)
-    child_names = sorted([kid._id for kid in board.rep.children])
+    child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Cluster(15x17)@(4, 3, 0)",
         "Tile(21x21)@(0, 0, 10) 'Tiling(6,6)' ",
@@ -58,7 +58,7 @@ def test_17(decomposition_samples: ARC):
 def test_30(decomposition_samples: ARC):
     board = decomposition_samples.tasks[30].cases[0].input
     board.decompose()
-    child_names = sorted([kid._id for kid in board.rep.children])
+    child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Rect(2x2)@(0, 1, 2)",
         "Rect(2x2)@(1, 7, 1)",

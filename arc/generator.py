@@ -52,10 +52,21 @@ class Transform:
     @property
     def char(self) -> str:
         """Characteristic of the Transform: the unique, sorted Actions involved."""
-        characteristic = set()
+        characteristic: set[str] = set()
         for action in self.actions:
             characteristic.add(Action().rev_map[action.__name__])
         return "".join(sorted(characteristic))
+
+    @classmethod
+    def from_code(cls, code: str) -> "Transform":
+        chars, raw_args = zip(*act_regex.findall(code))
+        args = [
+            tuple(map(int, item.split(","))) if item else tuple() for item in raw_args
+        ]
+        return cls(
+            actions=[Action()[char] for char in chars],
+            args=args,
+        )
 
     @property
     def code(self) -> str:
@@ -77,7 +88,7 @@ class Transform:
             args=self.args.copy() + other.args.copy(),
         )
 
-    def spawn(self, **kwargs) -> "Transform":
+    def spawn(self, **kwargs: Any) -> "Transform":
         return Transform(
             actions=self.actions.copy(),
             args=self.args.copy(),
@@ -104,7 +115,7 @@ class Generator:
         self.bound = bound
 
     def __str__(self) -> str:
-        msg = []
+        msg: list[str] = []
         for trans, copies in zip(self.transforms, self.copies):
             curr = str(trans)
             if copies is not None:
@@ -114,7 +125,7 @@ class Generator:
 
     @property
     def codes(self) -> list[str]:
-        codes = []
+        codes: list[str] = []
         for trans, copies in zip(self.transforms, self.copies):
             curr = trans.code
             if copies:
@@ -124,26 +135,20 @@ class Generator:
 
     @classmethod
     def from_codes(cls, codes: list[str], bound: tuple[int, int] | None = None):
-        transforms = []
-        arg_copies = []
+        transforms: list[Transform] = []
+        arg_copies: list[int] = []
         for code in codes:
-            chars, raw_args = zip(*act_regex.findall(code))
-            copies = None
+            copies = 0
             if search_obj := copies_regex.search(code):
                 copies = int(search_obj.groups()[0])
-            actions = [Action()[char] for char in chars]
-            args = [
-                tuple(map(int, item.split(","))) if item else tuple()
-                for item in raw_args
-            ]
-            transforms.append(Transform(actions, args))
+            transforms.append(Transform.from_code(code))
             arg_copies.append(copies)
         return cls(transforms=transforms, copies=arg_copies, bound=bound)
 
     @property
     def char(self) -> str:
         """Characteristic of the Generator: the unique, sorted Actions involved."""
-        characteristic = set()
+        characteristic: set[str] = set()
         for transform in self.transforms:
             characteristic |= set(transform.char)
         return "".join(sorted(characteristic))
@@ -157,23 +162,23 @@ class Generator:
         copies_props = sum([1 if val != 0 else 0 for val in self.copies])
         return sum([trans.props for trans in self.transforms]) + copies_props
 
-    def spawn(self, **kwargs) -> "Generator":
+    def spawn(self, **kwargs: Any) -> "Generator":
         new_args = {
             "transforms": [trans.spawn() for trans in self.transforms],
             "copies": self.copies.copy(),
         }
         new_args.update(kwargs)
-        return Generator(**new_args)
+        return Generator(**new_args)  # type: ignore
 
     def materialize(self, object: "Object") -> list["Object"]:
         """Creates a normalized (no generators) object hierarchy."""
         results = [object.spawn()]
         for transform, copies in zip(self.transforms, self.copies):
-            new_results = []
+            new_results: list[Object] = []
             for current in results:
                 if copies:
                     new_results.append(current)
-                    for i in range(copies):
+                    for _ in range(copies):
                         current = transform.apply(current)
                         new_results.append(current)
                 else:

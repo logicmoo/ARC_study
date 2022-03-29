@@ -1,5 +1,7 @@
 """Define custom types used throughout the codebase."""
-from typing import TypeAlias, TypedDict
+from typing import Any, TypeAlias, TypedDict
+
+import numpy as np
 
 # For the input data, we have a 3-type hierarchy
 BoardData: TypeAlias = list[list[int]]
@@ -13,6 +15,9 @@ class SceneData(TypedDict):
 class TaskData(TypedDict):
     train: list[SceneData]
     test: list[SceneData]
+
+
+Grid: TypeAlias = np.ndarray[Any, np.dtype[np.int64]]
 
 
 Position: TypeAlias = tuple[int, int]

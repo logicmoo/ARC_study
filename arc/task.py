@@ -6,7 +6,7 @@ from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution
 from arc.types import TaskData
-from arc.util import logger, dictutil
+from arc.util import logger
 
 log = logger.fancy_logger("Task", level=20)
 
@@ -37,8 +37,6 @@ class Task:
 
         # WIP
         self.context = TaskContext()
-        # TODO Temporary, find a good home for input_groups
-        self.input_groups: dict[str, list[Object]]
 
         # Load scenes, cases ("train" data) and tests
         for scene_idx, scene_data in enumerate(task_data["train"]):
@@ -66,24 +64,24 @@ class Task:
     @property
     def ppp(self) -> float:
         """Average properties-per-point across cases."""
-        return np.mean([scene.ppp for scene in self.cases])
+        return np.mean([scene.ppp for scene in self.cases])  # type: ignore
 
     @property
     def dist(self) -> float:
         """Average transformational distance across cases."""
-        return np.mean([scene.dist for scene in self.cases])
+        return np.mean([scene.dist for scene in self.cases])  # type: ignore
 
     @property
     def n_boards(self) -> int:
         """Number of total boards in the Task."""
         return 2 * (len(self.cases) + len(self.tests))
 
-    def complete_run(self) -> None:
+    def solve(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
         self.decompose()
         self.match()
-        # self.solve()
-        # self.test()
+        self.infer()
+        self.test()
 
     def decompose(self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
@@ -102,26 +100,14 @@ class Task:
         scene_dists = [scene.dist for scene in self.cases]
         log.info(f"Scene distances {scene_dists} -> avg {self.dist:.1f}")
 
-    def solve(self):
-        self.bundle()
-        self.solution.label(self.input_groups)
-        self.solution.create_selector(self.input_groups)
-        # transforms = self.transform(self.groups, self.codes)
-        # self.solution = [(sel, transforms.get(idx)) for idx, sel in selectors.items()]
-
-    def bundle(self) -> None:
-        """Bundle objects together in order to identify a proper Selector."""
-        self.input_groups = {}
-        for scene in self.cases:
-            scene_inputs = {
-                char: [delta.left for delta in group]
-                for char, group in scene.path.items()
-            }
-            dictutil.merge(self.input_groups, scene_inputs)
-        log.debug(self.input_groups)
+    def infer(self):
+        self.solution.bundle(self.cases)
+        self.solution.label(self.cases)
+        self.solution.create_selector(self.solution.input_groups)
+        self.solution.determine_maps()
 
     def generate(self, test_idx: int = 0) -> Object:
-        return self.solution.solve(self.tests[test_idx])
+        return self.solution.generate(self.tests[test_idx])
 
     def test(self):
         success = 0

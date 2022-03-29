@@ -28,10 +28,8 @@ def init_session() -> None:
 
 
 def mode_selector() -> None:
-    # st.title("Exploring and Solving the ARC challenge")
-
     options = ["Demo", "Stats", "Dev"]
-    st.sidebar.selectbox("Select a mode", options, key="mode", index=2)
+    st.sidebar.selectbox("Select a mode", options, key="mode", index=0)
 
     if st.session_state.mode == "Stats":
         N = 400
@@ -56,8 +54,7 @@ def task_filter() -> None:
     def labeler(option: int) -> str:
         return f"{option} ({_arc.stats[option]})"
 
-    st.sidebar.multiselect(title, options, format_func=labeler, key="filters")
-    st.write(st.session_state.filters)
+    st.sidebar.multiselect(title, options, format_func=labeler, key="filters")  # type: ignore
 
 
 def task_selector() -> None:
@@ -74,4 +71,4 @@ def task_selector() -> None:
             return "Explore"
         return str(option)
 
-    st.sidebar.selectbox(title, options, index=0, format_func=labeler, key="task_idx")
+    st.sidebar.selectbox(title, options, index=0, format_func=labeler, key="task_idx")  # type: ignore

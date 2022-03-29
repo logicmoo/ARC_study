@@ -2,7 +2,8 @@ from collections import defaultdict
 from arc.board import Board, Inventory
 from arc.contexts import SceneContext
 from arc.definitions import Constants as cst
-from arc.object import Object, ObjectDelta
+from arc.object import Object
+from arc.object_delta import ObjectDelta
 from arc.types import SceneData
 from arc.util import logger
 
@@ -73,17 +74,20 @@ class Scene:
             log.info(f"Generator Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"  Gen {trans} | {obj1._id} -> {obj2._id}")
+                log.info(f"  Gen {trans} | {obj1.id} -> {obj2.id}")
 
+    # TODO: Simplify the return here
     def recreate(
         self, obj: Object, inventory: Inventory
     ) -> tuple[int, list[ObjectDelta]]:
         """Recursively tries to most easily create the given object"""
+        result: tuple[int, list[ObjectDelta]] = (cst.MAX_DIST, [])
         delta = inventory.find_closest(obj, threshold=8)
-        result = (cst.MAX_DIST, []) if delta is None else (delta.dist, [delta])
+        if delta:
+            result = (delta.dist, [delta])
 
         total_dist = 0
-        total_deltas = []
+        total_deltas: list[ObjectDelta] = []
         for kid in obj.children:
             kid_dist, kid_deltas = self.recreate(kid, inventory)
             log.debug(f"{kid} -> {obj} is distance {kid_dist} via {kid_deltas}")

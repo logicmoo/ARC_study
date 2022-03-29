@@ -1,5 +1,6 @@
 from arc.board import default_comparisons
-from arc.object import Object, ObjectDelta
+from arc.object import Object
+from arc.object_delta import ObjectDelta
 
 
 def test_translation():

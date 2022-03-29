@@ -1,11 +1,11 @@
 from collections import Counter
 from functools import cached_property
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 
-from arc.types import Point, PointDict, PointList, Position, PositionList
+from arc.types import Grid, Point, PointDict, PointList, Position, PositionList
 from arc.util import logger
 from arc.grid_methods import (
     mirror_order,
@@ -13,10 +13,7 @@ from arc.grid_methods import (
     translational_order,
 )
 from arc.definitions import Constants as cst
-from arc.generator import Generator, Transform
-
-if TYPE_CHECKING:
-    from arc.comparisons import ObjectComparison
+from arc.generator import Generator
 
 log = logger.fancy_logger("Object", level=30)
 
@@ -45,9 +42,9 @@ class Object:
     ## Constructors
     @classmethod
     def from_grid(
-        cls, grid: np.ndarray, anchor: Point = (0, 0, cst.NULL_COLOR), name: str = ""
+        cls, grid: Grid, anchor: Point = (0, 0, cst.NULL_COLOR), name: str = ""
     ) -> "Object":
-        children = []
+        children: list[Object] = []
         M, N = grid.shape
         for i in range(M):
             for j in range(N):
@@ -108,7 +105,7 @@ class Object:
             if not self.generator.bound:
                 return self.normalized.points
 
-            bounded_pts = {}
+            bounded_pts: PointDict = {}
             row_b, col_b = self.generator.bound
             for loc, color in self.normalized.points.items():
                 if loc[0] < row_b and loc[1] < col_b:
@@ -134,11 +131,12 @@ class Object:
         return sorted(list(self.points.keys()))
 
     @cached_property
-    def grid(self) -> np.ndarray:
+    def grid(self) -> Grid:
         """2D grid of the object"""
         if self.category == "Dot":
-            return np.array([[self.color]], dtype=int)
-        _grid = np.full(self.shape, cst.NULL_COLOR, dtype=int)
+            _grid: Grid = np.array([[self.color]], dtype=np.int64)  # type: ignore
+            return _grid
+        _grid: Grid = np.full(self.shape, cst.NULL_COLOR, dtype=int)  # type: ignore
         for pos, val in self.points.items():
             _grid[pos] = val
         return _grid
@@ -228,7 +226,7 @@ class Object:
 
     #! Properties relying on the traits dictionary shouldn't be cached
     @property
-    def _id(self) -> str:
+    def id(self) -> str:
         """A concise, (nearly) unique description of the Object."""
         if self.category == "Dot":
             shape_str = ""
@@ -244,9 +242,9 @@ class Object:
         else:
             info = f"({len(self.children)}ch, {self.size}pts, {self.props}p)"
         decomp = f"[{self.traits.get('decomp', '')}]"
-        return f"{decomp}{self._id}{info}"
+        return f"{decomp}{self.id}{info}"
 
-    def _hier_repr(self, tab: int = 0, max_lines: int = 10, max_dots: int = 5) -> str:
+    def hier_repr(self, tab: int = 0, max_lines: int = 10, max_dots: int = 5) -> str:
         """Detailed info on object and its children"""
         indent = "  " * tab
         output = [indent + self.__repr__()]
@@ -255,7 +253,7 @@ class Object:
             if child.category == "Dot":
                 dot_kids += 1
             if dot_kids < max_dots:
-                output.append(f"{child._hier_repr(tab=tab+1)}")
+                output.append(f"{child.hier_repr(tab=tab+1)}")
         if dot_kids >= max_dots:
             output.append(f"{indent}  ...{dot_kids} Dots total")
 
@@ -279,10 +277,12 @@ class Object:
         # Quit early if we can't print the output
         if log.level > getattr(logging, level.upper()):
             return
-        for line in self._hier_repr().split("\n"):
+        for line in self.hier_repr().split("\n"):
             getattr(log, level)(line)
 
-    def spawn(self, anchor: tuple[int, int, int] | None = None, **kwargs) -> "Object":
+    def spawn(
+        self, anchor: tuple[int, int, int] | None = None, **kwargs: Any
+    ) -> "Object":
         anchor = anchor or self.anchor
         if self.category == "Dot":
             return Object(*anchor)
@@ -311,7 +311,7 @@ class Object:
         # Containers are flattenable: they have no generators, and have children
         if self.category != "Container":
             return self
-        new_children = []
+        new_children: list[Object] = []
         for kid in self.children:
             flat_kid = kid.flatten()
             # We can't currently flatten containers with cutouts. Food for thought?
@@ -328,7 +328,7 @@ class Object:
                 flat_kid.category == "Container" and flat_kid.color == cst.NULL_COLOR
             ):
                 log.debug(f"Flattening {flat_kid}")
-                uplevel = []
+                uplevel: list[Object] = []
                 for gkid in flat_kid.children:
                     row, col = gkid.row + kid.row, gkid.col + kid.col
                     uplevel.append(gkid.spawn(anchor=(row, col, gkid.color)))
@@ -338,7 +338,7 @@ class Object:
         return self.spawn(self.anchor, children=new_children)
 
     def overlap(self, other: "Object") -> tuple[float, float]:
-        ct = np.sum(self.grid == other.grid)
+        ct: int = np.sum(self.grid == other.grid)  # type: ignore
         return ct / self.grid.size, ct
 
     @cached_property
@@ -390,63 +390,3 @@ class Object:
         row_o = mirror_order(self.grid, row_axis=True)
         col_o = mirror_order(self.grid, row_axis=False)
         return (row_o, col_o)
-
-
-class ObjectDelta:
-    """Determine the 'difference' between two objects.
-
-    This class analyzes how many transformations and properties it requires to
-    turn the 'left' object into the 'right'. It calculates an integer measure called
-    'distance', as well as the series of standard transformations to apply.
-    """
-
-    def __init__(
-        self, obj1: Object, obj2: Object, comparisons: list["ObjectComparison"]
-    ):
-        self.left: Object = obj1
-        self.right: Object = obj2
-        self.null: bool = False
-        self.transform: Transform = Transform([])
-        self.comparisons = comparisons
-        if obj1 == obj2:
-            return
-
-        for comparison in comparisons:
-            transform = comparison(self.left, self.right)
-            if transform is None:
-                self.null = True
-                continue
-            self.transform = self.transform.concat(transform)
-
-    @property
-    def dist(self) -> int:
-        """Returns the 'transformation distance' metric between objects.
-
-        The transformation distance is the total number of parameters required to
-        transform the 'left' object to the 'right'. This is equal to the sum of the
-        number of Actions plus the sum of the total number of additional arguments
-        supplied to the Actions.
-        """
-        if self.null:
-            return cst.MAX_DIST
-
-        return self.transform.props
-
-    @property
-    def actions(self) -> set[Any]:
-        """Returns the set of Actions used in the transformation"""
-        return set([act for act in self.transform.actions])
-
-    @property
-    def _name(self):
-        return f"Delta({self.dist}): {self.transform}"
-
-    def __repr__(self) -> str:
-        return f"{self._name}: {self.left._id} -> {self.right._id}"
-
-    def __lt__(self, other: "ObjectDelta") -> bool:
-        return self.dist < other.dist
-
-    def diff(self, other: "ObjectDelta") -> int:
-        """Returns a similarity measure between ObjectDeltas."""
-        return len(self.actions & other.actions)

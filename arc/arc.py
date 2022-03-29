@@ -51,7 +51,7 @@ class ARC:
 
         # TODO find a way to incorporate using blacklist coherently
         self.blacklist: set[int] = set([])
-        self.stats = Counter()
+        self.stats: dict[str, int] = Counter()
 
     @staticmethod
     def load(pid: str | int) -> "ARC":
@@ -115,8 +115,10 @@ class ARC:
             case {**levels}:
                 for name, loglevel in levels.items():
                     logging.getLogger(name).setLevel(loglevel)
+            case _:
+                log.warning(f"Unhandled 'arg' value {arg}")
 
-    def scan(self, methods=TaskTraits.methods) -> None:
+    def scan(self, methods: list[str] = TaskTraits.methods) -> None:
         self.stats = Counter()
         for task in self.tasks.values():
             for method in methods:
@@ -150,7 +152,7 @@ class ARC:
         for idx in self.selection:
             log.info(f"Solving Task {idx}")
             try:
-                self.tasks[idx].complete_run()
+                self.tasks[idx].solve()
             except Exception as exc:
                 msg = f"{type(exc).__name__} {exc}"
                 log.warning(f"Error during solve of task {idx} {msg}")

@@ -4,19 +4,19 @@ import matplotlib
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
-import numpy as np
 
 from arc.definitions import Constants as cst
 from arc.object import Object
 from arc.scene import Scene
 from arc.task import Task
+from arc.types import Grid
 from arc.util import logger
 
 log = logger.fancy_logger("Viz", level=20)
 
 
 class PlotDef(TypedDict):
-    grid: np.ndarray
+    grid: Grid
     name: str
 
 
@@ -27,12 +27,12 @@ def plot(item: Any, **kwargs: Any) -> Figure:
     match item:
         case Object(history=[]):
             return plot_grid(item.grid, **kwargs)
-        case Object(history=hist):
+        case Object(history=_):
             return plot_layout(tree_layout(item), **kwargs)
         case Scene(dist=-1):
             return plot_layout(scene_layout(item), **kwargs)
         case Scene(dist=dist):
-            log.info(f"Distance {item.dist}")
+            log.info(f"Distance {dist}")
             return plot_layout(match_layout(item), **kwargs)
         case Task():
             return plot_layout(task_layout(item), **kwargs)
@@ -45,7 +45,7 @@ def tree_layout(obj: Object) -> Layout:
     objs = [obj]
     layout: Layout = []
     while objs:
-        layout.append([{"grid": obj.grid, "name": obj._id} for obj in objs])
+        layout.append([{"grid": obj.grid, "name": obj.id} for obj in objs])
         objs = [
             kid for obj in objs for kid in obj.children if not kid.category == "Dot"
         ]
@@ -82,7 +82,7 @@ def match_layout(scene: Scene) -> Layout:
     layout: Layout = []
     for delta_list in scene.path.values():
         for delta in delta_list:
-            inp, out, trans = delta.right, delta.left, delta.generator
+            inp, out, trans = delta.right, delta.left, delta.transform
             left: PlotDef = {"grid": inp.grid, "name": inp.category}
             right: PlotDef = {"grid": out.grid, "name": trans.char}
             layout.append([left, right])
@@ -110,9 +110,9 @@ norm = matplotlib.colors.Normalize(vmin=-1, vmax=cst.N_COLORS)  # type: ignore
 
 def plot_color_map() -> Figure:
     fig = plt.figure(figsize=(3, 1), dpi=200)
-    plt.imshow([list(range(cst.N_COLORS))], cmap=color_map, norm=norm)
-    plt.xticks(list(range(cst.N_COLORS)))
-    plt.yticks([])
+    plt.imshow([list(range(cst.N_COLORS))], cmap=color_map, norm=norm)  # type: ignore
+    plt.xticks(list(range(cst.N_COLORS)))  # type: ignore
+    plt.yticks([])  # type: ignore
     return fig
 
 
@@ -127,9 +127,9 @@ def plot_layout(layout: Layout, scale: float = 1.0, show_axis: bool = True) -> F
     fig, axs = plt.subplots(M, N, squeeze=False, figsize=(2 * N * scale, 2 * M * scale))
     for r_idx, row in enumerate(layout):
         for c_idx in range(N):
-            curr_axes = axs[r_idx][c_idx]  # type: ignore
+            curr_axes: Axes = axs[r_idx][c_idx]  # type: ignore
             if c_idx >= len(row):
-                curr_axes.axis("off")
+                curr_axes.axis("off")  # type: ignore
                 continue
             args = row[c_idx]
             _add_plot(args["grid"], curr_axes, args["name"], show_axis)
@@ -137,15 +137,13 @@ def plot_layout(layout: Layout, scale: float = 1.0, show_axis: bool = True) -> F
     return fig
 
 
-def plot_grid(grid: np.ndarray, title: str = "", show_axis: bool = True) -> Figure:
+def plot_grid(grid: Grid, title: str = "", show_axis: bool = True) -> Figure:
     fig, axes = plt.subplots(1, 1, figsize=(4, 4))
     _add_plot(grid, axes, title=title, show_axis=show_axis)
     return fig
 
 
-def _add_plot(
-    grid: np.ndarray, axes: Axes, title: str = "", show_axis: bool = True
-) -> None:
+def _add_plot(grid: Grid, axes: Axes, title: str = "", show_axis: bool = True) -> None:
     """Plot an ARC grid, uses axes if supplied."""
     axes.set_title(title, {"fontsize": 8})
     if not show_axis:
