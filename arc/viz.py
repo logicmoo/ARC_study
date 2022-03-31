@@ -15,9 +15,10 @@ from arc.util import logger
 log = logger.fancy_logger("Viz", level=20)
 
 
-class PlotDef(TypedDict):
+class PlotDef(TypedDict, total=False):
     grid: Grid
     name: str
+    primitive: str
 
 
 Layout: TypeAlias = list[list[PlotDef]]
@@ -41,14 +42,36 @@ def plot(item: Any, **kwargs: Any) -> Figure:
             return plt.figure()
 
 
-def tree_layout(obj: Object) -> Layout:
-    objs = [obj]
+def tree_layout(obj: Object, max_dots: int = 5) -> Layout:
+    plot_items: list[Object | str] = [obj]
     layout: Layout = []
-    while objs:
-        layout.append([{"grid": obj.grid, "name": obj.id} for obj in objs])
-        objs = [
-            kid for obj in objs for kid in obj.children if not kid.category == "Dot"
-        ]
+    while plot_items:
+        layout_line: list[PlotDef] = []
+        for item in plot_items:
+            if isinstance(item, str):
+                layout_line.append({"primitive": item})
+            else:
+                layout_line.append({"grid": item.grid, "name": item.id})
+        layout.append(layout_line)
+
+        new_plot_items: list[Object | str] = []
+        plot_objs: list[Object] = list(filter(lambda x: isinstance(x, Object), plot_items))  # type: ignore
+        for idx, item in enumerate(plot_objs):
+            if new_plot_items and idx > 0 and item.children:
+                new_plot_items.append("divider")
+            dot_ct = 0
+            for kid in item.children:
+                if kid.category == "Dot":
+                    if kid.color == cst.NULL_COLOR:
+                        continue
+                    if dot_ct < max_dots:
+                        new_plot_items.append(kid)
+                    elif dot_ct == max_dots:
+                        new_plot_items.append("ellipsis")
+                    dot_ct += 1
+                else:
+                    new_plot_items.append(kid)
+        plot_items = new_plot_items
     return layout
 
 
@@ -131,23 +154,39 @@ def plot_layout(layout: Layout, scale: float = 1.0, show_axis: bool = True) -> F
             if c_idx >= len(row):
                 curr_axes.axis("off")  # type: ignore
                 continue
-            args = row[c_idx]
-            _add_plot(args["grid"], curr_axes, args["name"], show_axis)
+            _add_plot(curr_axes, row[c_idx], show_axis)
     plt.tight_layout()
     return fig
 
 
 def plot_grid(grid: Grid, title: str = "", show_axis: bool = True) -> Figure:
     fig, axes = plt.subplots(1, 1, figsize=(4, 4))
-    _add_plot(grid, axes, title=title, show_axis=show_axis)
+    plot_def: PlotDef = {"grid": grid, "name": title}
+    _add_plot(axes, plot_def, show_axis=show_axis)
     return fig
 
 
-def _add_plot(grid: Grid, axes: Axes, title: str = "", show_axis: bool = True) -> None:
+def _add_plot(axes: Axes, plot_def: PlotDef, show_axis: bool = True) -> None:
     """Plot an ARC grid, uses axes if supplied."""
-    axes.set_title(title, {"fontsize": 8})
+    axes.set_title(plot_def.get("name"), {"fontsize": 8})
     if not show_axis:
         axes.axis("off")
-    axes.imshow(grid, cmap=color_map, norm=norm)
-    axes.set_yticks(list(range(grid.shape[0])))
-    axes.set_xticks(list(range(grid.shape[1])))
+    if plot_def.get("primitive") == "divider":
+        _divider(axes)
+    elif plot_def.get("primitive") == "ellipsis":
+        _ellipsis(axes)
+    grid = plot_def.get("grid")
+    if grid is not None:
+        axes.imshow(grid, cmap=color_map, norm=norm)
+        axes.set_yticks(list(range(grid.shape[0])))
+        axes.set_xticks(list(range(grid.shape[1])))
+
+
+def _divider(axes: Axes) -> None:
+    axes.axis("off")
+    axes.axvline(x=0.5, lw=5, ls="--", color="black")  # type: ignore
+
+
+def _ellipsis(axes: Axes) -> None:
+    axes.axis("off")
+    axes.scatter([0, 0.2, 0.4], [0, 0, 0], color="black")  # type: ignore
