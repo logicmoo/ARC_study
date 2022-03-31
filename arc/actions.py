@@ -31,21 +31,18 @@ def chebyshev_vector(left: "Object", right: "Object") -> tuple[int, int]:
     elif left_max_col <= right_min_col:
         dist[1] = right_min_col - left_max_col
 
-    match dist:
-        # Objects' bounding boxes overlap
-        case [None, None]:
+    if dist[0] is None:
+        if dist[1] is None:
             return (0, 0)
-        case [int(row_dist), None]:
-            return (row_dist, 0)
-        case [None, int(col_dist)]:
-            return (0, col_dist)
-        case [int(row_dist), int(col_dist)]:
-            if abs(col_dist) > abs(row_dist):
-                return (row_dist, 0)
-            else:
-                return (0, col_dist)
-        case _:  # pragma: no cover
-            return (0, 0)
+        else:
+            return (0, dist[1])
+    elif dist[1] is None:
+        return (dist[0], 0)
+    else:
+        if abs(dist[0]) < abs(dist[1]):
+            return (dist[0], 0)
+        else:
+            return (0, dist[1])
 
 
 class Action:
@@ -58,6 +55,8 @@ class Action:
         "M": "mtile",
         "R": "rtile",
         "C": "ctile",
+        "S": "resize",
+        "A": "adjoin",
         "t": "turn",
         "r": "right",
         "l": "left",
