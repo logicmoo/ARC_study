@@ -72,7 +72,7 @@ class ARC:
             case (task_idx, scene_idx):
                 return self.tasks[task_idx][scene_idx]
             case (task_idx, scene_idx, attribute):
-                return getattr(self.tasks[task_idx][scene_idx], attribute).rep
+                return getattr(self.tasks[task_idx][scene_idx], attribute)
             case str(partial_uid):
                 for task in self.tasks.values():
                     if partial_uid in task.uid:

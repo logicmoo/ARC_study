@@ -50,16 +50,24 @@ class Board:
         self, data: BoardData, name: str = "", processes: list[Process] | None = None
     ):
         self.name = name
-        self.rep = Object.from_grid(grid=np.array(data))  # type: ignore
+        self.raw = Object.from_grid(grid=np.array(data))  # type: ignore
         self.processes = processes or default_processes
 
         # Used during decomposition process
-        self.proc_q = collections.deque([self.rep])
+        self.decomposed: Object | None = None
+        self.proc_q = collections.deque([self.raw])
         self.bank: list[Object] = []
         self.inventory: Inventory = Inventory(Object())
 
     def __repr__(self) -> str:
         return self.rep.hier_repr()
+
+    @property
+    def rep(self) -> Object:
+        if self.decomposed:
+            return self.decomposed
+        else:
+            return self.raw
 
     def choose_representation(self) -> None:
         """Find the most compact representation from decomposition."""
@@ -67,8 +75,8 @@ class Board:
         for obj in self.bank + list(self.proc_q):
             if obj.props < best_props:
                 best_props = obj.props
-                self.rep = obj.flatten()
-                log.debug(f"Chose flattened object: {self.rep}")
+                self.decomposed = obj.flatten()
+                log.debug(f"Chose flattened object: {self.decomposed}")
 
     def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
         """Determine the optimal representation of the Board.

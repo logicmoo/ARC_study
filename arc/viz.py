@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 from arc.definitions import Constants as cst
 from arc.object import Object
+from arc.board import Board
 from arc.scene import Scene
 from arc.task import Task
 from arc.types import Grid
@@ -26,10 +27,12 @@ Layout: TypeAlias = list[list[PlotDef]]
 
 def plot(item: Any, **kwargs: Any) -> Figure:
     match item:
-        case Object(history=[]):
+        case Object():
             return plot_grid(item.grid, **kwargs)
-        case Object(history=_):
-            return plot_layout(tree_layout(item), **kwargs)
+        case Board(decomposed=None):
+            return plot_grid(item.raw.grid, **kwargs)
+        case Board(decomposed=_):
+            return plot_layout(tree_layout(item.rep), **kwargs)
         case Scene(dist=-1):
             return plot_layout(scene_layout(item), **kwargs)
         case Scene(dist=dist):
