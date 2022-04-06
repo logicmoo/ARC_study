@@ -7,7 +7,7 @@ from arc.scene import Scene
 from arc.selector import Selector
 from arc.util import logger, dictutil
 
-log = logger.fancy_logger("Solution", level=30)
+log = logger.fancy_logger("Solution", level=20)
 
 
 class Solution:
@@ -50,6 +50,7 @@ class Solution:
         # TODO CHECKPOINT
         # input_group = Inventory(test_scene.input.rep).all
         self.selector = Selector(input_groups)
+        log.info(self.selector)
 
     def determine_maps(self) -> None:
         for trans, delta_list in self.transform_groups.items():

@@ -1,9 +1,9 @@
-from typing import Any, Hashable
+from typing import Any, TypeVar
+
+_KeyT = TypeVar("_KeyT", bound=str | int | tuple[Any, ...])
 
 
-def merge(
-    d_base: dict[Hashable, Any], d_in: dict[Hashable, Any]
-) -> dict[Hashable, Any]:
+def merge(d_base: dict[_KeyT, Any], d_in: dict[_KeyT, Any]) -> dict[_KeyT, Any]:
     """Adds leaves of nested dict d_in to d_base, keeping d_base where overlapping"""
     for key in d_in:
         if key in d_base:
@@ -21,20 +21,18 @@ def merge(
     return d_base
 
 
-def dict_sub(d_base: dict[Hashable, Any], d_in: dict[Hashable, Any]) -> None:
+def dict_sub(d_base: dict[_KeyT, Any], d_in: dict[_KeyT, Any]) -> None:
     for key, val in d_in.items():
         if key in d_base and d_base[key] == val:
             d_base.pop(key)
 
 
-def dict_and(
-    d_left: dict[Hashable, Any], d_right: dict[Hashable, Any]
-) -> dict[Hashable, Any]:
+def dict_and(d_left: dict[_KeyT, Any], d_right: dict[_KeyT, Any]) -> dict[_KeyT, Any]:
     """Returns a dict with any key: val pair present in both."""
     return {key: val for key, val in d_left.items() if d_right.get(key) == val}
 
 
-def dict_and_group(dict_group: list[dict[Hashable, Any]]) -> dict[Hashable, Any]:
+def dict_and_group(dict_group: list[dict[_KeyT, Any]]) -> dict[_KeyT, Any]:
     if not dict_group:
         return {}
     result = dict_group[0]
@@ -43,9 +41,7 @@ def dict_and_group(dict_group: list[dict[Hashable, Any]]) -> dict[Hashable, Any]
     return result
 
 
-def dict_xor(
-    d_left: dict[Hashable, Any], d_right: dict[Hashable, Any]
-) -> dict[Hashable, Any]:
+def dict_xor(d_left: dict[_KeyT, Any], d_right: dict[_KeyT, Any]) -> dict[_KeyT, Any]:
     """Returns any key: val pair not in both, choosing the left value if mismatch"""
     output = d_left.copy()
     for key, val in d_right.items():

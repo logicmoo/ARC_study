@@ -1,5 +1,6 @@
 from typing import Any
-from arc.comparisons import ObjectComparison
+
+from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
 from arc.generator import Transform
 from arc.object import Object
@@ -18,7 +19,10 @@ class ObjectDelta:
     """
 
     def __init__(
-        self, obj1: Object, obj2: Object, comparisons: list["ObjectComparison"]
+        self,
+        obj1: Object,
+        obj2: Object,
+        comparisons: list["ObjectComparison"] = default_comparisons,
     ):
         self.left: Object = obj1
         self.right: Object = obj2

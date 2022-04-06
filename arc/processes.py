@@ -289,3 +289,20 @@ class Reflection(Process):
         if candidate:
             self.success(candidate)
         return candidate
+
+
+all_processes = {
+    "make_base": MakeBase,
+    "connect_objects": ConnectObjects,
+    "separate_color": SeparateColor,
+    "tiling": Tiling,
+    "reflection": Reflection,
+}
+
+default_processes = [
+    MakeBase(),
+    ConnectObjects(),
+    SeparateColor(),
+    Tiling(),
+    # Reflection(),  # TODO: Broken, Action.vertical not receiving arg
+]

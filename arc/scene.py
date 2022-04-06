@@ -7,7 +7,7 @@ from arc.object_delta import ObjectDelta
 from arc.types import SceneData
 from arc.util import logger
 
-log = logger.fancy_logger("Scene", level=30)
+log = logger.fancy_logger("Scene", level=20)
 
 
 class Scene:
@@ -48,16 +48,18 @@ class Scene:
         """Transformational distance measured between input and output"""
         return self._dist
 
-    def decompose(self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER) -> None:
+    def decompose(
+        self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER, init: bool = False
+    ) -> None:
         """Determine a compact representation of the input and output Boards."""
-        self.input.decompose(batch=batch, max_iter=max_iter)
-        log.info(f"Input decomposition at {self.input.rep.props}")
-        if self.output:
-            self.output.set_inventory(self.input.rep)
-            self.output.decompose(batch=batch, max_iter=max_iter)
-            # TODO Handle inventories
-            # self.output.decompose(batch=batch, max_iter=max_iter, source=self.input)
-            log.info(f"Output decomposition at {self.output.rep.props}")
+        self.input.decompose(batch=batch, max_iter=max_iter, init=init)
+        log.info(f"Scene {self.idx} input rep | props {self.input.rep.props}:")
+        log.info(self.input.rep)
+
+        self.output.set_inventory(self.input.rep)
+        self.output.decompose(batch=batch, max_iter=max_iter, init=init)
+        log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
+        log.info(self.output.rep)
 
     def match(self):
         """Identify the minimal transformation set needed from input -> output Board."""
@@ -69,12 +71,12 @@ class Scene:
         for delta in deltas:
             self.path[delta.transform.char].append(delta)
 
-        log.info(f"Minimal distance transformation ({self.dist}):")
+        log.info(f"Scene {self.idx} path | distance ({self.dist}):")
         for char, deltas in self.path.items():
-            log.info(f"Generator Characteristic: {char or 'None'}")
+            log.info(f"  Generator Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"  Gen {trans} | {obj1.id} -> {obj2.id}")
+                log.info(f"    Gen {trans} | {obj1.id} -> {obj2.id}")
 
     # TODO: Simplify the return here
     def recreate(

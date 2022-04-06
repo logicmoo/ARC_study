@@ -3,34 +3,14 @@ from functools import cached_property
 
 import numpy as np
 
-from arc.comparisons import (
-    ObjectComparison,
-    get_color_diff,
-    get_order_diff,
-    get_translation,
-)
+from arc.comparisons import ObjectComparison, default_comparisons
 from arc.util import logger
 from arc.object import Object
 from arc.object_delta import ObjectDelta
-from arc.processes import (
-    Process,
-    MakeBase,
-    ConnectObjects,
-    # Reflection,
-    SeparateColor,
-    Tiling,
-)
+from arc.processes import Process, default_processes
 from arc.types import BoardData
 
-log = logger.fancy_logger("Board", level=20)
-
-default_processes = [
-    MakeBase(),
-    ConnectObjects(),
-    SeparateColor(),
-    Tiling(),
-    # Reflection(),  # TODO: Broken, Action.vertical not receiving arg
-]
+log = logger.fancy_logger("Board", level=30)
 
 
 class Board:
@@ -78,7 +58,9 @@ class Board:
                 self.decomposed = obj.flatten()
                 log.debug(f"Chose flattened object: {self.decomposed}")
 
-    def decompose(self, batch: int = 10, max_iter: int = 10) -> None:
+    def decompose(
+        self, batch: int = 10, max_iter: int = 10, init: bool = False
+    ) -> None:
         """Determine the optimal representation of the Board.
 
         Args:
@@ -86,6 +68,9 @@ class Board:
               candidate is retained.
             max_iter: Maximum number of iterations of decomposition.
         """
+        if not self.proc_q or init:
+            self.proc_q = collections.deque([self.raw])
+            self.bank = []
         for ct in range(max_iter):
             log.info(f"== Begin decomposition round {ct+1}")
             log.debug("  Processing queue:")
@@ -160,14 +145,13 @@ class Board:
                 candidate = process.run(obj)
                 if candidate:
                     candidates.append(candidate)
+            else:
+                log.debug(f"{process.__class__.__name__} failed pre-run test")
 
         return candidates
 
     def set_inventory(self, obj: Object) -> None:
         self.inventory = Inventory(obj)
-
-
-default_comparisons = [get_order_diff, get_color_diff, get_translation]
 
 
 class Inventory:

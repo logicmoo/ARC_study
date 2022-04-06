@@ -83,12 +83,14 @@ class Task:
         self.infer()
         self.test()
 
-    def decompose(self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER) -> None:
+    def decompose(
+        self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER, init: bool = False
+    ) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
         # TODO apply context
         log.info(f" + Decomposition")
         for scene in self.cases:
-            scene.decompose(batch=batch, max_iter=max_iter)
+            scene.decompose(batch=batch, max_iter=max_iter, init=init)
         scene_ppps = [round(scene.ppp, 2) for scene in self.cases]
         log.info(f"Scene PpPs {scene_ppps} -> avg {self.ppp:.3f}")
 

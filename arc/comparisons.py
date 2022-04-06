@@ -82,3 +82,6 @@ def get_translation(left: "Object", right: "Object") -> ComparisonReturn:
             transform.actions.append(Action.horizontal)
             transform.args.append((c2 - c1,))
     return transform
+
+
+default_comparisons = [get_order_diff, get_color_diff, get_translation]

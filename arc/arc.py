@@ -103,15 +103,8 @@ class ARC:
         """
         match arg:  # pragma: no cover
             case int(level):
-                for logname in [
-                    "Task",
-                    "Scene",
-                    "Board",
-                    "Object",
-                    "Processes",
-                    "Comparisons",
-                ]:
-                    logging.getLogger(logname).setLevel(level)
+                for logger_name in logging.root.manager.loggerDict:
+                    logging.getLogger(logger_name).setLevel(level)
             case {**levels}:
                 for name, loglevel in levels.items():
                     logging.getLogger(name).setLevel(loglevel)
