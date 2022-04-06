@@ -1,5 +1,3 @@
-import numpy as np
-
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
 from arc.object import Object
@@ -64,12 +62,12 @@ class Task:
     @property
     def ppp(self) -> float:
         """Average properties-per-point across cases."""
-        return np.mean([scene.ppp for scene in self.cases])  # type: ignore
+        return sum([scene.ppp for scene in self.cases]) / len(self.cases)
 
     @property
     def dist(self) -> float:
         """Average transformational distance across cases."""
-        return np.mean([scene.dist for scene in self.cases])  # type: ignore
+        return sum([scene.dist for scene in self.cases]) / len(self.cases)
 
     @property
     def n_boards(self) -> int:

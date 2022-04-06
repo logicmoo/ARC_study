@@ -3,11 +3,19 @@ from functools import cached_property
 import logging
 from typing import Any
 
-import numpy as np
-
-from arc.types import Grid, Point, PointDict, PointList, Position, PositionList
+from arc.types import (
+    BoardData,
+    Grid,
+    Point,
+    PointDict,
+    PointList,
+    Position,
+    PositionList,
+)
 from arc.util import logger
 from arc.grid_methods import (
+    grid_overlap,
+    gridify,
     mirror_order,
     norm_points,
     translational_order,
@@ -42,9 +50,13 @@ class Object:
     ## Constructors
     @classmethod
     def from_grid(
-        cls, grid: Grid, anchor: Point = (0, 0, cst.NULL_COLOR), name: str = ""
+        cls,
+        grid: Grid | BoardData,
+        anchor: Point = (0, 0, cst.NULL_COLOR),
+        name: str = "",
     ) -> "Object":
         children: list[Object] = []
+        grid = gridify(grid)
         M, N = grid.shape
         for i in range(M):
             for j in range(N):
@@ -134,9 +146,8 @@ class Object:
     def grid(self) -> Grid:
         """2D grid of the object"""
         if self.category == "Dot":
-            _grid: Grid = np.array([[self.color]], dtype=np.int64)  # type: ignore
-            return _grid
-        _grid: Grid = np.full(self.shape, cst.NULL_COLOR, dtype=int)  # type: ignore
+            return gridify([[self.color]])
+        _grid: Grid = gridify([[cst.NULL_COLOR]], self.shape)
         for pos, val in self.points.items():
             _grid[pos] = val
         return _grid
@@ -337,9 +348,8 @@ class Object:
                 new_children.append(flat_kid)
         return self.spawn(self.anchor, children=new_children)
 
-    def overlap(self, other: "Object") -> tuple[float, float]:
-        ct: int = np.sum(self.grid == other.grid)  # type: ignore
-        return ct / self.grid.size, ct
+    def overlap(self, other: "Object") -> float:
+        return grid_overlap(self.grid, other.grid)
 
     @cached_property
     def props(self) -> int:

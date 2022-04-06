@@ -6,12 +6,14 @@ from arc.actions import Action, chebyshev_vector
 def test_translations():
     """Test each action that translates an Object."""
     pt1 = Object(1, 1, 1)
-    pt2 = Action.right(pt1)
+    pt2 = Action.horizontal(pt1, 1)
     assert pt2 == Object(1, 2, 1)
     assert pt2 != pt1
 
     # 'Konami' test :) (up down left right is idempotent)
-    pt3 = Action.right(Action.left(Action.down(Action.up(pt1))))
+    pt3 = Action.horizontal(
+        Action.horizontal(Action.vertical(Action.vertical(pt1, -1), 1), -1), 1
+    )
     assert pt3 == pt1
 
     # Zeroing should be equivalent to justifying each axis

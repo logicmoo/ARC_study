@@ -10,6 +10,20 @@ log = logger.fancy_logger("BoardMethods", level=30)
 from arc.types import Grid, PointDict, PointList, Position
 
 
+def gridify(data: Grid | list[list[int]], tile: tuple[int, int] = (1, 1)) -> Grid:
+    if hasattr(data, "shape"):
+        return data  # type: ignore
+    return np.tile(data, tile)  # type: ignore
+
+
+def grid_overlap(left: Grid, right: Grid) -> float:
+    return np.sum(left == right) / left.size  # type: ignore
+
+
+def grid_equal(left: Grid, right: Grid) -> bool:
+    return np.array_equal(left, right)  # type: ignore
+
+
 def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
     """Calculate the anchor (min row and col) of a list of points and norm them.
 
@@ -147,4 +161,4 @@ def translational_order(grid: Grid, row_axis: bool) -> list[tuple[int, float]]:
 def mirror_order(grid: Grid, row_axis: bool) -> float:
     """Measure the level of mirror symmetry."""
     grid = grid if row_axis else grid.T
-    return np.sum(np.flip(grid, 0) == grid) / grid.size  # type: ignore
+    return grid_overlap(np.flip(grid, 0), grid)  # type: ignore

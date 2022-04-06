@@ -1,8 +1,7 @@
 import os
 
-import numpy as np
-
 from arc.arc import ARC, FailedSolve
+from arc.grid_methods import grid_equal
 
 
 def test_pickling() -> None:
@@ -16,7 +15,7 @@ def test_pickling() -> None:
     for task_idx in arc.tasks:
         for scene_idx, scene in enumerate(arc.tasks[task_idx].cases):
             load_grid = loaded[task_idx].cases[scene_idx].input.rep.grid
-            assert np.array_equal(scene.input.rep.grid, load_grid)  # type: ignore
+            assert grid_equal(scene.input.rep.grid, load_grid)
 
 
 def test_selection() -> None:

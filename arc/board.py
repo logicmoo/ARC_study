@@ -1,8 +1,6 @@
 import collections
 from functools import cached_property
 
-import numpy as np
-
 from arc.comparisons import ObjectComparison, default_comparisons
 from arc.util import logger
 from arc.object import Object
@@ -30,7 +28,7 @@ class Board:
         self, data: BoardData, name: str = "", processes: list[Process] | None = None
     ):
         self.name = name
-        self.raw = Object.from_grid(grid=np.array(data))  # type: ignore
+        self.raw = Object.from_grid(grid=data)
         self.processes = processes or default_processes
 
         # Used during decomposition process

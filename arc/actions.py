@@ -58,10 +58,6 @@ class Action:
         "S": "resize",
         "A": "adjoin",
         "t": "turn",
-        "r": "right",
-        "l": "left",
-        "d": "down",
-        "u": "up",
         "h": "flip_h",
         "v": "flip_v",
         "j": "justify",
@@ -90,22 +86,6 @@ class Action:
     @classmethod
     def horizontal(cls, object: "Object", value: int) -> "Object":
         return cls.move(object, 0, value)
-
-    @classmethod
-    def up(cls, object: "Object") -> "Object":
-        return cls.vertical(object, -1)
-
-    @classmethod
-    def down(cls, object: "Object") -> "Object":
-        return cls.vertical(object, 1)
-
-    @classmethod
-    def left(cls, object: "Object") -> "Object":
-        return cls.horizontal(object, -1)
-
-    @classmethod
-    def right(cls, object: "Object") -> "Object":
-        return cls.horizontal(object, 1)
 
     # Translations built on moving past the edge of the object
     @classmethod
@@ -209,3 +189,6 @@ class Action:
         elif ch_vector[1]:
             result = Action().horizontal(result, ch_vector[1])
         return result
+
+
+subs = [()]

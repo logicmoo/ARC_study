@@ -150,7 +150,7 @@ class ConnectObjects(Process):
         off_colors = [cst.NULL_COLOR]
 
         for color in off_colors:
-            marked[marked == color] = cst.MARKED_COLOR  # type: ignore
+            marked[marked == color] = cst.MARKED_COLOR
         obj_pts, fail_message = color_connect(marked)
         if fail_message:
             self.fail(fail_message)
