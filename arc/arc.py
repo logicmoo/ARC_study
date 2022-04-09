@@ -16,7 +16,7 @@ log = logger.fancy_logger("ARC", level=20)
 Index: TypeAlias = int | str | tuple[int, int] | tuple[int, int, str]
 
 
-class FailedSolve(Exception):
+class SolveError(Exception):
     pass
 
 
@@ -149,4 +149,4 @@ class ARC:
             except Exception as exc:
                 msg = f"{type(exc).__name__} {exc}"
                 log.warning(f"Error during solve of task {idx} {msg}")
-                raise FailedSolve from exc
+                raise SolveError from exc

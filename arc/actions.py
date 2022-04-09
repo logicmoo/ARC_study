@@ -74,8 +74,13 @@ class Action:
     ## TRANSLATION
     # Simple translations building on a 'move' method
     @classmethod
+    def identity(cls, object: "Object") -> "Object":
+        """Return a copy of the object."""
+        return object.spawn()
+
+    @classmethod
     def move(cls, object: "Object", dr: int, dc: int) -> "Object":
-        """Returns a new Object/Shape with transformed coordinates"""
+        """Return a new Object/Shape with transformed coordinates"""
         a_row, a_col, color = object.anchor
         return object.spawn((a_row + dr, a_col + dc, color))
 
@@ -104,12 +109,12 @@ class Action:
     # Translations using zeros
     @classmethod
     def zero(cls, object: "Object") -> "Object":
-        """Sets row and column to zero"""
+        """Set row and column to zero"""
         return object.spawn((0, 0, object.color))
 
     @classmethod
     def justify(cls, object: "Object", axis: int) -> "Object":
-        """Sets one of row or column to zero"""
+        """Set one of row or column to zero"""
         loc = list(object.loc)
         loc[axis] = 0
         return object.spawn((*loc, object.color))
@@ -118,7 +123,7 @@ class Action:
     # Linear transform along an axis
     @classmethod
     def scale(cls, object: "Object", code: str, value: int) -> "Object":
-        """Changes the value associated with a generator"""
+        """Change the value associated with a generator"""
         if not object.generator:
             return object.spawn()
         copies = object.generator.copies.copy()
@@ -191,4 +196,7 @@ class Action:
         return result
 
 
-subs = [()]
+# A list of pairs of action sets, where the first actions might be
+# substituted by the second action as a 2-object function
+# TODO WIP
+subs = [("fp", "S"), ("ws", "A")]

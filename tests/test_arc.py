@@ -1,6 +1,6 @@
 import os
 
-from arc.arc import ARC, FailedSolve
+from arc.arc import ARC
 from arc.grid_methods import grid_equal
 
 
@@ -36,7 +36,7 @@ def test_selection() -> None:
 def test_complete_run() -> None:
     # TODO Double-check this
     # arc = ARC(idxs={1})
-    # with pytest.raises(FailedSolve):
+    # with pytest.raises(SolveError):
     #     arc.solve_tasks()
 
     arc = ARC(idxs={10})

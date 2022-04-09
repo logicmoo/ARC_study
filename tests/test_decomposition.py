@@ -14,8 +14,9 @@ def test_8(decomposition_samples: ARC):
     board = decomposition_samples.tasks[8].cases[0].input
     board.decompose()
     child_names = sorted([kid.id for kid in board.rep.children])
+    # TODO: How should we use the 'name' field (e.g. Conn0 below)
     assert child_names == [
-        "Container(2x4)@(2, 0, 10)",
+        "Cluster(2x4)@(2, 0, 2) 'Conn0' ",
         "Rect(14x9)@(0, 0, 0)",
         "Rect(2x2)@(10, 3, 8)",
     ]

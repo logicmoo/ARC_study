@@ -51,3 +51,7 @@ def dict_xor(d_left: dict[_KeyT, Any], d_right: dict[_KeyT, Any]) -> dict[_KeyT,
         elif left_val is None:
             output[key] = val
     return output
+
+
+def key_concat(inp: dict[_KeyT, Any]) -> str:
+    return "".join(map(str, inp.keys()))

@@ -163,6 +163,10 @@ class Inventory:
     def all(self) -> list[Object]:
         return [obj for sized_objs in self.inventory.values() for obj in sized_objs]
 
+    def less(self, mask: list[Object]) -> list[Object]:
+        """Return the inventory without the objects in the mask."""
+        return [obj for obj in self.all if obj not in mask]
+
     def create_inventory(self, obj: Object) -> dict[int, list[Object]]:
         """Recursively find all non-Dot objects in the hierarchy."""
         inventory: dict[int, list[Object]] = collections.defaultdict(list)

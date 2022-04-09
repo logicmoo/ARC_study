@@ -57,7 +57,8 @@ class Process(ABC):
         layer = Object.from_points(points)
         layer.traits["finished"] = True
         layer.traits["decomp"] = tag
-        container = Object(*output.loc, children=[out, layer])
+        # NOTE: The use of output.anchor vs output.loc is contentious
+        container = Object(*output.anchor, children=[out, layer])
         container.traits["decomp"] = output.traits["decomp"]
         container.traits["finished"] = output.traits["finished"]
         return container

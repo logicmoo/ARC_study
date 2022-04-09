@@ -10,6 +10,8 @@ log = logger.fancy_logger("Description", level=30)
 # intrinsic properties are valued first, over ranked, and "color"
 # would be used over "category".
 intrinsic_properties = ["color", "category", "anchor"]
+# TODO Include properties based on children
+child_relations = ["child_count"]
 ranked_parameters = ["size", "width", "row", "col"]
 
 all_traits = intrinsic_properties + [item + "-rank" for item in ranked_parameters]
