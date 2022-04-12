@@ -71,16 +71,12 @@ class Board:
             self.bank = []
         for ct in range(max_iter):
             log.info(f"== Begin decomposition round {ct+1}")
-            log.debug("  Processing queue:")
-            for obj in self.proc_q:
-                log.debug(f"  - {obj}")
             self.batch_decomposition(batch=batch)
             log.info(f"== Decomposition at {self.rep.props}p after {ct+1} rounds")
             if not self.proc_q:
                 log.info("==! Ending decomposition due to empty processing queue")
                 break
         self.choose_representation()
-        self.rep.info("info")
 
     def batch_decomposition(self, batch: int = 10) -> None:
         """Decompose the top 'batch' candidates."""
@@ -113,7 +109,7 @@ class Board:
             for rev_idx, child in enumerate(obj.children[::-1]):
                 child_candidates = self._decomposition(child)
                 if child_candidates:
-                    # Each new decomposition needs a new top-level object
+                    # Each new decomposition needs to replace any parents
                     for new_child in child_candidates:
                         new_obj = obj.spawn()
                         new_obj.children[-(1 + rev_idx)] = new_child
@@ -122,8 +118,6 @@ class Board:
             return decompositions
         elif match := self.inventory.find_closest(obj, threshold=4):
             log.debug(f"Match at distance: {match.dist}")
-            log.debug(f"  {obj} to")
-            log.debug(f"  {match.right}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
             linked = match.right.spawn(anchor=obj.anchor)
@@ -132,8 +126,7 @@ class Board:
             return [linked]
 
         candidates = self.generate_candidates(obj)
-        for candidate in candidates:
-            log.debug(f"  {candidate}")
+        log.debug(f"Generated {len(candidates)} candidates")
         return candidates
 
     def generate_candidates(self, obj: Object) -> list[Object]:
@@ -170,6 +163,7 @@ class Inventory:
     def create_inventory(self, obj: Object) -> dict[int, list[Object]]:
         """Recursively find all non-Dot objects in the hierarchy."""
         inventory: dict[int, list[Object]] = collections.defaultdict(list)
+        # TODO Make sure to handle when to inventory Dots
         if obj.category == "Dot":
             return {}
         inventory[obj.size].append(obj)
@@ -180,7 +174,7 @@ class Inventory:
         return inventory
 
     def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
-        # NOTE temporary, filtering by size assumes we can't add expand a Generator
+        # NOTE temporary, filtering by size assumes we can't add/expand a Generator
         # to create the object.
         # candidates = self.inventory.get(obj.size, [])
         candidates = self.all
