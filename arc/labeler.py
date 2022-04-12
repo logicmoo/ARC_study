@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable
 
 from arc.object import Object
 from arc.util import logger
@@ -18,18 +18,21 @@ all_traits = intrinsic_properties + [item + "-rank" for item in ranked_parameter
 
 
 class Labeler:
-    def __init__(self, obj_list: list[Object]) -> None:
-        self.label_intrinsic_properties(obj_list, intrinsic_properties)
-
-        for param in ranked_parameters:
-            self.obj_rank(obj_list, param=param)
+    def __init__(self, obj_groups: list[list[Object]]) -> None:
+        self.labels: dict[str, dict[str, Any]] = {
+            obj.uid: {} for group in obj_groups for obj in group
+        }
+        for group in obj_groups:
+            self.label_intrinsic_properties(group, intrinsic_properties)
+            for param in ranked_parameters:
+                self.obj_rank(group, param=param)
 
     def label_intrinsic_properties(
         self, obj_list: list[Object], intrinsic_properties: list[str]
     ) -> None:
         for obj in obj_list:
             for property in intrinsic_properties:
-                obj.traits[property] = getattr(obj, property)
+                self.labels[obj.uid][property] = getattr(obj, property)
 
     def obj_rank(
         self,
@@ -47,4 +50,4 @@ class Labeler:
             )
         key_function = key_function or (lambda x: getattr(x, param))
         for idx, obj in enumerate(sorted(obj_list, key=key_function, reverse=reverse)):
-            obj.traits[name] = idx
+            self.labels[obj.uid][name] = idx

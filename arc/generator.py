@@ -117,7 +117,7 @@ class Generator:
     def __str__(self) -> str:
         msg: list[str] = []
         for trans, copies in zip(self.transforms, self.copies):
-            curr = str(trans)
+            curr = trans.code
             if copies is not None:
                 curr += f"*{copies}"
             msg.append(curr)

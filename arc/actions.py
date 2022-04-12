@@ -47,6 +47,7 @@ def chebyshev_vector(left: "Object", right: "Object") -> tuple[int, int]:
 
 class Action:
     action_map = {
+        "": "identity",
         "c": "recolor",
         "w": "vertical",
         "s": "horizontal",
@@ -199,4 +200,5 @@ class Action:
 # A list of pairs of action sets, where the first actions might be
 # substituted by the second action as a 2-object function
 # TODO WIP
+pair_actions = [Action.adjoin, Action.resize]
 subs = [("fp", "S"), ("ws", "A")]

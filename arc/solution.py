@@ -1,6 +1,6 @@
 from collections import defaultdict
 from typing import TypeAlias
-from arc.actions import Action, subs
+from arc.actions import Action, pair_actions, subs
 from arc.board import Inventory
 from arc.generator import ActionType
 from arc.labeler import Labeler, all_traits
@@ -8,7 +8,7 @@ from arc.object import Object
 from arc.object_delta import ObjectDelta
 from arc.scene import Scene
 from arc.selector import Selector
-from arc.util import logger, dictutil
+from arc.util import logger
 
 log = logger.fancy_logger("Solution", level=20)
 
@@ -28,61 +28,90 @@ class SolutionNode:
 
     def __init__(
         self,
-        input: list[Object],
-        output: list[Object],
-        selection: list[Object],
+        selector: Selector,
         action: ActionType = Action.identity,
         args: tuple[ActionArg, ...] = tuple(),
     ) -> None:
-        # TODO: For now, just consider one generator of SolutionNodes.
+        # TODO: For now, just consider one generation of SolutionNodes.
         # Thus, assume no children.
         # self.children: list[SolutionNode] = []
-        self.selector = Selector(input, selection)
+        self.selector = selector
         self.action = action
         self.args = args
 
-        # TODO Include a means to process missing transform args
-        self.output = output
+    def __repr__(self) -> str:
+        return f"{self.selector} -> {self.action.__name__}({self.args})"
 
     @classmethod
-    def from_transform_group(
-        cls, input: list[Object], group: list[ObjectDelta]
-    ) -> "SolutionNode":
-        selection = [delta.left for delta in group]
-        output = [delta.right for delta in group]
-        action: ActionType = Action.identity
+    def from_path_node(
+        cls, cases: list[Scene], keys: list[str], action: ActionType
+    ) -> list["SolutionNode"]:
+        inputs = [Inventory(case.input.rep).all for case in cases]
+
+        # The path node is a list of lists of ObjectDeltas related to the transform
+        path_node = [case.path.get(key, []) for case in cases for key in keys]
+
+        # The selection is every object that will be transformed
+        selection = [[delta.left for delta in group] for group in path_node]
+        deltas = [delta for group in path_node for delta in group]
+        selector = Selector(inputs, selection)
+
         args: tuple[ActionArg, ...] = ()
 
-        transforms = [delta.transform for delta in group]
-        actions: set[ActionType] = set(
-            [action for delta in group for action in delta.transform.actions]
-        )
-        if len(actions) == 0:
-            pass
-        elif len(actions) > 1:
-            log.debug(f"Multiple actions for transform group: {actions}")
-            # TODO Handle action substitution
+        if action == Action.identity:
+            # TODO Expand upon group subdivision. For now, identity is the most likely
+            # transform to be affected by it.
+            if not selector.criteria:
+                # TODO Hack, divide by color for now
+                colors: dict[int, list[list[Object]]] = defaultdict(list)
+                for case in selection:
+                    color_case: dict[int, list[Object]] = defaultdict(list)
+                    for obj in case:
+                        color_case[obj.color].append(obj)
+                    for color, obj_list in color_case.items():
+                        colors[color].append(obj_list)
+
+                nodes: list[SolutionNode] = []
+                for color, color_groups in colors.items():
+                    selector = Selector(inputs, color_groups)
+                    nodes.append(cls(selector, action, args))
+                return nodes
+        elif action in pair_actions:
+            log.debug(f"Determining selector for {action}")
+            secondaries: list[Object] = []
+            for delta, candidates in zip(deltas, inputs):
+                for obj in candidates:
+                    if action(delta.left, obj) == delta.right:
+                        log.debug(f"Choosing secondary: {obj}")
+                        secondaries.append(obj)
+                        break
+            if len(secondaries) < len(deltas):
+                log.warning(f"Insufficient secondaries: {len(secondaries)}")
+            args = (Selector(inputs, [secondaries]),)
+            log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
         else:
-            # A single, common action is present in the transforms
-            action = actions.pop()
             # now check the arguments
+            transforms = [delta.transform for delta in deltas]
             all_args = set([transform.args[0] for transform in transforms])
             if len(all_args) > 1:
                 # Non-constant action arguments means we should look for a mapping
-                args = (cls.determine_map(group),)
+                labeler = Labeler(selection)
+                args = (cls.determine_map(deltas, labeler),)
             else:
-                # The args are a constant value
                 args = all_args.pop()
 
-        return cls(input, output, selection, action, args)
+        return [cls(selector, action, args)]
 
     @staticmethod
-    def determine_map(delta_list: list[ObjectDelta]) -> tuple[str, dict[int, int]]:
+    def determine_map(
+        delta_list: list[ObjectDelta],
+        labeler: Labeler,
+    ) -> tuple[str, dict[int, int]]:
         result: tuple[str, dict[int, int]] = ("", {})
         for trait in all_traits:
             trial_map: dict[int, int] = {}
             for delta in delta_list:
-                inp = delta.left.traits[trait]
+                inp = labeler.labels[delta.left.uid][trait]
                 # TODO We're assuming a single action with a single arg for now
                 out = delta.transform.args[0][0]
                 if inp in trial_map:
@@ -106,7 +135,7 @@ class SolutionNode:
     def apply(self, input: list[Object]) -> list[Object]:
         selection = self.selector.select(input)
         result: list[Object] = []
-        Labeler(selection)
+        labeler = Labeler([selection])
         for obj in selection:
             args: list[Object | int] = []
             for arg in self.args:
@@ -114,16 +143,16 @@ class SolutionNode:
                     case int(value):
                         args.append(value)
                     case Selector():
-                        continue
+                        args.append(arg.select(input)[0])
                     case (str(trait), None):
                         log.debug(f"Transforming using {self.action}({trait})")
-                        trait_value = obj.traits.get(trait)
+                        trait_value = labeler.labels[obj.uid].get(trait)
                         args.append(trait_value)  # type: ignore
                     case (str(trait), {**mapping}):
                         log.debug(
                             f"Transforming using {self.action}({trait} mapping {mapping})"
                         )
-                        trait_value = obj.traits.get(trait)
+                        trait_value = labeler.labels[obj.uid].get(trait)
                         args.append(mapping.get(trait_value, trait_value))  # type: ignore
                     case _:
                         log.warning(f"Unhandled action arg: {arg}")
@@ -142,48 +171,50 @@ class Solution:
     """
 
     def __init__(self) -> None:
-        self.inputs: list[Object] = []
-        self.transform_groups: dict[str, list[ObjectDelta]] = {}
         self.nodes: list[SolutionNode] = []
 
+    def __repr__(self) -> str:
+        msg: list[str] = []
+        for node in self.nodes:
+            msg.append(str(node))
+        return "\n".join(msg)
+
     def bundle(self, cases: list[Scene]) -> None:
-        """Bundle objects together in order to identify a proper Selector."""
-        for scene in cases:
-            self.inputs.extend(scene.input.inventory.all)
-            dictutil.merge(self.transform_groups, scene.path)
-        log.debug(self.transform_groups)
+        """Bundle object transforms together.
+
+        In many cases, a Solution will involve nodes with unique transforms. E.g.
+        there will be only one node that performs a recoloring. This is sufficient
+        to handle most tasks. One must still consider whether the transform identified
+        during Matching is the best choice, or should it be replaced by a higher-order
+        transform."""
+        self.transform_map: dict[str, list[str]] = defaultdict(list)
+        for case in cases:
+            self.transform_map.update({key: [key] for key in case.path})
 
         # TODO WIP
-        # For now, use a substitution if it reduces the size of the transform group dict
-        new_tg: dict[str, list[ObjectDelta]] = defaultdict(list)
-        for char, group in self.transform_groups.items():
-            key = char
-            for left, right in subs:
-                log.debug(f"Checking subsitution: {left} -> {right}")
-                # Check if any transforms are in both the substitution input and group
-                if set(left) & set(char):
-                    log.debug(f"  Overlap: {left}, {char}")
-                    key = right
-            new_tg[key].extend(group)
-        log.debug(f"New TG: {new_tg.keys()}")
-        if len(dictutil.key_concat(new_tg)) < len(
-            dictutil.key_concat(self.transform_groups)
-        ):
-            log.debug(
-                f"Replacing TG {self.transform_groups.keys()} with {new_tg.keys()}"
-            )
-            self.transform_groups = new_tg
+        # For now, use a substitution if it reduces the size of transforms
+        for left, right in subs:
+            log.debug(f"Checking subsitution: {left} -> {right}")
+            # Check for double transforms ("ws", "fp") and map to pairwise action
+            if left in self.transform_map:
+                self.transform_map[right].extend(self.transform_map.pop(left))
+            # Check for non-constant transforms among "wsfp" and map to pairwise action
+            elif set(left) & set(self.transform_map.keys()):
+                for char in left:
+                    present = any([char in case.path for case in cases])
+                    complete = all([char in case.path for case in cases])
+                    if present and not complete:
+                        self.transform_map[right].extend(self.transform_map.pop(char))
 
-    def create_nodes(self) -> None:
+        log.debug(f"Transform mapping: {self.transform_map}")
+
+    def create_nodes(self, cases: list[Scene]) -> None:
         self.nodes = []
-        for group in self.transform_groups.values():
-            self.nodes.append(SolutionNode.from_transform_group(self.inputs, group))
-
-    def label(self, cases: list[Scene]):
-        for scene in cases:
-            for char, group in scene.path.items():
-                log.debug(f"Labeling scene: {scene.idx} group: {char}")
-                Labeler([delta.left for delta in group])
+        for node in self.transform_map:
+            action = Action()[node]
+            self.nodes.extend(
+                SolutionNode.from_path_node(cases, self.transform_map[node], action)
+            )
 
     def generate(self, test_scene: Scene) -> Object:
         test_scene.decompose()
@@ -195,4 +226,8 @@ class Solution:
         for node in self.nodes:
             output_children.extend(node.apply(input))
 
+        # TODO HACK To handle layering of transformed objects, sort by size for now
+        # This should ideally be some information passed through via the Inventory
+        # And noted by the SolutionNodes
+        output_children = sorted(output_children, key=lambda x: x.size, reverse=True)
         return Object(children=output_children)

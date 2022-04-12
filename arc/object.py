@@ -2,6 +2,7 @@ from collections import Counter
 from functools import cached_property
 import logging
 from typing import Any
+import uuid
 
 from arc.types import (
     BoardData,
@@ -235,6 +236,14 @@ class Object:
     def __getitem__(self, key: int) -> "Object":
         return self.children[key]
 
+    @cached_property
+    def uid(self) -> str:
+        """Generate a unique ID for the object, used for Labeling."""
+        # TODO Look into fixing this up
+        # hasher = hashlib.sha1(str(uuid.uuid1()).encode())
+        # return str(base64.urlsafe_b64decode(hasher.digest()))[:8]
+        return str(int(uuid.uuid1()) % 1000000)
+
     #! Properties relying on the traits dictionary shouldn't be cached
     @property
     def id(self) -> str:
@@ -243,7 +252,7 @@ class Object:
             shape_str = ""
         else:
             shape_str = f"({self.shape[0]}x{self.shape[1]})"
-        name = "" if not self.name else f" '{self.name}' "
+        name = "" if not self.name else f" '{self.name}'"
         return f"{self.category}{shape_str}@{self.anchor}{name}"
 
     def __repr__(self) -> str:

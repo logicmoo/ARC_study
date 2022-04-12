@@ -16,7 +16,7 @@ def test_8(decomposition_samples: ARC):
     child_names = sorted([kid.id for kid in board.rep.children])
     # TODO: How should we use the 'name' field (e.g. Conn0 below)
     assert child_names == [
-        "Cluster(2x4)@(2, 0, 2) 'Conn0' ",
+        "Cluster(2x4)@(2, 0, 2) 'Conn0'",
         "Rect(14x9)@(0, 0, 0)",
         "Rect(2x2)@(10, 3, 8)",
     ]
@@ -52,7 +52,7 @@ def test_17(decomposition_samples: ARC):
     child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Cluster(15x17)@(4, 3, 0)",
-        "Tile(21x21)@(0, 0, 10) 'Tiling(6,6)' ",
+        "Tile(21x21)@(0, 0, 10) 'Tiling(6,6)'",
     ]
 
 

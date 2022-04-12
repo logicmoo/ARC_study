@@ -102,8 +102,7 @@ class Task:
 
     def infer(self):
         self.solution.bundle(self.cases)
-        self.solution.label(self.cases)
-        self.solution.create_nodes()
+        self.solution.create_nodes(self.cases)
 
     def generate(self, test_idx: int = 0) -> Object:
         return self.solution.generate(self.tests[test_idx])
