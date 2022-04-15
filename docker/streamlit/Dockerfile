@@ -14,3 +14,5 @@ RUN python3.10 -m pip install --upgrade numpy
 ADD arc arc
 ADD data data
 ADD streamlit_app.py streamlit_app.py
+
+CMD ["streamlit", "run", "--browser.serverAddress=0.0.0.0", "streamlit_app.py"]
