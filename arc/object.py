@@ -71,14 +71,14 @@ class Object:
     ) -> "Object":
         """Create an Object from a list of Points.
 
-        This is used during Generator.spawn to efficiently generate the
+        This is used during Generator.materialize to efficiently generate the
         points belonging to resulting objects.
         """
         if len(points) == 1:
             return cls(*points[0], name=name)
-        norm_loc, normed, mono = norm_points(points)
+        norm_loc, normed, monochrome = norm_points(points)
         loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])
-        if mono:
+        if monochrome:
             children = [Object(*pt[:2]) for pt in normed]
             return cls(*loc, normed[0][2], children=children, name=name)
         else:
@@ -98,12 +98,12 @@ class Object:
 
     # NOTE: Keep an eye on the caching here to make sure it behaves appropriately
     @cached_property
-    def normalized(self) -> "Object":
+    def materialized(self) -> "Object":
         if not self.generator:
             return self
         kernel = Object(
             color=self.color,
-            children=[obj.normalized for obj in self.children],
+            children=[obj.materialized for obj in self.children],
         )
         new_obj = Object(*self.anchor, children=self.generator.materialize(kernel))
         return new_obj
@@ -116,11 +116,11 @@ class Object:
 
         if self.generator:
             if not self.generator.bound:
-                return self.normalized.points
+                return self.materialized.points
 
             bounded_pts: PointDict = {}
             row_b, col_b = self.generator.bound
-            for loc, color in self.normalized.points.items():
+            for loc, color in self.materialized.points.items():
                 if loc[0] < row_b and loc[1] < col_b:
                     bounded_pts[loc] = color
             return bounded_pts
@@ -300,7 +300,7 @@ class Object:
         for line in self.hier_repr().split("\n"):
             getattr(log, level)(line)
 
-    def spawn(
+    def copy(
         self, anchor: tuple[int, int, int] | None = None, **kwargs: Any
     ) -> "Object":
         anchor = anchor or self.anchor
@@ -308,7 +308,7 @@ class Object:
             return Object(*anchor)
         # Perhaps altering children isn't necessary in most cases
         new_args = {
-            "children": [kid.spawn() for kid in self.children],
+            "children": [kid.copy() for kid in self.children],
             "generator": self.generator,
             "name": self.name,
             "traits": None if self.traits is None else self.traits.copy(),
@@ -351,11 +351,11 @@ class Object:
                 uplevel: list[Object] = []
                 for gkid in flat_kid.children:
                     row, col = gkid.row + kid.row, gkid.col + kid.col
-                    uplevel.append(gkid.spawn(anchor=(row, col, gkid.color)))
+                    uplevel.append(gkid.copy(anchor=(row, col, gkid.color)))
                 new_children.extend(uplevel)
             else:
                 new_children.append(flat_kid)
-        return self.spawn(self.anchor, children=new_children)
+        return self.copy(self.anchor, children=new_children)
 
     def overlap(self, other: "Object") -> float:
         return grid_overlap(self.grid, other.grid)

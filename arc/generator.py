@@ -8,8 +8,10 @@ favoring a more generalized approach. Thus, the Generator class.
 
 We assume that the simple concepts such as the 2D transformations (translation,
 rotation, etc.) will necessarily be encoded as 'Actions'. We go on to create a
-Transform class that can capture one series of Actions. Then, the more
-universal Generator class is defined as a series of transforms.
+Transform class that can capture one series of Actions. Both Actions and Transforms
+involve a single output for an input. The Generator class can combine multiple
+Transforms, as well as repetition of these transforms, to generate larger objects
+such as lines, rectangles, and tilings.
 """
 import re
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias
@@ -51,7 +53,7 @@ class Transform:
 
     @property
     def char(self) -> str:
-        """Characteristic of the Transform: the unique, sorted Actions involved."""
+        """Characteristic of the Transform: the unique, sorted Action keys involved."""
         characteristic: set[str] = set()
         for action in self.actions:
             characteristic.add(Action().rev_map[action.__name__])
@@ -59,6 +61,7 @@ class Transform:
 
     @classmethod
     def from_code(cls, code: str) -> "Transform":
+        """Create a Transform from a code (string of Action keys and args)."""
         chars, raw_args = zip(*act_regex.findall(code))
         args = [
             tuple(map(int, item.split(","))) if item else tuple() for item in raw_args
@@ -70,6 +73,7 @@ class Transform:
 
     @property
     def code(self) -> str:
+        """Return the string of action keys and args."""
         msg = ""
         for action, args in zip(self.actions, self.args):
             msg += f"{Action().rev_map[action.__name__]}{','.join(map(str, args))}"
@@ -77,6 +81,7 @@ class Transform:
 
     @property
     def props(self) -> int:
+        """The number of properties used in defining the Transform."""
         action_ct = len(self.actions)
         arg_ct = sum([len(args) for args in self.args])
         return action_ct + arg_ct
@@ -88,7 +93,8 @@ class Transform:
             args=self.args.copy() + other.args.copy(),
         )
 
-    def spawn(self, **kwargs: Any) -> "Transform":
+    def copy(self, **kwargs: Any) -> "Transform":
+        """Create a copy of the Transform, modifying any properties by keyword."""
         return Transform(
             actions=self.actions.copy(),
             args=self.args.copy(),
@@ -104,6 +110,25 @@ class Transform:
 
 
 class Generator:
+    """Generate a more complex object by repeated application of Transforms.
+
+    A generator is a means to more compactly represent ordered shapes. For example,
+    a blue horizontal line of length 8 could be represented by 8 points in a row:
+        [Object(0, 0, 1), Object(0, 1, 1), ... , Object(0, 7, 1)]
+    or, we can use a generator with a horizontal translation as it's transform
+    repeated 7 times, which uses fewer properties to define.
+
+    By default, an Object with a generator will use as its 'seed' a Dot defined by
+    the Object's anchor (row, col, color), which is superceded if the Object has any
+    children.
+
+    To create a red/blue checkerboard, we can define the following:
+        Object(children = [Object(0, 0, 1), Object(0, 1, 2),
+                           Object(1, 0, 2), Object(1, 1, 1)],
+               generator = Generator.from_codes(["R1*3", "C1*3"])
+    which is a 2x2 grid evenly tiled 3 extra times along both axes.
+    """
+
     def __init__(
         self,
         transforms: list[Transform],
@@ -162,17 +187,17 @@ class Generator:
         copies_props = sum([1 if val != 0 else 0 for val in self.copies])
         return sum([trans.props for trans in self.transforms]) + copies_props
 
-    def spawn(self, **kwargs: Any) -> "Generator":
+    def copy(self, **kwargs: Any) -> "Generator":
         new_args = {
-            "transforms": [trans.spawn() for trans in self.transforms],
+            "transforms": [trans.copy() for trans in self.transforms],
             "copies": self.copies.copy(),
         }
         new_args.update(kwargs)
         return Generator(**new_args)  # type: ignore
 
     def materialize(self, object: "Object") -> list["Object"]:
-        """Creates a normalized (no generators) object hierarchy."""
-        results = [object.spawn()]
+        """Creates a materialized (no generators) object hierarchy."""
+        results = [object.copy()]
         for transform, copies in zip(self.transforms, self.copies):
             new_results: list[Object] = []
             for current in results:

@@ -77,13 +77,13 @@ class Action:
     @classmethod
     def identity(cls, object: "Object") -> "Object":
         """Return a copy of the object."""
-        return object.spawn()
+        return object.copy()
 
     @classmethod
     def move(cls, object: "Object", dr: int, dc: int) -> "Object":
         """Return a new Object/Shape with transformed coordinates"""
         a_row, a_col, color = object.anchor
-        return object.spawn((a_row + dr, a_col + dc, color))
+        return object.copy((a_row + dr, a_col + dc, color))
 
     @classmethod
     def vertical(cls, object: "Object", value: int) -> "Object":
@@ -111,14 +111,14 @@ class Action:
     @classmethod
     def zero(cls, object: "Object") -> "Object":
         """Set row and column to zero"""
-        return object.spawn((0, 0, object.color))
+        return object.copy((0, 0, object.color))
 
     @classmethod
     def justify(cls, object: "Object", axis: int) -> "Object":
         """Set one of row or column to zero"""
         loc = list(object.loc)
         loc[axis] = 0
-        return object.spawn((*loc, object.color))
+        return object.copy((*loc, object.color))
 
     ## DEFORMATIONS
     # Linear transform along an axis
@@ -126,12 +126,12 @@ class Action:
     def scale(cls, object: "Object", code: str, value: int) -> "Object":
         """Change the value associated with a generator"""
         if not object.generator:
-            return object.spawn()
+            return object.copy()
         copies = object.generator.copies.copy()
         for idx, trans in enumerate(object.generator.transforms):
             if trans.char == code:
                 copies[idx] = value
-        return object.spawn(generator=object.generator.spawn(copies=copies))
+        return object.copy(generator=object.generator.copy(copies=copies))
 
     @classmethod
     def r_scale(cls, object: "Object", value: int) -> "Object":
@@ -166,7 +166,7 @@ class Action:
     ## COLOR
     @classmethod
     def recolor(cls, object: "Object", color: int) -> "Object":
-        return object.spawn(anchor=(*object.loc, color))
+        return object.copy(anchor=(*object.loc, color))
 
     ## 2-OBJECT ACTIONS
     # These actions leverage another object as the source of information
@@ -174,7 +174,7 @@ class Action:
     @classmethod
     def resize(cls, object: "Object", secondary: "Object") -> "Object":
         """Alter the primary object so its shape matches the secondary."""
-        result = object.spawn()
+        result = object.copy()
         if object.shape[0] != secondary.shape[0]:
             result = cls.r_scale(result, secondary.shape[0] - 1)
         if object.shape[1] != secondary.shape[1]:
@@ -188,7 +188,7 @@ class Action:
         The primary will not intersect the secondary.
         """
         # Find the direction of smallest Chebyshev distance
-        result = object.spawn()
+        result = object.copy()
         ch_vector = chebyshev_vector(object, secondary)
         if ch_vector[0]:
             result = Action().vertical(result, ch_vector[0])

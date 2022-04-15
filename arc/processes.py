@@ -53,7 +53,7 @@ class Process(ABC):
         return self.add_layer(output, recolor_pts, "Reco")
 
     def add_layer(self, output: Object, points: PointList, tag: str) -> Object:
-        out = output.spawn(anchor=(0, 0, output.color))
+        out = output.copy(anchor=(0, 0, output.color))
         layer = Object.from_points(points)
         layer.traits["finished"] = True
         layer.traits["decomp"] = tag

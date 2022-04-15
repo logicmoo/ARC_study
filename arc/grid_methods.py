@@ -27,7 +27,7 @@ def grid_equal(left: Grid, right: Grid) -> bool:
 def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
     """Calculate the anchor (min row and col) of a list of points and norm them.
 
-    Returns a tuple: anchor coordinates, normalized point list.
+    Returns a tuple: anchor coordinates, materialized point list.
     """
     minrow, mincol = cst.MAX_ROWS, cst.MAX_COLS
     monochrome = True

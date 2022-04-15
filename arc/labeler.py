@@ -9,7 +9,7 @@ log = logger.fancy_logger("Description", level=30)
 # and choosing amongst possible uniquely identifying trait sets,
 # intrinsic properties are valued first, over ranked, and "color"
 # would be used over "category".
-intrinsic_properties = ["color", "category", "anchor"]
+intrinsic_properties = ["color", "category"]
 # TODO Include properties based on children
 child_relations = ["child_count"]
 ranked_parameters = ["size", "width", "row", "col"]
@@ -50,4 +50,4 @@ class Labeler:
             )
         key_function = key_function or (lambda x: getattr(x, param))
         for idx, obj in enumerate(sorted(obj_list, key=key_function, reverse=reverse)):
-            self.labels[obj.uid][name] = idx
+            self.labels[obj.uid][name] = idx + 1

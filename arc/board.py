@@ -2,6 +2,7 @@ import collections
 from functools import cached_property
 
 from arc.comparisons import ObjectComparison, default_comparisons
+from arc.util import dictutil
 from arc.util import logger
 from arc.object import Object
 from arc.object_delta import ObjectDelta
@@ -111,7 +112,7 @@ class Board:
                 if child_candidates:
                     # Each new decomposition needs to replace any parents
                     for new_child in child_candidates:
-                        new_obj = obj.spawn()
+                        new_obj = obj.copy()
                         new_obj.children[-(1 + rev_idx)] = new_child
                         decompositions.append(new_obj)
                     break
@@ -120,7 +121,7 @@ class Board:
             log.debug(f"Match at distance: {match.dist}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
-            linked = match.right.spawn(anchor=obj.anchor)
+            linked = match.right.copy(anchor=obj.anchor)
             linked.traits["decomp"] = "Ctxt"
             linked.traits["finished"] = True
             return [linked]
@@ -156,27 +157,31 @@ class Inventory:
     def all(self) -> list[Object]:
         return [obj for sized_objs in self.inventory.values() for obj in sized_objs]
 
+    @cached_property
+    def depth(self) -> list[tuple[int, Object]]:
+        return [
+            (depth, obj)
+            for depth, obj_list in self.inventory.items()
+            for obj in obj_list
+        ]
+
     def less(self, mask: list[Object]) -> list[Object]:
         """Return the inventory without the objects in the mask."""
         return [obj for obj in self.all if obj not in mask]
 
-    def create_inventory(self, obj: Object) -> dict[int, list[Object]]:
+    def create_inventory(self, obj: Object, depth: int = 0) -> dict[int, list[Object]]:
         """Recursively find all non-Dot objects in the hierarchy."""
         inventory: dict[int, list[Object]] = collections.defaultdict(list)
         # TODO Make sure to handle when to inventory Dots
         if obj.category == "Dot":
             return {}
-        inventory[obj.size].append(obj)
+        inventory[depth].append(obj)
         for kid in obj.children:
-            child_inv = self.create_inventory(kid)
-            for key, obj_list in child_inv.items():
-                inventory[key].extend(obj_list)
+            dictutil.merge(inventory, self.create_inventory(kid, depth=depth + 1))
         return inventory
 
     def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
-        # NOTE temporary, filtering by size assumes we can't add/expand a Generator
-        # to create the object.
-        # candidates = self.inventory.get(obj.size, [])
+        # TODO Use object generation to prune search?
         candidates = self.all
 
         if not candidates:
