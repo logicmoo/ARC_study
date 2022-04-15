@@ -110,7 +110,8 @@ def match_layout(scene: Scene) -> Layout:
         for delta in delta_list:
             inp, out, trans = delta.right, delta.left, delta.transform
             left: PlotDef = {"grid": inp.grid, "name": inp.category}
-            right: PlotDef = {"grid": out.grid, "name": trans.char}
+            name = ", ".join([action.__name__ for action in trans.actions])
+            right: PlotDef = {"grid": out.grid, "name": name}
             layout.append([left, right])
     return layout
 

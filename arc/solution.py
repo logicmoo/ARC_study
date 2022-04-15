@@ -40,7 +40,7 @@ class SolutionNode:
         self.args = args
 
     def __repr__(self) -> str:
-        return f"{self.selector} -> {self.action.__name__}({self.args})"
+        return f"Select {self.selector} -> {self.action.__name__}{self.args}"
 
     @classmethod
     def from_path_node(
@@ -228,6 +228,6 @@ class Solution:
 
         # TODO HACK To handle layering of transformed objects, sort by size for now
         # This should ideally be some information passed through via the Inventory
-        # And noted by the SolutionNodes
+        # and noted by the SolutionNodes
         output_children = sorted(output_children, key=lambda x: x.size, reverse=True)
         return Object(children=output_children)
