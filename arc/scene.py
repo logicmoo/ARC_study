@@ -76,7 +76,7 @@ class Scene:
             log.info(f"  Generator Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"    Gen {trans} | {obj1.id} -> {obj2.id}")
+                log.info(f"    {trans} | {obj1.id} -> {obj2.id}")
 
     # TODO: Simplify the return here
     def recreate(

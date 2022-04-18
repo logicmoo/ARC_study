@@ -121,7 +121,7 @@ class Board:
             log.debug(f"Match at distance: {match.dist}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
-            linked = match.right.copy(anchor=obj.anchor)
+            linked = match.left.copy(anchor=obj.anchor)
             linked.traits["decomp"] = "Ctxt"
             linked.traits["finished"] = True
             return [linked]

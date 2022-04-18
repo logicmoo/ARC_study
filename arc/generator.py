@@ -46,6 +46,9 @@ class Transform:
             self.args.extend([tuple()] * (len(self.actions) - len(self.args)))
 
     def __str__(self) -> str:
+        if not self.actions:
+            return "ID()"
+
         output = ", ".join(
             [f"{act.__name__}{args}" for act, args in zip(self.actions, self.args)]
         )
