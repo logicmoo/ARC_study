@@ -83,7 +83,7 @@ class SeparateColor(Process):
         return len(obj.c_rank) > 1
 
     def run(self, obj: Object) -> Object:
-        """Improves representation by combining points of like colors"""
+        """Improves representation by putting all points of one color together."""
         self.info(obj)
         color = obj.c_rank[0][0]
 
@@ -143,6 +143,7 @@ class MakeBase(Process):
 
 
 class ConnectObjects(Process):
+    """Cluster points together that aren't of masked colors."""
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         marked = obj.grid.copy()

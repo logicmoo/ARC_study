@@ -23,7 +23,9 @@ class Selector:
         log.debug("Choosing criteria for the following inputs, selection:")
         log.debug(obj_groups)
         log.debug(flat_selection)
+
         labeler = Labeler(obj_groups)
+
         self.criteria: dict[str, Any] = dictutil.dict_and_group(
             [labeler.labels[obj.uid] for obj in flat_selection]
         )

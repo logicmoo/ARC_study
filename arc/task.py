@@ -107,7 +107,7 @@ class Task:
     def generate(self, test_idx: int = 0) -> Object:
         return self.solution.generate(self.tests[test_idx])
 
-    def test(self):
+    def test(self) -> bool:
         success = 0
         log.info("Testing:")
         for test_idx, scene in enumerate(self.tests):
@@ -115,6 +115,9 @@ class Task:
                 success += 1
             else:
                 log.warning(f"  Failed test {test_idx}")
+        log.info(f"Passed {success} / {len(self.tests)} tests")
         if success == len(self.tests):
             self.traits.add("Solved")
-        log.info(f"Passed {success} / {len(self.tests)} tests")
+            return True
+        else:
+            return False

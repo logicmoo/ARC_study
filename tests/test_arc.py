@@ -39,5 +39,8 @@ def test_complete_run() -> None:
     # with pytest.raises(SolveError):
     #     arc.solve_tasks()
 
-    arc = ARC(idxs={10})
+    solved_tasks = {8, 10, 16, 31}
+    arc = ARC(idxs=solved_tasks)
     arc.solve_tasks()
+    for task_idx in solved_tasks:
+        assert "Solved" in arc[task_idx].traits
