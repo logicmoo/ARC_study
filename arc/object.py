@@ -27,6 +27,10 @@ from arc.generator import Generator
 log = logger.fancy_logger("Object", level=30)
 
 
+class EmptyObject(Exception):
+    pass
+
+
 class Object:
     def __init__(
         self,
@@ -56,8 +60,11 @@ class Object:
         anchor: Point = (0, 0, cst.NULL_COLOR),
         name: str = "",
     ) -> "Object":
-        children: list[Object] = []
         grid = gridify(grid)
+        if grid.size == 0:
+            log.warning("empty obj")
+            raise EmptyObject
+        children: list[Object] = []
         M, N = grid.shape
         for i in range(M):
             for j in range(N):
@@ -74,7 +81,9 @@ class Object:
         This is used during Generator.materialize to efficiently generate the
         points belonging to resulting objects.
         """
-        if len(points) == 1:
+        if len(points) == 0:
+            raise EmptyObject
+        elif len(points) == 1:
             return cls(*points[0], name=name)
         norm_loc, normed, monochrome = norm_points(points)
         loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])
