@@ -244,11 +244,13 @@ class Reflection(Process):
         axes = [False, False]
         R, C = obj.shape
         rs, cs = R, C
+        odd_vertical = R % 2 == 1
+        odd_horizontal = C % 2 == 1
         if obj.symmetry[0] >= self.threshold:
-            rs = R // 2 + R % 2
+            rs = R // 2 + int(odd_vertical)
             axes[0] = True
         if obj.symmetry[1] >= self.threshold:
-            cs = C // 2 + C % 2
+            cs = C // 2 + int(odd_horizontal)
             axes[1] = True
 
         # grid_v = np.flip(obj.grid, 0)
@@ -267,9 +269,15 @@ class Reflection(Process):
 
         codes: list[str] = []
         if axes[0]:
-            codes.append("w{(rs - R % 2)}v")
+            if odd_vertical:
+                codes.append(f"I*1")
+            else:
+                codes.append(f"i*1")
         if axes[1]:
-            codes.append("s{(cs - C % 2)}h")
+            if odd_horizontal:
+                codes.append(f"O*1")
+            else:
+                codes.append(f"o*1")
         gen = Generator.from_codes(codes)
         cell = Object.from_points(cell_pts)
         cell.traits["decomp"] = "RCell"
@@ -297,5 +305,5 @@ default_processes = [
     ConnectObjects(),
     SeparateColor(),
     Tiling(),
-    # Reflection(),  # TODO: Broken, Action.vertical not receiving arg
+    Reflection(),
 ]

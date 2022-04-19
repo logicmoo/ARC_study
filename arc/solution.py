@@ -32,8 +32,7 @@ class SolutionNode:
         action: ActionType = Action.identity,
         args: tuple[ActionArg, ...] = tuple(),
     ) -> None:
-        # TODO: For now, just consider one generation of SolutionNodes.
-        # Thus, assume no children.
+        # TODO: For now, only depth-1 Solutions, so assume no children.
         # self.children: list[SolutionNode] = []
         self.selector = selector
         self.action = action
@@ -43,17 +42,17 @@ class SolutionNode:
         return f"Select {self.selector} -> {self.action.__name__}{self.args}"
 
     @classmethod
-    def from_path_node(
-        cls, cases: list[Scene], keys: list[str], action: ActionType
-    ) -> list["SolutionNode"]:
-        inputs = [Inventory(case.input.rep).all for case in cases]
-
-        # The path node is a list of lists of ObjectDeltas related to the transform
-        path_node = [case.path.get(key, []) for case in cases for key in keys]
-
+    def from_action(
+        cls,
+        inputs: list[list[Object]],
+        path_node: list[list[ObjectDelta]],
+        action: ActionType = Action.identity,
+    ) -> list["SolutionNode | None"]:
         # The selection is every object that will be transformed
         selection = [[delta.left for delta in group] for group in path_node]
         deltas = [delta for group in path_node for delta in group]
+
+        # TODO Implement what happens if there's a null selector
         selector = Selector(inputs, selection)
 
         args: tuple[ActionArg, ...] = ()
@@ -71,11 +70,13 @@ class SolutionNode:
                     for color, obj_list in color_case.items():
                         colors[color].append(obj_list)
 
-                nodes: list[SolutionNode] = []
+                nodes: list[SolutionNode | None] = []
                 for color, color_groups in colors.items():
                     selector = Selector(inputs, color_groups)
-                    nodes.append(cls(selector, action, args))
+                    nodes.append(cls(selector))
                 return nodes
+            else:
+                return [cls(selector)]
         elif action in pair_actions:
             log.debug(f"Determining selector for {action}")
             secondaries: list[Object] = []
@@ -172,6 +173,7 @@ class Solution:
 
     def __init__(self) -> None:
         self.nodes: list[SolutionNode] = []
+        self.transform_map: dict[str, list[str]] = defaultdict(list)
 
     def __repr__(self) -> str:
         msg: list[str] = []
@@ -180,7 +182,9 @@ class Solution:
         return "\n".join(msg)
 
     def bundle(self, cases: list[Scene]) -> None:
-        """Bundle object transforms together.
+        """Bundle object transforms together from the Scene paths.
+
+        This aims to approximately identify the SolutionNodes we need.
 
         In many cases, a Solution will involve nodes with unique transforms. E.g.
         there will be only one node that performs a recoloring. This is sufficient
@@ -192,29 +196,51 @@ class Solution:
             self.transform_map.update({key: [key] for key in case.path})
 
         # TODO WIP
-        # For now, use a substitution if it reduces the size of transforms
+        # We check a few rules to know when we should attempt a higher-level transform
         for left, right in subs:
             log.debug(f"Checking subsitution: {left} -> {right}")
-            # Check for double transforms ("ws", "fp") and map to pairwise action
+            # Case 1: Double transforms ("ws", "fp") -> map to pairwise action
             if left in self.transform_map:
                 self.transform_map[right].extend(self.transform_map.pop(left))
-            # Check for non-constant transforms among "wsfp" and map to pairwise action
             elif set(left) & set(self.transform_map.keys()):
                 for char in left:
                     present = any([char in case.path for case in cases])
                     complete = all([char in case.path for case in cases])
+                    # Case 2: Non-constant transforms across cases
                     if present and not complete:
                         self.transform_map[right].extend(self.transform_map.pop(char))
+                    # Case 3: There's overlap in the subsitution key, but no other compelling
+                    # evidence, so we just add the pairwise transforms as actions to attempt
+                    # if the original action fails.
+                    elif present and complete:
+                        self.transform_map[char + right].extend(
+                            self.transform_map.pop(char)
+                        )
 
         log.debug(f"Transform mapping: {self.transform_map}")
 
     def create_nodes(self, cases: list[Scene]) -> None:
         self.nodes = []
-        for node in self.transform_map:
-            action = Action()[node]
-            self.nodes.extend(
-                SolutionNode.from_path_node(cases, self.transform_map[node], action)
-            )
+        inputs = [Inventory(case.input.rep).all for case in cases]
+
+        for codes, base_chars in self.transform_map.items():
+            # The path node is a list of lists of ObjectDeltas related to the transform
+            path_node = [case.path.get(key, []) for case in cases for key in base_chars]
+
+            if len(codes) <= 1:
+                action = Action()[codes]
+                raw_nodes = SolutionNode.from_action(inputs, path_node, action)
+                nodes = filter(None, raw_nodes)
+                if nodes:
+                    self.nodes.extend(nodes)
+            else:
+                for char in codes:
+                    action = Action()[char]
+                    raw_nodes = SolutionNode.from_action(inputs, path_node, action)
+                    nodes = filter(None, raw_nodes)
+                    if nodes:
+                        self.nodes.extend(nodes)
+                        break
 
     def generate(self, test_scene: Scene) -> Object:
         test_scene.decompose()

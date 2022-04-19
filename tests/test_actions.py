@@ -132,5 +132,14 @@ def test_adjoin():
     obj2 = Object(2, 1, generator=Generator.from_codes(["R*1", "C*1"]))
     assert Action().adjoin(obj2, obj1) == Action().vertical(obj2, 1)
 
-    obj6 = Object(10, 10)
-    assert Action().adjoin(obj6, obj1) == Action().horizontal(obj6, -1)
+    obj3 = Object(10, 10)
+    assert Action().adjoin(obj3, obj1) == Action().horizontal(obj3, -1)
+
+
+def test_align():
+    obj1 = Object(5, 5, generator=Generator.from_codes(["R*2", "C*3"]))
+    obj2 = Object(2, 1, generator=Generator.from_codes(["R*1", "C*1"]))
+    assert Action().align(obj2, obj1) == Action().vertical(obj2, 3)
+
+    obj3 = Object(2, 3)
+    assert Action().align(obj3, obj1) == Action().horizontal(obj3, 2)

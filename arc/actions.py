@@ -58,9 +58,14 @@ class Action:
         "C": "ctile",
         "S": "resize",
         "A": "adjoin",
+        "L": "align",
         "t": "turn",
         "h": "flip_h",
         "v": "flip_v",
+        "i": "flip_tile_even_v",
+        "o": "flip_tile_even_h",
+        "I": "flip_tile_odd_v",
+        "O": "flip_tile_odd_h",
         "j": "justify",
         "z": "zero",
     }
@@ -163,6 +168,22 @@ class Action:
     def flip_h(cls, object: "Object") -> "Object":
         return cls.flip(object, 1)
 
+    @classmethod
+    def flip_tile_even_v(cls, object: "Object") -> "Object":
+        return cls.vertical(cls.flip(object, 0), object.shape[0])
+
+    @classmethod
+    def flip_tile_even_h(cls, object: "Object") -> "Object":
+        return cls.horizontal(cls.flip(object, 1), object.shape[1])
+
+    @classmethod
+    def flip_tile_odd_v(cls, object: "Object") -> "Object":
+        return cls.vertical(cls.flip(object, 0), object.shape[0] - 1)
+
+    @classmethod
+    def flip_tile_odd_h(cls, object: "Object") -> "Object":
+        return cls.horizontal(cls.flip(object, 1), object.shape[1] - 1)
+
     ## COLOR
     @classmethod
     def recolor(cls, object: "Object", color: int) -> "Object":
@@ -196,9 +217,21 @@ class Action:
             result = Action().horizontal(result, ch_vector[1])
         return result
 
+    @classmethod
+    def align(cls, object: "Object", secondary: "Object") -> "Object":
+        """Move the primary the smallest amount to align on an axis with secondary."""
+        result = object.copy()
+        row_dist = secondary.row - object.row
+        col_dist = secondary.col - object.col
+        if abs(row_dist) <= abs(col_dist):
+            result = Action().vertical(result, row_dist)
+        else:
+            result = Action().horizontal(result, col_dist)
+        return result
+
 
 # A list of pairs of action sets, where the first actions might be
 # substituted by the second action as a 2-object function
 # TODO WIP
-pair_actions = [Action.adjoin, Action.resize]
+pair_actions = [Action.adjoin, Action.align, Action.resize]
 subs = [("fp", "S"), ("ws", "A")]

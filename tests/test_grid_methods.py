@@ -2,11 +2,13 @@ import numpy as np
 
 from arc.grid_methods import (
     color_connect,
+    gridify,
     norm_points,
     translational_order,
     mirror_order,
 )
 from arc.definitions import Constants as cst
+from arc.types import Grid
 
 
 def test_norm_pts():
@@ -19,7 +21,7 @@ def test_norm_pts():
 
 def test_color_connect():
     mc = cst.MARKED_COLOR
-    grid = np.array([[1, mc, 1, mc, 1]])
+    grid = gridify([[1, mc, 1, mc, 1]])
 
     result, fail_msg = color_connect(grid.copy(), max_ct=2)
     assert result == []
@@ -29,18 +31,18 @@ def test_color_connect():
     assert result == []
     assert fail_msg == "All blobs are dots"
 
-    grid = np.array([[1, 1, 1, 1, 1]])
+    grid = gridify([[1, 1, 1, 1, 1]])
     result, fail_msg = color_connect(grid.copy())
     assert result == []
     assert fail_msg == "Only one blob"
 
-    grid = np.array([[1, 1, mc, 1, 1]])
+    grid = gridify([[1, 1, mc, 1, 1]])
     result, fail_msg = color_connect(grid.copy())
     assert fail_msg == ""
     assert result == [[(0, 0, 1), (0, 1, 1)], [(0, 3, 1), (0, 4, 1)]]
 
 
-def _disorder(grid, anchor=7):
+def _disorder(grid: Grid, anchor: int = 7):
     messy = grid.copy()
     rows, cols = grid.shape
     for ct in range(1, rows * cols, anchor):
@@ -49,22 +51,22 @@ def _disorder(grid, anchor=7):
     return messy
 
 
-def _get_leading_order(grid):
+def _get_leading_order(grid: Grid):
     row_o = translational_order(grid, True)
     col_o = translational_order(grid, False)
     return (row_o[0][0], col_o[0][0])
 
 
 def test_order():
-    assert translational_order(np.array([[1]]), True) == [(1, 1)]
+    assert translational_order(gridify([[1]]), True) == [(1, 1)]
 
-    tile2x2 = np.tile([[1, 2], [3, 4]], (3, 3))
+    tile2x2 = gridify([[1, 2], [3, 4]], (3, 3))
     assert (2, 2) == _get_leading_order(tile2x2)
-    tile1x4 = np.tile([np.arange(4)], (8, 2))
+    tile1x4 = gridify([[0, 1, 2, 3]], (8, 2))
     assert (1, 4) == _get_leading_order(tile1x4)
-    tile2x5 = np.tile([np.arange(5), np.arange(5) + 1], (2, 2))
+    tile2x5 = gridify([[0, 1, 2, 3, 4], [1, 2, 3, 4, 5]], (2, 2))
     assert (2, 5) == _get_leading_order(tile2x5)
-    tile4x4 = np.tile([np.arange(4) + i for i in range(4)], (2, 2))
+    tile4x4 = gridify([np.arange(4) + i for i in range(4)], (2, 2))
     assert (4, 4) == _get_leading_order(tile4x4)
     assert (2, 2) == _get_leading_order(_disorder(tile2x2))
     assert (1, 4) == _get_leading_order(_disorder(tile1x4))
@@ -72,11 +74,11 @@ def test_order():
 
 
 def test_mirror_order():
-    tile4x4x2 = np.tile([np.arange(4) + i for i in range(4)], (2, 2))
+    tile4x4x2 = gridify([np.arange(4) + i for i in range(4)], (2, 2))
     assert mirror_order(tile4x4x2, False) == 0
     assert mirror_order(tile4x4x2, True) == 0
 
-    tilebase = np.array([np.arange(4) + i for i in range(4)])
+    tilebase = gridify([np.arange(4) + i for i in range(4)])
     row_mirrored = tilebase + tilebase[::-1]
     assert mirror_order(row_mirrored, True) == 1
     assert mirror_order(row_mirrored, False) == 0
