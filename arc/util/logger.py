@@ -1,7 +1,8 @@
+import functools
 import logging
 import pprint
 import sys
-from typing import Literal, Optional, TypeAlias
+from typing import Any, Callable, Literal, Optional, TypeAlias
 
 LogLevel: TypeAlias = (
     Literal["debug"]
@@ -131,6 +132,25 @@ def fancy_logger(name: str, style: dict[str, str] = styles["default"], level: in
         name_logger.addHandler(handler)
 
     return name_logger
+
+
+def log_call(
+    logger: Any, level: str = "info", ignore_idxs: set[int] = set()
+) -> Callable[[Any], Any]:
+    """Log the function and arguments."""
+
+    def inner(func: Callable[[Any], Any]) -> Callable[[Any], Any]:
+        @functools.wraps(func)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            display_args = tuple(
+                [arg if idx not in ignore_idxs else "_" for idx, arg in enumerate(args)]
+            )
+            getattr(logger, level)(f"{func.__name__}{display_args}{kwargs}")
+            return func(*args, **kwargs)
+
+        return wrapper
+
+    return inner
 
 
 if __name__ == "__main__":
