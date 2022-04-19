@@ -56,8 +56,8 @@ class Scene:
         log.info(f"Scene {self.idx} input rep | props {self.input.rep.props}:")
         log.info(self.input.rep)
 
-        self.output.set_inventory(self.input.rep)
-        self.output.decompose(batch=batch, max_iter=max_iter, init=init)
+        inventory = Inventory(self.input.rep)
+        self.output.decompose(batch, max_iter, inventory=inventory, init=init)
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
