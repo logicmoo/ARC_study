@@ -53,13 +53,10 @@ class Process(ABC):
 
     def add_layer(self, output: Object, points: PointList, tag: str) -> Object:
         out = output.copy(anchor=(0, 0, output.color))
-        layer = Object.from_points(points)
-        layer.traits["finished"] = True
-        layer.traits["decomp"] = tag
+        layer = Object.from_points(points, leaf=True, process=tag)
         # NOTE: The use of output.anchor vs output.loc is contentious
-        container = Object(*output.anchor, children=[out, layer])
-        container.traits["decomp"] = output.traits["decomp"]
-        container.traits["finished"] = output.traits["finished"]
+        kwargs = {"leaf": output.leaf, "process": output.process}
+        container = Object(*output.anchor, children=[out, layer], **kwargs)
         return container
 
     @abstractmethod
@@ -89,9 +86,9 @@ class SeparateColor(Process):
         match_pts, other_pts = point_filter(obj.points, color)
         match = Object.from_points(match_pts)
         other = Object.from_points(other_pts)
-        candidate = Object(*obj.loc, children=[match, other])
-        candidate.traits["decomp"] = f"SC{color}"
-        candidate.traits["finished"] = True
+        candidate = Object(
+            *obj.loc, children=[match, other], leaf=True, process=f"SC{color}"
+        )
         self.success(candidate)
         return candidate
 
@@ -118,9 +115,9 @@ class MakeBase(Process):
 
         # For a single color present, this simplifies to a single line/rect
         if len(obj.c_rank) == 1:
-            candidate = Object(*obj.loc, color, generator=generator)
-            candidate.traits["decomp"] = f"MB{color}"
-            candidate.traits["finished"] = True
+            candidate = Object(
+                *obj.loc, color, generator=generator, leaf=True, process=f"MB{color}"
+            )
             candidate = self.repair(obj, candidate)
             if candidate:
                 self.success(candidate, "single color")
@@ -128,13 +125,13 @@ class MakeBase(Process):
 
         # Split off the base color from the "front matter"
         _, front_points = point_filter(obj.points, color)
-        background = Object(*obj.loc, color, generator=generator)
-        background.traits["decomp"] = "Base"
-        background.traits["finished"] = True
-        front = Object.from_points(front_points)
-        candidate = Object(*obj.anchor, children=[background, front])
-        candidate.traits["decomp"] = f"MB{color}"
-        candidate.traits["finished"] = True
+        background = Object(
+            *obj.loc, color, generator=generator, leaf=True, process="Base"
+        )
+        front = Object.from_points(front_points, process="Base")
+        candidate = Object(
+            *obj.anchor, children=[background, front], leaf=True, process=f"MB{color}"
+        )
         candidate = self.repair(obj, candidate)
         if candidate:
             self.success(candidate)
@@ -160,10 +157,8 @@ class ConnectObjects(Process):
         children: list[Object] = []
         for idx, pts in enumerate(obj_pts):
             name = f"Conn{idx}"
-            children.append(Object.from_points(pts, name=name))
-        candidate = Object(*obj.loc, children=children)
-        candidate.traits["decomp"] = "CO"
-        candidate.traits["finished"] = True
+            children.append(Object.from_points(pts, name=name, process="Conn"))
+        candidate = Object(*obj.loc, children=children, leaf=True, process="Conn")
         self.success(candidate)
         return candidate
 
@@ -210,18 +205,21 @@ class Tiling(Process):
         if c_ct > 1:
             codes.append(f"C*{c_ct-1}")
         gen = Generator.from_codes(codes, bound=bound)
-        cell = Object.from_points(cell_pts, name=f"TCell({row_stride},{col_stride})")
-        cell.traits["decomp"] = "Cell"
         # TODO For now, assume unit cells are not worth sub-analyzing
-        cell.traits["finished"] = True
+        cell = Object.from_points(
+            cell_pts,
+            name=f"TCell({row_stride},{col_stride})",
+            leaf=True,
+            process="Tile",
+        )
         candidate = Object(
             *obj.loc,
             generator=gen,
             children=[cell],
             name=f"Tiling({row_stride},{col_stride})",
+            leaf=True,
+            process="Tile",
         )
-        candidate.traits["decomp"] = "Tile"
-        candidate.traits["finished"] = True
         candidate = self.repair(obj, candidate)
         if candidate:
             self.success(candidate)
@@ -279,13 +277,11 @@ class Reflection(Process):
             else:
                 codes.append(f"o*1")
         gen = Generator.from_codes(codes)
-        cell = Object.from_points(cell_pts)
-        cell.traits["decomp"] = "RCell"
         # TODO For now, assume unit cells are not worth sub-analyzing
-        cell.traits["finished"] = True
-        candidate = Object(*obj.loc, generator=gen, children=[cell])
-        candidate.traits["decomp"] = "Refl"
-        candidate.traits["finished"] = True
+        cell = Object.from_points(cell_pts, leaf=True, process="Refl")
+        candidate = Object(
+            *obj.loc, generator=gen, children=[cell], leaf=True, process="Refl"
+        )
         candidate = self.repair(obj, candidate)
         if candidate:
             self.success(candidate)

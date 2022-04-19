@@ -104,7 +104,7 @@ class Board:
 
         # Search for the first object that's not decomposed and apply decomposition
         # TODO Need to redo occlusion
-        elif obj.traits.get("finished"):
+        elif obj.leaf:
             # NOTE: We run in reverse order to handle occlusion
             decompositions: list[Object] = []
             for rev_idx, child in enumerate(obj.children[::-1]):
@@ -121,9 +121,7 @@ class Board:
             log.debug(f"Match at distance: {match.dist}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
-            linked = match.left.copy(anchor=obj.anchor)
-            linked.traits["decomp"] = "Ctxt"
-            linked.traits["finished"] = True
+            linked = match.left.copy(anchor=obj.anchor, leaf=True, process="Ctxt")
             return [linked]
 
         candidates = self.generate_candidates(obj)

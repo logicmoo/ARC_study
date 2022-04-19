@@ -32,6 +32,8 @@ class EmptyObject(Exception):
 
 
 class Object:
+    """Hierarchical representation of an image."""
+
     def __init__(
         self,
         row: int = 0,
@@ -40,7 +42,8 @@ class Object:
         children: list["Object"] | None = None,
         generator: Generator | None = None,
         name: str = "",
-        traits: dict[str, str | int | bool] | None = None,
+        leaf: bool = False,
+        process: str = "",
     ):
         self.row = row
         self.col = col
@@ -48,9 +51,8 @@ class Object:
         self.children = children or []
         self.generator = generator
         self.name = name
-
-        # Used during selection process
-        self.traits = traits or {}
+        self.leaf = leaf
+        self.process = process
 
     ## Constructors
     @classmethod
@@ -59,40 +61,58 @@ class Object:
         grid: Grid | BoardData,
         anchor: Point = (0, 0, cst.NULL_COLOR),
         name: str = "",
+        leaf: bool = False,
+        process: str = "",
     ) -> "Object":
         grid = gridify(grid)
         if grid.size == 0:
             log.warning("empty obj")
             raise EmptyObject
+        kwargs = {
+            "name": name,
+            "leaf": leaf,
+            "process": process,
+        }
         children: list[Object] = []
         M, N = grid.shape
         for i in range(M):
             for j in range(N):
                 if grid[i, j] != cst.NULL_COLOR:
                     children.append(cls(i, j, grid[i, j]))
-        return cls(*anchor, children=children, name=name)
+        return cls(*anchor, children=children, **kwargs)
 
     @classmethod
     def from_points(
-        cls, points: PointList, loc: Position = (0, 0), name: str = ""
+        cls,
+        points: PointList,
+        loc: Position = (0, 0),
+        name: str = "",
+        leaf: bool = False,
+        process: str = "",
     ) -> "Object":
         """Create an Object from a list of Points.
 
         This is used during Generator.materialize to efficiently generate the
         points belonging to resulting objects.
         """
+        kwargs = {
+            "name": name,
+            "leaf": leaf,
+            "process": process,
+        }
         if len(points) == 0:
             raise EmptyObject
         elif len(points) == 1:
-            return cls(*points[0], name=name)
+            return cls(*points[0], **kwargs)
+
         norm_loc, normed, monochrome = norm_points(points)
         loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])
         if monochrome:
             children = [Object(*pt[:2]) for pt in normed]
-            return cls(*loc, normed[0][2], children=children, name=name)
+            return cls(*loc, normed[0][2], children=children, **kwargs)
         else:
             children = [Object(*pt) for pt in normed]
-            return cls(*loc, children=children, name=name)
+            return cls(*loc, children=children, **kwargs)
 
     ## Core properties
     @property
@@ -270,8 +290,8 @@ class Object:
             info = ""
         else:
             info = f"({len(self.children)}ch, {self.size}pts, {self.props}p)"
-        decomp = f"[{self.traits.get('decomp', '')}]"
-        return f"{decomp}{self.id}{info}"
+        process = f"[{self.process}]" if self.process else ""
+        return f"{process}{self.id}{info}"
 
     def hier_repr(self, tab: int = 0, max_lines: int = 10, max_dots: int = 5) -> str:
         """Detailed info on object and its children"""
@@ -293,13 +313,6 @@ class Object:
             output = output[:max_lines] + ["..."]
         return "\n".join(output)
 
-    @cached_property
-    def history(self) -> list[str]:
-        hist = [str(self.traits.get("decomp")) or ""]
-        for kid in self.children:
-            hist.extend(kid.history)
-        return hist
-
     # TODO Redo printing of information to be more coherent with other methods
     def info(self, level: logger.LogLevel = "info", max_lines: int = 10) -> None:
         """Log the Object's hierarchy, with full header info."""
@@ -320,7 +333,8 @@ class Object:
             "children": [kid.copy() for kid in self.children],
             "generator": self.generator,
             "name": self.name,
-            "traits": None if self.traits is None else self.traits.copy(),
+            "leaf": self.leaf,
+            "process": self.process,
         }
         new_args.update(kwargs)
         return Object(*anchor, **new_args)
@@ -379,7 +393,7 @@ class Object:
         for achieving success in applications.
         """
         # When we have a contextual reference, we already "know" the object
-        if self.traits.get("decomp") == "Ctxt":
+        if self.process == "Ctxt":
             return 1
 
         # Calculate local information used (self existence, positions, and color)
