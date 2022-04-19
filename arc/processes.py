@@ -15,6 +15,8 @@ log = logger.fancy_logger("Processes", level=30)
 class Process(ABC):
     # NOTE: After adding in the context functionality, this could manifest in
     # parametrized instantion of decomposition processes.
+    code: str = ""
+
     def __init__(self):
         pass
 
@@ -75,6 +77,8 @@ class Process(ABC):
 
 
 class SeparateColor(Process):
+    code = "S"
+
     def test(self, obj: Object) -> bool:
         return len(obj.c_rank) > 1
 
@@ -94,6 +98,8 @@ class SeparateColor(Process):
 
 
 class MakeBase(Process):
+    code = "B"
+
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         # NOTE: This currently assumes a black background if black is present
@@ -141,6 +147,8 @@ class MakeBase(Process):
 class ConnectObjects(Process):
     """Cluster points together that aren't of masked colors."""
 
+    code = "C"
+
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         marked = obj.grid.copy()
@@ -171,9 +179,13 @@ class Tiling(Process):
     by majority vote.
     """
 
+    code = "T"
+
     def test(self, obj: Object) -> bool:
         # TODO: Consider whether the 1x1 order situation can replace
         # using MakeBase for rect-decomp
+        if obj.shape[0] < 3 and obj.shape[1] < 3:
+            return False
         R, C, level = obj.order
         if R == 1 and C == 1:
             return False
@@ -229,9 +241,12 @@ class Tiling(Process):
 class Reflection(Process):
     """Determine any mirror symmetries."""
 
+    code = "R"
     threshold = 0.9
 
     def test(self, obj: Object) -> bool:
+        if obj.shape[0] < 3 and obj.shape[1] < 3:
+            return False
         r_level, c_level = obj.symmetry
         if r_level < self.threshold and c_level < self.threshold:
             return False
