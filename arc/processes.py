@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from collections import Counter
 
 import numpy as np
 
 from arc.generator import Generator
 from arc.types import Point, PointList
 from arc.util import logger
-from arc.grid_methods import color_connect, point_filter
+from arc.grid_methods import color_connect, eval_mesh, point_filter
 from arc.definitions import Constants as cst
 from arc.object import Object
 
@@ -144,6 +143,7 @@ class MakeBase(Process):
 
 class ConnectObjects(Process):
     """Cluster points together that aren't of masked colors."""
+
     def run(self, obj: Object) -> Object | None:
         self.info(obj)
         marked = obj.grid.copy()
@@ -196,17 +196,8 @@ class Tiling(Process):
             col_stride = obj.grid.shape[1]
 
         # Identify each point that's part of the unit cell
-        cell_pts: list[Point] = []
-        for i in range(row_stride):
-            for j in range(col_stride):
-                # Count how many times each color shows up in a sub-mesh
-                # defined by a row and column stride (R, C) starting from
-                # a position (i, j)
-                cts = Counter(
-                    obj.grid[i::row_stride, j::col_stride].ravel()
-                )  # Count the 1D grid array
-                color = cts.most_common()[0][0]  # most_common() -> [(key, ct), ...]
-                cell_pts.append((i, j, color))
+        cell_pts = eval_mesh(obj.grid, row_stride, col_stride)
+
         r_ct = np.ceil(obj.shape[0] / row_stride)
         c_ct = np.ceil(obj.shape[1] / col_stride)
         bound = None

@@ -5,9 +5,9 @@ import numpy as np
 from arc.util import logger
 from arc.definitions import Constants as cst
 
-log = logger.fancy_logger("BoardMethods", level=30)
+log = logger.fancy_logger("GridMethods", level=30)
 
-from arc.types import Grid, PointDict, PointList, Position
+from arc.types import Grid, Point, PointDict, PointList, Position
 
 
 def gridify(data: Grid | list[list[int]], tile: tuple[int, int] = (1, 1)) -> Grid:
@@ -119,9 +119,64 @@ def get_blob(marked: Grid, start: Position) -> PointList:
     return pts
 
 
+# @logger.log_call(log, "warning", ignore_idxs={0})
+def eval_mesh(
+    grid: Grid,
+    row_stride: int,
+    col_stride: int,
+    remove_noise: bool = True,
+    ignore_colors: list[int] | None = None,
+) -> list[Point]:
+    """Count how many times each color shows up in a sub-mesh.
+
+    Define a sub-mesh from a grid by starting from a position (i, j) and moving by
+    a stride amount in the row or col directions. Count the occurrences of each
+    color in this mesh and choose the most frequent.
+
+    If 'remove_noise' is True, and any 'noise' color is detected (used in the
+    unit cell but also present during other positions where it isn't used),
+    'eval_mesh' is called again and will attempt to ignore those colors.
+    """
+    ignored: list[int] = ignore_colors or []
+    cell_pts: list[Point] = []
+    noise_cts: list[int] = [0] * cst.N_COLORS
+    used_cts: list[int] = [0] * cst.N_COLORS
+
+    for i in range(row_stride):
+        for j in range(col_stride):
+            cts = Counter(grid[i::row_stride, j::col_stride].ravel())
+            color_stats = cts.most_common()  # most_common() -> [(key, ct), ...]
+            use_idx = 0
+            while color_stats[use_idx][0] in ignored:
+                if use_idx == len(color_stats) - 1:
+                    break
+                use_idx += 1
+            best_color = color_stats[use_idx][0]
+            used_cts[best_color] += color_stats[use_idx][1]
+            for item in color_stats[use_idx + 1 :]:
+                noise_cts[item[0]] += item[1]
+            cell_pts.append((i, j, best_color))
+
+    if remove_noise:
+        ignored: list[int] = []
+        for color, (used, noise) in enumerate(zip(used_cts, noise_cts)):
+            if used and noise and (noise / (used + noise)) > 0.5:
+                ignored.append(color)
+        if ignored:
+            return eval_mesh(
+                grid,
+                row_stride,
+                col_stride,
+                remove_noise=False,
+                ignore_colors=ignored,
+            )
+
+    return cell_pts
+
+
 # @nb.njit  # (Numba JIT can speed this up)
-def _eval_mesh(grid: Grid, stride: int) -> tuple[int, float]:
-    """Compiled subroutine to measure order in a strided grid"""
+def _eval_row_mesh(grid: Grid, stride: int) -> tuple[int, float]:
+    """Compiled subroutine to measure row order in a strided grid"""
     R, _ = grid.shape
     hits = 0
     for j in range(stride):
@@ -154,7 +209,7 @@ def translational_order(grid: Grid, row_axis: bool) -> list[tuple[int, float]]:
     if grid.shape[1] == 1:
         return [(1, 1)]
     for stride in range(1, grid.shape[1] // 2 + 1):
-        params.append(_eval_mesh(grid, stride))
+        params.append(_eval_row_mesh(grid, stride))
     return sorted(params, key=lambda x: x[1], reverse=True)
 
 
