@@ -1,5 +1,6 @@
-from arc import ARC
+import argparse
 
+from arc import ARC
 from arc.util import logger
 from arc.util import profile
 
@@ -16,7 +17,7 @@ def scene_decomposition(arc: ARC, task_idx: int) -> bool:
         return False
 
 
-@profile.time_limit(seconds=5)
+@profile.time_limit(seconds=10)
 def task_solution(arc: ARC, task_idx: int) -> bool:
     try:
         arc.tasks[task_idx].solve()
@@ -61,7 +62,11 @@ def solution(arc: ARC) -> None:
 
 
 if __name__ == "__main__":
-    arc = ARC(N=400)
+    parser = argparse.ArgumentParser(description="Run ")
+    parser.add_argument("N", metavar="N", type=int, help="Total tasks to run")
+    args = parser.parse_args()
+
+    arc = ARC(N=args.N)
     arc.set_log(
         {
             "Task": 30,

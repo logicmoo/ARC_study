@@ -1,7 +1,7 @@
 import collections
 from functools import cached_property
 
-from arc.object import Object, EmptyObject
+from arc.object import Object
 from arc.object_delta import ObjectDelta
 from arc.comparisons import ObjectComparison, default_comparisons
 from arc.util import dictutil, logger
@@ -54,12 +54,6 @@ class Inventory:
         best = threshold + 0.5
         match = None
         for candidate in candidates:
-            # TODO Temporary catch for empty Objects
-            empty = [obj for obj in candidates if obj.size == 0]
-            if empty:
-                log.warning("cand empty")
-                log.warning(candidates)
-                raise EmptyObject
             delta = ObjectDelta(candidate, obj, comparisons=self.comparisons)
             if delta.dist < best:
                 match = delta
