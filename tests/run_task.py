@@ -1,4 +1,5 @@
 from arc.arc import ARC
 
-_arc = ARC(idxs={30})
-_arc[30].solve()
+task_idx = 30
+_arc = ARC(idxs={task_idx})
+_arc[task_idx].solve()
