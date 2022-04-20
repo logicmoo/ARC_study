@@ -19,6 +19,7 @@ from arc.grid_methods import (
     gridify,
     mirror_order,
     norm_points,
+    rotational_order,
     translational_order,
 )
 from arc.definitions import Constants as cst
@@ -202,7 +203,9 @@ class Object:
                 return "Compound"
         else:
             if self.generator and self.generator.dim > 0:
-                return "Tile"
+                return "Pattern"
+            elif self.process == "Cell":
+                return "Cell"
             elif all([kid.category == "Dot" for kid in self.children]):
                 return "Cluster"
             else:
@@ -393,7 +396,7 @@ class Object:
         for achieving success in applications.
         """
         # When we have a contextual reference, we already "know" the object
-        if self.process == "Ctxt":
+        if self.process == "Inv":
             return 1
 
         # Calculate local information used (self existence, positions, and color)
@@ -432,3 +435,10 @@ class Object:
         row_o = mirror_order(self.grid, row_axis=True)
         col_o = mirror_order(self.grid, row_axis=False)
         return (row_o, col_o)
+
+    @cached_property
+    def rot_symmetry(self) -> tuple[int, float]:
+        """Determine symmetry through rotations."""
+        if self.category == "Dot":
+            return (0, 0)
+        return rotational_order(self.grid)

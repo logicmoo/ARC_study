@@ -17,6 +17,7 @@ import re
 from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from arc.actions import Action
+from arc.types import Position
 
 
 if TYPE_CHECKING:
@@ -104,11 +105,15 @@ class Transform:
             **kwargs,
         )
 
-    def apply(self, object: "Object") -> "Object":
+    def apply(self, object: "Object", default_args: Position = (0, 0)) -> "Object":
         """Creates a new object based on the set of actions and arguments."""
         result = object
         for action, args in zip(self.actions, self.args):
-            result = action(result, *args)
+            # TODO WIP Inspection of Action args seems necessary soon.
+            try:
+                result = action(result, *args)
+            except:
+                result = action(result, *default_args)
         return result
 
 
@@ -207,7 +212,7 @@ class Generator:
                 if copies:
                     new_results.append(current)
                     for _ in range(copies):
-                        current = transform.apply(current)
+                        current = transform.apply(current, object.shape)
                         new_results.append(current)
                 else:
                     new_results.append(transform.apply(current))

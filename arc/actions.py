@@ -60,12 +60,14 @@ class Action:
         "A": "adjoin",
         "L": "align",
         "t": "turn",
-        "h": "flip_h",
-        "v": "flip_v",
-        "i": "flip_tile_even_v",
-        "o": "flip_tile_even_h",
-        "I": "flip_tile_odd_v",
-        "O": "flip_tile_odd_h",
+        "|": "flip_h",
+        "_": "flip_v",
+        "V": "flip_tile_even_v",
+        "H": "flip_tile_even_h",
+        "v": "flip_tile_odd_v",
+        "h": "flip_tile_odd_h",
+        "O": "r90_tile_even",
+        "U": "r180_tile_even",
         "j": "justify",
         "z": "zero",
     }
@@ -153,6 +155,25 @@ class Action:
         for _ in range(num):
             turned: Grid = np.rot90(turned)  # type: ignore
         return object.__class__.from_grid(grid=turned, anchor=object.anchor)
+
+    @classmethod
+    def r90_tile_even(cls, object: "Object", row: int, col: int) -> "Object":
+        # TODO This currently takes two args that are a reference row, col.
+        # This position represents the axis of rotation (into the 2D plane)
+        # It gets populated via the Generator "default args", which is a bit
+        # of a hacked solution, perhaps.
+        turned = cls.turn(object, 1)
+        if row > object.row:
+            return cls.rtile(turned)
+        elif col > object.col:
+            return cls.ctile(turned)
+        else:
+            return cls.mtile(turned, -1, 0)
+
+    @classmethod
+    def r180_tile_even(cls, object: "Object") -> "Object":
+        turned = cls.turn(object, 2)
+        return cls.ctile(cls.rtile(turned))
 
     @classmethod
     def flip(cls, object: "Object", axis: int) -> "Object":

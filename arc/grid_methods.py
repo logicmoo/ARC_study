@@ -217,3 +217,11 @@ def mirror_order(grid: Grid, row_axis: bool) -> float:
     """Measure the level of mirror symmetry."""
     grid = grid if row_axis else grid.T
     return grid_overlap(np.flip(grid, 0), grid)  # type: ignore
+
+
+def rotational_order(grid: Grid) -> tuple[int, float]:
+    """Measure the level of rotational symmetry."""
+    r90 = np.rot90(grid)  # type: ignore
+    r180 = np.rot90(r90)  # type: ignore
+    r270 = np.rot90(r180)  # type: ignore
+    return max([(ct, grid_overlap(rot, grid)) for ct, rot in [(1, r90), (2, r180), (3, r270)]])  # type: ignore

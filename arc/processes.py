@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import collections
 
 import numpy as np
 
@@ -222,7 +223,7 @@ class Tiling(Process):
             cell_pts,
             name=f"TCell({row_stride},{col_stride})",
             leaf=True,
-            process="Tile",
+            process="Cell",
         )
         candidate = Object(
             *obj.loc,
@@ -283,19 +284,74 @@ class Reflection(Process):
         codes: list[str] = []
         if axes[0]:
             if odd_vertical:
-                codes.append(f"I*1")
+                codes.append(f"v*1")
             else:
-                codes.append(f"i*1")
+                codes.append(f"V*1")
         if axes[1]:
             if odd_horizontal:
-                codes.append(f"O*1")
+                codes.append(f"h*1")
             else:
-                codes.append(f"o*1")
+                codes.append(f"H*1")
         gen = Generator.from_codes(codes)
         # TODO For now, assume unit cells are not worth sub-analyzing
-        cell = Object.from_points(cell_pts, leaf=True, process="Refl")
+        cell = Object.from_points(cell_pts, leaf=True, process="Cell")
         candidate = Object(
             *obj.loc, generator=gen, children=[cell], leaf=True, process="Refl"
+        )
+        candidate = self.repair(obj, candidate)
+        if candidate:
+            self.success(candidate)
+        return candidate
+
+
+class Rotation(Process):
+    """Determine any mirror symmetries."""
+
+    code = "O"
+    threshold = 0.8
+
+    def test(self, obj: Object) -> bool:
+        if obj.shape[0] < 3 and obj.shape[1] < 3:
+            return False
+        # TODO Handle 180 deg rotations, which can have mismatched shape params
+        elif obj.shape[0] != obj.shape[1]:
+            return False
+        # Odd shaped rot symmetry is equivalent to mirror symmetry
+        elif obj.shape[0] % 2 == 1:
+            return False
+        elif obj.rot_symmetry[1] < self.threshold:
+            return False
+        return True
+
+    def run(self, obj: Object) -> Object | None:
+        self.info(obj)
+
+        # TODO WIP How many cases of combining rotated elements are there?
+        # Case 1: Commensurate 90 (no overlap), even shape values
+        R, C = obj.shape
+        rs, cs = R // 2, C // 2
+
+        cell_pts: list[Point] = []
+        for i in range(rs):
+            for j in range(cs):
+                # Sub-mask for 90 deg rotation
+                locs = [(i, j), (R - 1 - j, i), (j, C - 1 - j), (R - 1 - i, C - 1 - j)]
+                colors = [obj.grid[r, c] for r, c in locs]
+                base_color = collections.Counter(colors).most_common()[0][0]
+
+                # TODO will need to handle noise similar to Tiling
+                # if base_color != ref_color:
+                # pass
+                if base_color != cst.NULL_COLOR:
+                    cell_pts.append((i, j, base_color))
+
+        codes: list[str] = []
+        codes.extend(["O*3"])
+        gen = Generator.from_codes(codes)
+        # TODO For now, assume unit cells are not worth sub-analyzing
+        cell = Object.from_points(cell_pts, leaf=True, process="Cell")
+        candidate = Object(
+            *obj.loc, generator=gen, children=[cell], leaf=True, process="Rot"
         )
         candidate = self.repair(obj, candidate)
         if candidate:
@@ -309,6 +365,7 @@ all_processes = {
     "separate_color": SeparateColor,
     "tiling": Tiling,
     "reflection": Reflection,
+    "rotation": Rotation,
 }
 
 default_processes = [
@@ -317,4 +374,5 @@ default_processes = [
     SeparateColor(),
     Tiling(),
     Reflection(),
+    Rotation(),
 ]

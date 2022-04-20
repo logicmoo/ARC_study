@@ -52,7 +52,7 @@ def test_17(decomposition_samples: ARC):
     child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Cluster(15x17)@(4, 3, 0)",
-        "Tile(21x21)@(0, 0, 10) 'Tiling(6,6)'",
+        "Pattern(21x21)@(0, 0, 10) 'Tiling(6,6)'",
     ]
 
 
