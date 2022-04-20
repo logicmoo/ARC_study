@@ -21,8 +21,8 @@ class Constants:
     # Processing
     MAX_DIST = 10000
     CHILD_DIST = 2  # TODO: Additional measure of distance when comparing children?
-    BATCH = 10  # Number of decomposition candidates to keep in a round
-    MAX_ITER = 10  # Maximum rounds of decomposition
+    DEFAULT_BATCH = 10  # Period, in iterations, between keeping a new decomposition
+    DEFAULT_MAX_ITER = 100  # Default maximum rounds of decomposition
 
     STEPS_BASE: list[tuple[int, int]] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
     STEPS_DIAG: list[tuple[int, int]] = [(1, 1), (-1, 1), (-1, -1), (1, -1)]

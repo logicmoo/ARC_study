@@ -29,9 +29,9 @@ def plot(item: Any, **kwargs: Any) -> Figure:
     match item:
         case Object():
             return plot_grid(item.grid, **kwargs)
-        case Board(decomposed=None):
+        case Board(current=""):
             return plot_grid(item.raw.grid, **kwargs)
-        case Board(decomposed=_):
+        case Board(current=_):
             return plot_layout(tree_layout(item.rep), **kwargs)
         case Scene(dist=-1):
             return plot_layout(scene_layout(item), **kwargs)

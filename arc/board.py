@@ -1,3 +1,4 @@
+from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
 from arc.processes import Process, default_processes
@@ -28,33 +29,21 @@ class Board:
         self.processes = processes or default_processes
 
         # Used during decomposition process
-        self.decomposed: Object | None = None
-        self.proc_q: list[str] = [""]
         self.tree: dict[str, Object] = {"": self.raw}
+        self.current: str = ""
+        self.proc_q: list[str] = [""]
 
     def __repr__(self) -> str:
         return self.rep.hier_repr()
 
     @property
     def rep(self) -> Object:
-        if self.decomposed:
-            return self.decomposed
-        else:
-            return self.raw
-
-    def choose_representation(self) -> None:
-        """Find the most compact representation from decomposition."""
-        best_props = self.rep.props
-        for obj in list(self.tree.values()):
-            if obj.props < best_props:
-                best_props = obj.props
-                self.decomposed = obj.flatten()
-                log.debug(f"Chose flattened object: {self.decomposed}")
+        return self.tree[self.current]
 
     def decompose(
         self,
-        batch: int = 10,
-        max_iter: int = 100,
+        batch: int = cst.DEFAULT_BATCH,
+        max_iter: int = cst.DEFAULT_MAX_ITER,
         inventory: Inventory | None = None,
         init: bool = False,
     ) -> None:
@@ -67,25 +56,66 @@ class Board:
 
         inventory = inventory or Inventory()
         if not self.proc_q or init:
-            self.proc_q = [""]
             self.tree = {"": self.raw}
+            self.current: str = ""
+            self.proc_q = [""]
 
+        # TODO WIP
+        threshold = 4
         log.info(f"== Begin decomposition")
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
             candidates = self._decomposition(obj, inventory)
             for code, obj in candidates:
+                if obj.props > threshold * self.rep.props:
+                    continue
                 new_key = key + code
                 self.tree[new_key] = obj.flatten()
                 self.proc_q.append(new_key)
             if ct % batch == 0:
                 self.choose_representation()
+                self.prune_queue()
                 log.info(f"== {ct}: {self.rep}")
             if not self.proc_q:
                 log.info(f"==! {ct}: Ending due to empty processing queue.")
                 break
         self.choose_representation()
+
+    def choose_representation(self) -> None:
+        """Find the most compact representation from decomposition."""
+        best_props = self.rep.props
+        for key, obj in self.tree.items():
+            if obj.props < best_props:
+                flat_obj = obj.flatten()
+                if flat_obj.props <= obj.props:
+                    obj = flat_obj
+                    log.info(f"Chose flattened object: {obj}")
+                best_props = obj.props
+                self.current = key
+
+    def prune_queue(self) -> None:
+        """Clean out any low-priority branches from decomposition."""
+        # TODO WIP
+        safe_gen = 3
+        skip_gen = 2
+
+        # cousin_base = self.current[:-2]
+        threshold = 4 * self.rep.props
+        to_prune: list[int] = []
+        for idx, key in enumerate(self.proc_q):
+            baseline = self.tree[key[:-skip_gen]].props
+            if len(key) <= safe_gen:
+                continue
+            # Prune if the overall compactness isn't competitive
+            if self.tree[key].props > threshold:
+                to_prune.append(idx)
+            # Prune if the compactness isn't improving
+            elif self.tree[key].props > baseline:
+                to_prune.append(idx)
+
+        for idx in to_prune[::-1]:
+            self.proc_q.pop(idx)
 
     def _decomposition(
         self, obj: Object, inventory: "Inventory"
@@ -111,11 +141,11 @@ class Board:
                     break
             return decompositions
         elif match := inventory.find_closest(obj, threshold=4):
-            log.debug(f"Match at distance: {match.dist}")
+            log.info(f"Match at distance: {match.dist} to {match.left}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
             linked = match.left.copy(anchor=obj.anchor, leaf=True, process="Inv")
-            return [("Inv", linked)]
+            return [("I", linked)]
 
         candidates = self.generate_candidates(obj)
         log.debug(f"Generated {len(candidates)} candidates")

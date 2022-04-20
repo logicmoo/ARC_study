@@ -82,7 +82,10 @@ class Task:
         self.test()
 
     def decompose(
-        self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER, init: bool = False
+        self,
+        batch: int = cst.DEFAULT_BATCH,
+        max_iter: int = cst.DEFAULT_MAX_ITER,
+        init: bool = False,
     ) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
         # TODO apply context

@@ -49,7 +49,10 @@ class Scene:
         return self._dist
 
     def decompose(
-        self, batch: int = cst.BATCH, max_iter: int = cst.MAX_ITER, init: bool = False
+        self,
+        batch: int = cst.DEFAULT_BATCH,
+        max_iter: int = cst.DEFAULT_MAX_ITER,
+        init: bool = False,
     ) -> None:
         """Determine a compact representation of the input and output Boards."""
         self.input.decompose(batch=batch, max_iter=max_iter, init=init)
