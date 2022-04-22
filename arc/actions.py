@@ -60,6 +60,7 @@ class Action:
         "A": "adjoin",
         "L": "align",
         "t": "turn",
+        "r": "flip",
         "|": "flip_h",
         "_": "flip_v",
         "V": "flip_tile_even_v",

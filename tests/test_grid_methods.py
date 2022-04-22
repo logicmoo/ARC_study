@@ -14,7 +14,7 @@ from arc.types import BoardData, Grid
 
 
 @pytest.fixture(scope="module")
-def grid3x3() -> BoardData:
+def board_data_3x3() -> BoardData:
     return [
         [1, 2, 3],
         [4, 5, 6],
@@ -23,21 +23,21 @@ def grid3x3() -> BoardData:
 
 
 @pytest.fixture(scope="module")
-def tiled3x3(grid3x3: BoardData) -> Grid:
-    return gridify(grid3x3, (2, 2))
+def tiled3x3(board_data_3x3: BoardData) -> Grid:
+    return gridify(board_data_3x3, (2, 2))
 
 
 @pytest.fixture(scope="module")
-def mirror3x3(grid3x3: BoardData) -> Grid:
-    grid = gridify(grid3x3)
+def mirror3x3(board_data_3x3: BoardData) -> Grid:
+    grid = gridify(board_data_3x3)
     row_mirror = np.concatenate([grid, grid[::-1]], 0)  # type: ignore
     col_mirror = np.concatenate([row_mirror, row_mirror[:, ::-1]], 1)  # type: ignore
     return col_mirror
 
 
 @pytest.fixture(scope="module")
-def rotated3x3(grid3x3: BoardData) -> Grid:
-    grid = gridify(grid3x3)
+def rotated3x3(board_data_3x3: BoardData) -> Grid:
+    grid = gridify(board_data_3x3)
     left = np.concatenate([grid, np.rot90(grid)], 0)  # type: ignore
     full = np.concatenate([left, np.rot90(np.rot90(left))], 1)  # type: ignore
     return full

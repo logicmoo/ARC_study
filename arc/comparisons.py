@@ -10,48 +10,7 @@ ComparisonReturn: TypeAlias = Transform | None
 ObjectComparison: TypeAlias = Callable[["Object", "Object"], ComparisonReturn]
 
 
-def get_order_diff(left: "Object", right: "Object") -> ComparisonReturn:
-    """Checks for differences in the arrangement of points"""
-    log.debug("Comparing Order")
-    transform: ComparisonReturn = Transform([])
-    if len(left.c_rank) == 1 and len(right.c_rank) == 1:
-        # A monochrome, matching silhouette means no internal positioning differences
-        if left.sil(right):
-            log.debug("  Sillhouettes match")
-            return transform
-
-    # Without a matching silhouette, only a fully ordered transformation works here
-    # NOTE Including flooding and similar ops will change this
-    if left.order[2] != 1 or right.order[2] != 1:
-        return None
-    else:
-        # There could exist one or more generators to create the other object
-        for axis, code in [(0, "R"), (1, "C")]:
-            if left.shape[axis] != right.shape[axis]:
-                ct = right.shape[axis]
-                scaler = Action.r_scale if code == "R" else Action.c_scale
-                transform.actions.append(scaler)
-                transform.args.append((ct,))
-    return transform
-
-
-def get_color_diff(left: "Object", right: "Object") -> ComparisonReturn:
-    log.debug("Comparing Color")
-    transform: ComparisonReturn = Transform([])
-    c1 = set([item[0] for item in left.c_rank])
-    c2 = set([item[0] for item in right.c_rank])
-    if c1 != c2:
-        # Color remapping is a basic transform
-        if len(c1) == 1 and len(c2) == 1:
-            transform.actions.append(Action.recolor)
-            transform.args.append((list(c2)[0],))
-        # However, partial or multiple remapping is not
-        else:
-            return None
-    return transform
-
-
-def get_translation(left: "Object", right: "Object") -> ComparisonReturn:
+def compare_position(left: "Object", right: "Object") -> ComparisonReturn:
     log.debug("Comparing Position")
     transform: ComparisonReturn = Transform([])
     r1, c1 = left.loc
@@ -84,4 +43,74 @@ def get_translation(left: "Object", right: "Object") -> ComparisonReturn:
     return transform
 
 
-default_comparisons = [get_order_diff, get_color_diff, get_translation]
+def compare_color(left: "Object", right: "Object") -> ComparisonReturn:
+    log.debug("Comparing Color")
+    transform: ComparisonReturn = Transform([])
+    c1 = set([item[0] for item in left.c_rank])
+    c2 = set([item[0] for item in right.c_rank])
+    if c1 != c2:
+        # Color remapping is a basic transform
+        if len(c1) == 1 and len(c2) == 1:
+            transform.actions.append(Action.recolor)
+            transform.args.append((list(c2)[0],))
+        # However, partial or multiple remapping is not
+        else:
+            return None
+    return transform
+
+
+# TODO compare_order still seems a bit off (not fundamental), can it be improved?
+def compare_order(left: "Object", right: "Object") -> ComparisonReturn:
+    """Checks for differences in the applications of generators."""
+    log.debug("Comparing Order")
+    transform: ComparisonReturn = Transform([])
+    if len(left.c_rank) == 1 and len(right.c_rank) == 1:
+        # A monochrome, matching silhouette means no internal positioning differences
+        if left.sil(right):
+            log.debug("  Sillhouettes match")
+            return transform
+
+    # Without a matching silhouette, only a fully ordered transformation works here
+    # NOTE Including flooding and similar ops will change this
+    if left.order[2] != 1 or right.order[2] != 1:
+        return None
+    else:
+        # There could exist one or more generators to create the other object
+        for axis, code in [(0, "R"), (1, "C")]:
+            if left.shape[axis] != right.shape[axis]:
+                ct = right.shape[axis]
+                scaler = Action.r_scale if code == "R" else Action.c_scale
+                transform.actions.append(scaler)
+                transform.args.append((ct,))
+    return transform
+
+
+def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
+    """Checks whether the objects are related via a rotation, reflection."""
+    log.debug("Comparing Orientation")
+    transform: ComparisonReturn = Transform([])
+    if left.c_rank != right.c_rank:
+        # The number of points of each color must match
+        return transform
+
+    # TODO For now, just brute force search. This could be made more efficient.
+    for code in ["|", "_"]:
+        if Action()[code](left) == right:
+            transform.actions.append(Action()[code])
+            transform.args.append(tuple())
+            return transform
+    for ct in [1, 2, 3]:
+        if Action.turn(left, ct) == right:
+            transform.actions.append(Action.turn)
+            transform.args.append(tuple([ct]))
+            return transform
+
+    return transform
+
+
+default_comparisons = [
+    compare_position,
+    compare_color,
+    compare_order,
+    compare_orientation,
+]

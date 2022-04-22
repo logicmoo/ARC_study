@@ -1,6 +1,26 @@
+import numpy as np
+import pytest
+
+from arc.actions import Action
 from arc.comparisons import default_comparisons
+from arc.grid_methods import gridify
 from arc.object import Object
 from arc.object_delta import ObjectDelta
+from arc.types import BoardData, Grid
+
+
+@pytest.fixture(scope="module")
+def board_data_3x3() -> BoardData:
+    return [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+    ]
+
+
+@pytest.fixture(scope="module")
+def grid3x3(board_data_3x3: BoardData) -> Grid:
+    return gridify(board_data_3x3)
 
 
 def test_translation():
@@ -40,3 +60,38 @@ def test_recoloring():
     dot2 = Object(1, 1, 4)
     delta = ObjectDelta(dot1, dot2, default_comparisons)
     assert delta.transform.code == "c4"
+
+
+def test_rotation(grid3x3: Grid):
+    """Test if rotations, reflections are detected."""
+    left = Object.from_grid(grid3x3)
+
+    r90 = Object.from_grid(np.rot90(grid3x3))
+    delta = ObjectDelta(left, r90)
+    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.args == [(1,)]
+
+    r180 = Object.from_grid(np.rot90(np.rot90(grid3x3)))
+    delta = ObjectDelta(left, r180)
+    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.args == [(2,)]
+
+    r270 = Object.from_grid(np.rot90(np.rot90(np.rot90(grid3x3))))
+    delta = ObjectDelta(left, r270)
+    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.args == [(3,)]
+
+
+def test_reflection(grid3x3: Grid):
+    """Test if rotations, reflections are detected."""
+    left = Object.from_grid(grid3x3)
+
+    vertical = Object.from_grid(np.flip(grid3x3, 0))
+    delta = ObjectDelta(left, vertical)
+    assert delta.transform.actions == [Action.flip_v]
+    assert delta.transform.args == [tuple()]
+
+    horizontal = Object.from_grid(np.flip(grid3x3, 1))
+    delta = ObjectDelta(left, horizontal)
+    assert delta.transform.actions == [Action.flip_h]
+    assert delta.transform.args == [tuple()]
