@@ -81,6 +81,10 @@ class Task:
         self.infer()
         self.test()
 
+    def clean(self) -> None:
+        for scene in self.cases + self.tests:
+            scene.clean()
+
     def decompose(
         self,
         batch: int = cst.DEFAULT_BATCH,

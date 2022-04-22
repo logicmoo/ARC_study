@@ -40,6 +40,13 @@ class Board:
     def rep(self) -> Object:
         return self.tree[self.current]
 
+    def clean(self) -> None:
+        del self.tree
+        self.tree: dict[str, Object] = {"": self.raw}
+
+        del self.proc_q
+        self.proc_q: list[str] = [""]
+
     def decompose(
         self,
         batch: int = cst.DEFAULT_BATCH,

@@ -48,6 +48,15 @@ class Scene:
         """Transformational distance measured between input and output"""
         return self._dist
 
+    def clean(self) -> None:
+        self._dist: float = -1
+
+        del self.path
+        self.path: dict[str, list[ObjectDelta]] = {}
+
+        self.input.clean()
+        self.output.clean()
+
     def decompose(
         self,
         batch: int = cst.DEFAULT_BATCH,

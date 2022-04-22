@@ -1,16 +1,23 @@
 import argparse
+import resource
 
-from arc import ARC
+# from guppy import hpy  # type: ignore
+
+from arc.arc import ARC
 from arc.util import logger
 from arc.util import profile
 
 log = logger.fancy_logger("Profiler", level=20)
 
 
+def get_mem() -> int:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+
 @profile.time_limit(seconds=3)
-def scene_decomposition(arc: ARC, task_idx: int) -> bool:
+def scene_decomposition(_arc: ARC, task_idx: int) -> bool:
     try:
-        arc.tasks[task_idx][0].decompose()
+        _arc.tasks[task_idx][0].decompose()
         return True
     except Exception as exc:
         log.warning(f"Uncaught exception: {exc}")
@@ -18,9 +25,9 @@ def scene_decomposition(arc: ARC, task_idx: int) -> bool:
 
 
 @profile.time_limit(seconds=10)
-def task_solution(arc: ARC, task_idx: int) -> bool:
+def task_solution(_arc: ARC, task_idx: int) -> bool:
     try:
-        arc.tasks[task_idx].solve()
+        _arc.tasks[task_idx].solve()
         return True
     except Exception as exc:
         log.warning(f"Uncaught exception: {exc}")
@@ -28,50 +35,67 @@ def task_solution(arc: ARC, task_idx: int) -> bool:
 
 
 @profile.profile(threshold=0.00, dump_file="arc.prof")
-def decomposition(arc: ARC) -> None:
-    log.info(f"Profiling execution on first scene from {arc.N} tasks")
+def decomposition(_arc: ARC) -> None:
+    log.info(f"Profiling execution on first scene from {_arc.N} tasks")
     runtime: float = 0
     errors: int = 0
-    for idx in arc.selection:
+    for idx in _arc.selection:
         log.info(f"Decomposing task {idx}:")
-        result, seconds = scene_decomposition(arc, idx)
+        result, seconds = scene_decomposition(_arc, idx)
         if not result:
             errors += 1
         log.info(f" ... ran for {seconds:.3f} seconds")
         runtime += seconds
-    log.info(f"=== Total runtime: {runtime:.2f}s, ({errors}/{arc.N}) errors ===")
+    log.info(f"=== Total runtime: {runtime:.2f}s, ({errors}/{_arc.N}) errors ===")
 
 
 @profile.profile(threshold=0.00, dump_file="arc.prof")
-def solution(arc: ARC) -> None:
-    log.info(f"Profiling full solution for {arc.N} tasks")
+def solution(_arc: ARC) -> None:
+    log.info(f"Profiling full solution for {_arc.N} tasks")
     runtime: float = 0
     errors: int = 0
-    for idx in arc.selection:
-        log.info(f"Solving task {idx}:")
-        result, seconds = task_solution(arc, idx)
+    # hp = hpy()
+    for idx in _arc.selection:
+        result, seconds = task_solution(_arc, idx)
         if not result:
             errors += 1
-        log.info(f" ... ran for {seconds:.3f} seconds")
+        mem_mb = get_mem() / 1000
+        log.info(f"Task {idx:>3} | runtime: {seconds:.3f}s  memory: {mem_mb:.2f}Mb")
+        # print(hp.heap())
+        _arc[idx].clean()
         runtime += seconds
-    arc.select({"Solved"})
-    solved = len(arc.selection)
+    _arc.select({"Solved"})
+    solved = len(_arc.selection)
     log.info(
-        f"=== Total runtime: {runtime:.2f}s, {errors} errors ({solved}/{arc.N}) solved ==="
+        f"=== Total runtime: {runtime:.2f}s, {errors} errors ({solved}/{_arc.N}) solved ==="
     )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run ")
+    parser.add_argument(
+        "-q", "--quiet", help="Only show profiler logging", action="store_true"
+    )
+    parser.add_argument(
+        "-v", "--verbose", help="Show debug logging", action="store_true"
+    )
     parser.add_argument("N", metavar="N", type=int, help="Total tasks to run")
     args = parser.parse_args()
 
-    arc = ARC(N=args.N)
-    arc.set_log(
-        {
-            "Task": 30,
-            "Scene": 30,
-        }
-    )
+    _arc = ARC(N=args.N)
+
+    if args.quiet:
+        _arc.set_log(50)
+        _arc.set_log({"Profiler": 20})
+    elif args.verbose:
+        _arc.set_log(10)
+    else:
+        _arc.set_log(
+            {
+                "Task": 30,
+                "Scene": 30,
+            }
+        )
+
     # decomposition(arc)
-    solution(arc)
+    solution(_arc)
