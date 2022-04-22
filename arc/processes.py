@@ -21,7 +21,7 @@ class Process(ABC):
     def __init__(self):
         pass
 
-    def test(self, obj: Object) -> bool:
+    def test(self, object: Object) -> bool:
         """Check whether we believe we should run this process."""
         return True
 
@@ -30,90 +30,102 @@ class Process(ABC):
         if input == output:
             return output
         elif len(output.points) == 0:
-            log.warning("Generated empty object")
+            log.warning(f"Process {self.__class__.__name__} generated empty object")
             return None
 
         log.debug(f"Patching {output} -> {input}")
-        # TODO: For now, assume we can't fix missing points
-        missing_locs = input.points.keys() - output.points.keys()
-        if missing_locs:
+        if missing_locs := input.points.keys() - output.points.keys():
+            # TODO: For now, assume we can't fix missing points
             log.debug("  Missing output points during patch")
+            log.debug(missing_locs)
             return None
-
-        extra_locs = output.points.keys() - input.points.keys()
-        if extra_locs:
+        elif extra_locs := output.points.keys() - input.points.keys():
             cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
             log.debug(f"  Cutting {len(cut_points)} points as patch")
-            return self.add_layer(output, cut_points, "Cut")
+            return self.add_patch(output, cut_points, "Cut")
+        else:
+            # At this point, the silhouetes match, so there is just color
+            # disagreement from the input and output.
+            recolor_pts: PointList = []
+            for loc, color in input.points.items():
+                if output.points[loc] != color:
+                    recolor_pts.append((*loc, color))
+            log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
+            return self.add_patch(output, recolor_pts, "Reco")
 
-        # Some colors must be different between input and output
-        recolor_pts: PointList = []
-        for loc, color in input.points.items():
-            if output.points[loc] != color:
-                recolor_pts.append((*loc, color))
-        log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
-        return self.add_layer(output, recolor_pts, "Reco")
-
-    def add_layer(self, output: Object, points: PointList, tag: str) -> Object:
+    def add_patch(self, output: Object, points: PointList, tag: str) -> Object:
+        """Create a container that will contain the Process output and patch."""
         out = output.copy(anchor=(0, 0, output.color))
-        layer = Object.from_points(points, leaf=True, process=tag)
+        patch = Object.from_points(points, leaf=True, process=tag)
         # NOTE: The use of output.anchor vs output.loc is contentious
         kwargs = {"leaf": output.leaf, "process": output.process}
-        container = Object(*output.anchor, children=[out, layer], **kwargs)
+        container = Object(*output.anchor, children=[out, patch], **kwargs)
         return container
 
+    def run(self, object: Object) -> Object | None:
+        self.info(object)
+        if candidate := self.apply(object):
+            if repaired := self.repair(object, candidate):
+                self.success(candidate)
+                return repaired
+            else:
+                self.fail("Repair unsuccessful")
+                return None
+        else:
+            return None
+
     @abstractmethod
-    def run(self, obj: Object) -> Object | None:
+    def apply(self, object: Object) -> Object | None:
         pass
 
-    def info(self, obj: Object) -> None:
-        log.debug(f"Running {self.__class__.__name__} on {obj.id}")
+    def info(self, object: Object) -> None:
+        log.debug(f"Running {self.__class__.__name__} on {object.id}")
 
     def fail(self, message: str) -> None:
         log.debug(f"  ...failed: {message}")
 
-    def success(self, obj: Object, message: str = "") -> None:
+    def success(self, object: Object, message: str = "") -> None:
         msg_str = f"({message})" if message else ""
-        log.debug(f"  ...finished: {(obj.props)} props {msg_str}")
+        log.debug(f"  ...finished: {(object.props)} props {msg_str}")
 
 
 class SeparateColor(Process):
     code = "S"
 
-    def test(self, obj: Object) -> bool:
-        return len(obj.c_rank) > 1
+    def test(self, object: Object) -> bool:
+        return len(object.c_rank) > 1
 
-    def run(self, obj: Object) -> Object:
+    def apply(self, object: Object) -> Object | None:
         """Improves representation by putting all points of one color together."""
-        self.info(obj)
-        color = obj.c_rank[0][0]
+        color = object.c_rank[0][0]
 
-        match_pts, other_pts = point_filter(obj.points, color)
+        match_pts, other_pts = point_filter(object.points, color)
         match = Object.from_points(match_pts)
         other = Object.from_points(other_pts)
         candidate = Object(
-            *obj.loc, children=[match, other], leaf=True, process=f"SC{color}"
+            *object.loc,
+            children=[match, other],
+            leaf=True,
+            process=f"{self.code}{color}",
         )
-        self.success(candidate)
         return candidate
 
 
 class MakeBase(Process):
     code = "B"
 
-    def run(self, obj: Object) -> Object | None:
-        self.info(obj)
+    def apply(self, object: Object) -> Object | None:
         # NOTE: This currently assumes a black background if black is present
         # which should be altered later to be more data-driven.
-        if 0 in [item[0] for item in obj.c_rank]:
+        if 0 in [item[0] for item in object.c_rank]:
             color = 0
         # Select a color to use, based on area covered by the color
         else:
-            color = obj.c_rank[0][0]
+            color = object.c_rank[0][0]
 
         # Create a Generator based on the grid size
         codes: list[str] = []
-        rows, cols = obj.grid.shape
+        rows, cols = object.grid.shape
         if cols > 1:
             codes.append(f"C*{cols - 1}")
         if rows > 1:
@@ -121,28 +133,27 @@ class MakeBase(Process):
         generator = Generator.from_codes(codes) if codes else None
 
         # For a single color present, this simplifies to a single line/rect
-        if len(obj.c_rank) == 1:
-            candidate = Object(
-                *obj.loc, color, generator=generator, leaf=True, process=f"MB{color}"
+        if len(object.c_rank) == 1:
+            return Object(
+                *object.loc,
+                color,
+                generator=generator,
+                leaf=True,
+                process=f"{self.code}{color}",
             )
-            candidate = self.repair(obj, candidate)
-            if candidate:
-                self.success(candidate, "single color")
-            return candidate
 
         # Split off the base color from the "front matter"
-        _, front_points = point_filter(obj.points, color)
+        _, front_points = point_filter(object.points, color)
         background = Object(
-            *obj.loc, color, generator=generator, leaf=True, process="Base"
+            *object.loc, color, generator=generator, leaf=True, process="Base"
         )
         front = Object.from_points(front_points, process="Base")
-        candidate = Object(
-            *obj.anchor, children=[background, front], leaf=True, process=f"MB{color}"
+        return Object(
+            *object.anchor,
+            children=[background, front],
+            leaf=True,
+            process=f"MB{color}",
         )
-        candidate = self.repair(obj, candidate)
-        if candidate:
-            self.success(candidate)
-        return candidate
 
 
 class ConnectObjects(Process):
@@ -150,26 +161,23 @@ class ConnectObjects(Process):
 
     code = "C"
 
-    def run(self, obj: Object) -> Object | None:
-        self.info(obj)
-        marked = obj.grid.copy()
+    def apply(self, object: Object) -> Object | None:
+        marked = object.grid.copy()
 
         # TODO: we'll want to include context here soon
         off_colors = [cst.NULL_COLOR]
 
         for color in off_colors:
             marked[marked == color] = cst.MARKED_COLOR
-        obj_pts, fail_message = color_connect(marked)
+        object_pts, fail_message = color_connect(marked)
         if fail_message:
             self.fail(fail_message)
             return None
         children: list[Object] = []
-        for idx, pts in enumerate(obj_pts):
+        for idx, pts in enumerate(object_pts):
             name = f"Conn{idx}"
             children.append(Object.from_points(pts, name=name, process="Conn"))
-        candidate = Object(*obj.loc, children=children, leaf=True, process="Conn")
-        self.success(candidate)
-        return candidate
+        return Object(*object.loc, children=children, leaf=True, process="Conn")
 
 
 class Tiling(Process):
@@ -182,35 +190,34 @@ class Tiling(Process):
 
     code = "T"
 
-    def test(self, obj: Object) -> bool:
+    def test(self, object: Object) -> bool:
         # TODO: Consider whether the 1x1 order situation can replace
         # using MakeBase for rect-decomp
-        if obj.shape[0] < 3 and obj.shape[1] < 3:
+        if object.shape[0] < 3 and object.shape[1] < 3:
             return False
-        R, C, level = obj.order
+        R, C, level = object.order
         if R == 1 and C == 1:
             return False
         if level < 0.9:
             return False
         return True
 
-    def run(self, obj: Object) -> Object | None:
-        self.info(obj)
-        row_stride, col_stride, _ = obj.order
+    def apply(self, object: Object) -> Object | None:
+        row_stride, col_stride, _ = object.order
         # Check for a constant-valued axis, indicated by a "1" for an axis order
         if row_stride == 1:
-            row_stride = obj.grid.shape[0]
+            row_stride = object.grid.shape[0]
         elif col_stride == 1:
-            col_stride = obj.grid.shape[1]
+            col_stride = object.grid.shape[1]
 
         # Identify each point that's part of the unit cell
-        cell_pts = eval_mesh(obj.grid, row_stride, col_stride)
+        cell_pts = eval_mesh(object.grid, row_stride, col_stride)
 
-        r_ct = np.ceil(obj.shape[0] / row_stride)
-        c_ct = np.ceil(obj.shape[1] / col_stride)
+        r_ct = np.ceil(object.shape[0] / row_stride)
+        c_ct = np.ceil(object.shape[1] / col_stride)
         bound = None
-        if obj.shape[0] % row_stride or obj.shape[1] % col_stride:
-            bound = obj.shape
+        if object.shape[0] % row_stride or object.shape[1] % col_stride:
+            bound = object.shape
         log.debug(f"Tiling with {row_stride}x{col_stride} cell, bound: {bound}")
         codes: list[str] = []
         if r_ct > 1:
@@ -225,18 +232,14 @@ class Tiling(Process):
             leaf=True,
             process="Cell",
         )
-        candidate = Object(
-            *obj.loc,
+        return Object(
+            *object.loc,
             generator=gen,
             children=[cell],
             name=f"Tiling({row_stride},{col_stride})",
             leaf=True,
             process="Tile",
         )
-        candidate = self.repair(obj, candidate)
-        if candidate:
-            self.success(candidate)
-        return candidate
 
 
 class Reflection(Process):
@@ -245,25 +248,24 @@ class Reflection(Process):
     code = "R"
     threshold = 0.9
 
-    def test(self, obj: Object) -> bool:
-        if obj.shape[0] < 3 and obj.shape[1] < 3:
+    def test(self, object: Object) -> bool:
+        if object.shape[0] < 3 and object.shape[1] < 3:
             return False
-        r_level, c_level = obj.symmetry
+        r_level, c_level = object.symmetry
         if r_level < self.threshold and c_level < self.threshold:
             return False
         return True
 
-    def run(self, obj: Object) -> Object | None:
-        self.info(obj)
+    def apply(self, object: Object) -> Object | None:
         axes = [False, False]
-        R, C = obj.shape
+        R, C = object.shape
         rs, cs = R, C
         odd_vertical = R % 2 == 1
         odd_horizontal = C % 2 == 1
-        if obj.symmetry[0] >= self.threshold:
+        if object.symmetry[0] >= self.threshold:
             rs = R // 2 + int(odd_vertical)
             axes[0] = True
-        if obj.symmetry[1] >= self.threshold:
+        if object.symmetry[1] >= self.threshold:
             cs = C // 2 + int(odd_horizontal)
             axes[1] = True
 
@@ -273,7 +275,7 @@ class Reflection(Process):
         cell_pts: list[Point] = []
         for i in range(rs):
             for j in range(cs):
-                base_color = obj.grid[i, j]
+                base_color = object.grid[i, j]
 
                 # TODO will need to handle noise similar to Tiling
                 # if base_color != ref_color:
@@ -296,11 +298,8 @@ class Reflection(Process):
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")
         candidate = Object(
-            *obj.loc, generator=gen, children=[cell], leaf=True, process="Refl"
+            *object.loc, generator=gen, children=[cell], leaf=True, process="Refl"
         )
-        candidate = self.repair(obj, candidate)
-        if candidate:
-            self.success(candidate)
         return candidate
 
 
@@ -310,25 +309,23 @@ class Rotation(Process):
     code = "O"
     threshold = 0.8
 
-    def test(self, obj: Object) -> bool:
-        if obj.shape[0] < 3 and obj.shape[1] < 3:
+    def test(self, object: Object) -> bool:
+        if object.shape[0] < 3 and object.shape[1] < 3:
             return False
         # TODO Handle 180 deg rotations, which can have mismatched shape params
-        elif obj.shape[0] != obj.shape[1]:
+        elif object.shape[0] != object.shape[1]:
             return False
         # Odd shaped rot symmetry is equivalent to mirror symmetry
-        elif obj.shape[0] % 2 == 1:
+        elif object.shape[0] % 2 == 1:
             return False
-        elif obj.rot_symmetry[1] < self.threshold:
+        elif object.rot_symmetry[1] < self.threshold:
             return False
         return True
 
-    def run(self, obj: Object) -> Object | None:
-        self.info(obj)
-
+    def apply(self, object: Object) -> Object | None:
         # TODO WIP How many cases of combining rotated elements are there?
         # Case 1: Commensurate 90 (no overlap), even shape values
-        R, C = obj.shape
+        R, C = object.shape
         rs, cs = R // 2, C // 2
 
         cell_pts: list[Point] = []
@@ -336,7 +333,7 @@ class Rotation(Process):
             for j in range(cs):
                 # Sub-mask for 90 deg rotation
                 locs = [(i, j), (R - 1 - j, i), (j, C - 1 - j), (R - 1 - i, C - 1 - j)]
-                colors = [obj.grid[r, c] for r, c in locs]
+                colors = [object.grid[r, c] for r, c in locs]
                 base_color = collections.Counter(colors).most_common()[0][0]
 
                 # TODO will need to handle noise similar to Tiling
@@ -351,11 +348,8 @@ class Rotation(Process):
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")
         candidate = Object(
-            *obj.loc, generator=gen, children=[cell], leaf=True, process="Rot"
+            *object.loc, generator=gen, children=[cell], leaf=True, process="Rot"
         )
-        candidate = self.repair(obj, candidate)
-        if candidate:
-            self.success(candidate)
         return candidate
 
 
