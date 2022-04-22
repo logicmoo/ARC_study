@@ -414,7 +414,7 @@ class Object:
     def c_rank(self) -> list[tuple[int, int]]:
         """Get the counts for each color on the grid, starting with most prevalent"""
         counter = Counter(self.points.values())
-        return sorted(counter.items(), key=lambda x: x[1], reverse=True)
+        return sorted(counter.items(), key=lambda x: (x[1], x[0]), reverse=True)
 
     @cached_property
     def order(self) -> tuple[int, int, float]:
