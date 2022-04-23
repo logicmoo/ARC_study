@@ -6,7 +6,7 @@ from arc.util import logger
 
 log = logger.fancy_logger("Comparisons", level=30)
 
-ComparisonReturn: TypeAlias = Transform | None
+ComparisonReturn: TypeAlias = Transform
 ObjectComparison: TypeAlias = Callable[["Object", "Object"], ComparisonReturn]
 
 
@@ -53,9 +53,6 @@ def compare_color(left: "Object", right: "Object") -> ComparisonReturn:
         if len(c1) == 1 and len(c2) == 1:
             transform.actions.append(Action.recolor)
             transform.args.append((list(c2)[0],))
-        # However, partial or multiple remapping is not
-        else:
-            return None
     return transform
 
 
@@ -70,18 +67,13 @@ def compare_order(left: "Object", right: "Object") -> ComparisonReturn:
             log.debug("  Sillhouettes match")
             return transform
 
-    # Without a matching silhouette, only a fully ordered transformation works here
-    # NOTE Including flooding and similar ops will change this
-    if left.order[2] != 1 or right.order[2] != 1:
-        return None
-    else:
-        # There could exist one or more generators to create the other object
-        for axis, code in [(0, "R"), (1, "C")]:
-            if left.shape[axis] != right.shape[axis]:
-                ct = right.shape[axis]
-                scaler = Action.r_scale if code == "R" else Action.c_scale
-                transform.actions.append(scaler)
-                transform.args.append((ct,))
+    # There could exist one or more generators to create the other object
+    for axis, code in [(0, "R"), (1, "C")]:
+        if left.shape[axis] != right.shape[axis]:
+            ct = right.shape[axis] - 1
+            scaler = Action.r_scale if code == "R" else Action.c_scale
+            transform.actions.append(scaler)
+            transform.args.append((ct,))
     return transform
 
 

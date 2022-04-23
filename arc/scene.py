@@ -103,6 +103,10 @@ class Scene:
         total_dist = 0
         total_deltas: list[ObjectDelta] = []
         for kid in obj.children:
+            # TODO Handle Cutout in a better way?
+            # It currently can't be used as an object on it's own because self.points is empty.
+            if kid.category == "Cutout":
+                continue
             kid_dist, kid_deltas = self.recreate(kid, inventory)
             log.debug(f"{kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist + cst.CHILD_DIST

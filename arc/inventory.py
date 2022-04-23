@@ -42,10 +42,14 @@ class Inventory:
             return {}
         inventory[depth].append(obj)
         for kid in obj.children:
+            # TODO Handle Cutout in a better way?
+            # It currently can't be used as an object on it's own because self.points is empty.
+            if kid.category == "Cutout":
+                continue
             dictutil.merge(inventory, self.create_inventory(kid, depth=depth + 1))
         return inventory
 
-    def find_closest(self, obj: Object, threshold: float = 4) -> ObjectDelta | None:
+    def find_closest(self, obj: Object, threshold: float = 8) -> ObjectDelta | None:
         # TODO Use object generation to prune search?
         candidates = self.all
 

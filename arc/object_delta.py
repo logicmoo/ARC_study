@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Any
 
 from arc.comparisons import ObjectComparison, default_comparisons
@@ -7,7 +8,7 @@ from arc.object import Object
 from arc.util import logger
 
 
-log = logger.fancy_logger("Object", level=30)
+log = logger.fancy_logger("ObjectDelta", level=30)
 
 
 class ObjectDelta:
@@ -20,26 +21,31 @@ class ObjectDelta:
 
     def __init__(
         self,
-        obj1: Object,
-        obj2: Object,
+        left: Object,
+        right: Object,
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
-        self.left: Object = obj1
-        self.right: Object = obj2
+        self.left: Object = left
+        self.right: Object = right
         self.null: bool = False
         self.transform: Transform = Transform([])
         self.comparisons = comparisons
-        if obj1 == obj2:
+        if left == right:
             return
 
+        log.debug("Comparing:")
+        log.debug(f"  {left}")
+        log.debug(f"  {right}")
         for comparison in comparisons:
             transform = comparison(self.left, self.right)
-            if transform is None:
-                self.null = True
-                continue
             self.transform = self.transform.concat(transform)
+        log.debug(f"->{self.transform}")
 
-    @property
+        if self.transform.apply(left) != right:
+            self.null = True
+            log.debug("Failed test")
+
+    @cached_property
     def dist(self) -> int:
         """Returns the 'transformation distance' metric between objects.
 

@@ -78,7 +78,10 @@ class Board:
                 if obj.props > threshold * self.rep.props:
                     continue
                 new_key = key + code
-                self.tree[new_key] = obj.flatten()
+                flat_obj = obj.flatten()
+                if flat_obj.props <= obj.props:
+                    obj = flat_obj
+                self.tree[new_key] = obj
                 self.proc_q.append(new_key)
             if ct % batch == 0:
                 self.choose_representation()
@@ -94,10 +97,6 @@ class Board:
         best_props = self.rep.props
         for key, obj in self.tree.items():
             if obj.props < best_props:
-                flat_obj = obj.flatten()
-                if flat_obj.props <= obj.props:
-                    obj = flat_obj
-                    log.info(f"Chose flattened object: {obj}")
                 best_props = obj.props
                 self.current = key
 
@@ -147,7 +146,7 @@ class Board:
                         decompositions.append((code, new_obj))
                     break
             return decompositions
-        elif match := inventory.find_closest(obj, threshold=4):
+        elif match := inventory.find_closest(obj, threshold=0):
             log.info(f"Match at distance: {match.dist} to {match.left}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.

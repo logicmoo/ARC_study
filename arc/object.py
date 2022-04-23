@@ -216,6 +216,9 @@ class Object:
         """The bounding dimensions of the Object."""
         if self.category == "Dot":
             return (1, 1)
+        if not self.points:
+            log.warning("No points in object:")
+            return (0, 0)
         maxrow = max([pos[0] for pos in self.points])
         maxcol = max([pos[1] for pos in self.points])
         return (maxrow + 1, maxcol + 1)
