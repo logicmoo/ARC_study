@@ -1,8 +1,11 @@
 import functools
 import logging
+import os
 import pprint
 import sys
+import traceback
 from typing import Any, Callable, Literal, Optional, TypeAlias
+
 
 LogLevel: TypeAlias = (
     Literal["debug"]
@@ -60,6 +63,17 @@ styles = {
 }
 
 
+def color_text(text: str, color: Optional[str] = None) -> str:
+    """Wraps text in a color code"""
+    if not color:
+        return text
+    prefix = def_color_map.get(color, "")
+    if not prefix:
+        logging.warning(f"{color} not defined in color_map")
+    suffix = def_color_map["reset"] if prefix else ""
+    return f"{prefix}{text}{suffix}"
+
+
 class FancyFormatter(logging.Formatter):
     """Adds colors and structure to a log output"""
 
@@ -69,20 +83,9 @@ class FancyFormatter(logging.Formatter):
 
         # Level colors can also be overridden by changing the dictionary at the top
         self.level_color = def_level_color
-        self.color_map = def_color_map
-
-    def color_text(self, text: str, color: Optional[str] = None) -> str:
-        """Wraps text in a color code"""
-        if not color:
-            return text
-        prefix = self.color_map.get(color, "")
-        if not prefix:
-            logging.warning(f"{color} not defined in color_map")
-        suffix = self.color_map["reset"] if prefix else ""
-        return f"{prefix}{text}{suffix}"
 
     def level_fmt(self, level: str) -> str:
-        return self.color_text(f"{level: <8}", self.level_color.get(level))
+        return color_text(f"{level: <8}", self.level_color.get(level))
 
     def format(self, record: logging.LogRecord) -> str:
         """Automatically called when logging a record"""
@@ -91,7 +94,11 @@ class FancyFormatter(logging.Formatter):
 
         # Prepare a pretty version of the message
         curr_conf = config.get(record.levelname, config["default"])
-        pretty = pprint.pformat(record_dict["msg"]).strip("'\"")
+        pretty = record_dict["msg"]
+        if isinstance(pretty, list | tuple | dict):
+            pretty = pprint.pformat(pretty).strip("'\"")
+        else:
+            pretty = str(pretty)
         total_lines = pretty.count("\n")
         if total_lines > curr_conf["max_lines"]:
             lines = pretty.splitlines()
@@ -103,9 +110,7 @@ class FancyFormatter(logging.Formatter):
 
         # Shortcut characters for adding extra color
         if record_dict["msg"].startswith("#!"):
-            record_dict["msg"] = (
-                self.color_text(record_dict["msg"][2:], "purple") + "\n"
-            )
+            record_dict["msg"] = color_text(record_dict["msg"][2:], "purple") + "\n"
         else:
             record_dict["msg"] += "\n"
 
@@ -151,6 +156,18 @@ def log_call(
         return wrapper
 
     return inner
+
+
+def pretty_traceback(
+    tb: list[traceback.FrameSummary], exc_name: str, exc_value: str
+) -> str:
+    msg: list[str] = []
+    for frame in tb:
+        fileroot = os.path.splitext(os.path.basename(frame.filename))[0]
+        loc = color_text(f"{fileroot:>9.9}:{frame.lineno:<3}", "blue")
+        msg.append(f"  \u21B3 {loc} | {frame.line}")
+    msg.append(color_text(f"    {exc_name}, {exc_value}", "red"))
+    return "\n" + "\n".join(msg)
 
 
 if __name__ == "__main__":

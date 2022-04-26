@@ -2,6 +2,8 @@ import glob
 import json
 import logging
 import pickle
+import sys
+import traceback
 from pathlib import Path
 from typing import Any, TypeAlias
 from collections import Counter
@@ -140,13 +142,19 @@ class ARC:
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
 
-    def solve_tasks(self, N: int = 0) -> None:
+    def solve_tasks(self, N: int = 0) -> dict[int, list[traceback.FrameSummary]]:
         """TODO needs updating"""
+        errors: dict[int, list[traceback.FrameSummary]] = {}
         for idx in self.selection:
             log.info(f"Solving Task {idx}")
             try:
                 self.tasks[idx].solve()
             except Exception as exc:
-                msg = f"{type(exc).__name__} {exc}"
-                log.warning(f"Error during solve of task {idx} {msg}")
-                raise SolveError from exc
+                exc_type, exc_value, exc_tb = sys.exc_info()
+                exc_name = getattr(exc_type, "__name__", "")
+                tb = traceback.extract_tb(exc_tb)
+                exc_type = f"{type(exc).__name__}"
+                log.error(f"{exc_name} during solve of Task {idx}")
+                log.error(logger.pretty_traceback(tb, exc_name, str(exc_value)))
+                errors[idx] = tb
+        return errors
