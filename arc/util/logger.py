@@ -151,7 +151,9 @@ def log_call(
                 [arg if idx not in ignore_idxs else "_" for idx, arg in enumerate(args)]
             )
             getattr(logger, level)(f"{func.__name__}{display_args}{kwargs}")
-            return func(*args, **kwargs)
+            result = func(*args, **kwargs)
+            getattr(logger, level)(result)
+            return result
 
         return wrapper
 
