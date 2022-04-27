@@ -115,6 +115,22 @@ class Object:
             children = [Object(*pt) for pt in normed]
             return cls(*loc, children=children, **kwargs)
 
+    @classmethod
+    def from_structure(cls, **kwargs: dict[str, Any]) -> "Object":
+        """Create an Object from a nested set of arguments.
+
+        This is used during Solution.generate().
+        """
+        children = [
+            cls.from_structure(**child_args)
+            for child_args in kwargs.pop("children", [])
+        ]
+        generator = None
+        if gen_codes := kwargs.pop("generator", None):
+            # TODO Fix the typing for codes output and input
+            generator = Generator.from_codes(gen_codes)  # type: ignore
+        return cls(children=children, generator=generator, **kwargs)
+
     ## Core properties
     @property
     def loc(self) -> tuple[int, int]:
@@ -399,6 +415,8 @@ class Object:
         for achieving success in applications.
         """
         # When we have a contextual reference, we already "know" the object
+        # TODO The parameter count associated with 'reusing' an Object likely
+        # needs to take more into account.
         if self.process == "Inv":
             return 1
 
@@ -420,18 +438,21 @@ class Object:
         return sorted(counter.items(), key=lambda x: (x[1], x[0]), reverse=True)
 
     @cached_property
-    def order(self) -> tuple[int, int, float]:
+    def order_trans_row(self) -> tuple[int, float]:
+        # TODO the "default" order should be the full size of the dimension, not 1
         if self.category == "Dot":
-            return (1, 1, 1)
-        # Get the most-ordered stride for each axis
-        row_o = translational_order(self.grid, row_axis=True)[0]
-        col_o = translational_order(self.grid, row_axis=False)[0]
-        # TODO The product of individual dimension order fraction is almost certainly wrong...
-        # Also, the "default" order should be the full size of the dimension, not 1
-        return (row_o[0], col_o[0], row_o[1] * col_o[1])
+            return (1, 1)
+        return translational_order(self.grid, row_axis=True)[0]
 
     @cached_property
-    def symmetry(self) -> tuple[float, float]:
+    def order_trans_col(self) -> tuple[int, float]:
+        # TODO the "default" order should be the full size of the dimension, not 1
+        if self.category == "Dot":
+            return (1, 1)
+        return translational_order(self.grid, row_axis=False)[0]
+
+    @cached_property
+    def order_mirror(self) -> tuple[float, float]:
         """Determine symmetry across axial grid reflections."""
         if self.category == "Dot":
             return (0, 0)
@@ -440,7 +461,7 @@ class Object:
         return (row_o, col_o)
 
     @cached_property
-    def rot_symmetry(self) -> tuple[int, float]:
+    def order_rotation(self) -> tuple[int, float]:
         """Determine symmetry through rotations."""
         if self.category == "Dot":
             return (0, 0)

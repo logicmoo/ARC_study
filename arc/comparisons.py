@@ -1,4 +1,6 @@
-from typing import Callable, TypeAlias
+import collections
+from typing import Any, Callable, TypeAlias
+
 from arc.actions import Action
 from arc.generator import Transform
 from arc.object import Object
@@ -8,6 +10,33 @@ log = logger.fancy_logger("Comparisons", level=30)
 
 ComparisonReturn: TypeAlias = Transform
 ObjectComparison: TypeAlias = Callable[["Object", "Object"], ComparisonReturn]
+
+
+# TODO WIP This probably doesn't belong here?
+def compare_structure(objs: list[Object]) -> dict[str, Any]:
+    args: dict[str, Any] = {}
+    for prop, default in [("row", 0), ("col", 0), ("color", 10)]:
+        cts = collections.Counter([getattr(obj, prop) for obj in objs])
+        if len(cts) == 1 and (val := next(iter(cts))) != default:
+            args[prop] = val
+    cts = collections.Counter([getattr(obj.generator, "codes", "") for obj in objs])
+    if len(cts) == 1 and (val := next(iter(cts))) != "":
+        args["generator"] = next(iter(cts))
+
+    child_args: list[dict[str, Any]] = []
+    dot_ct = 0
+    child_match: bool = True
+    for kids in zip(*[obj.children for obj in objs]):
+        # TODO This could require multiple schemas of child-checking
+        # as there could be a common child that's not at a constant layer
+        child_args.append(compare_structure(list(kids)))
+        if not all([kid == kids[0] for kid in kids[1:]]):  # type: ignore
+            child_match = False
+        if any([kid.category == "Dot" for kid in kids]):
+            dot_ct += 1
+    if child_args and (dot_ct <= 3 or child_match):
+        args["children"] = child_args
+    return args
 
 
 def compare_position(left: "Object", right: "Object") -> ComparisonReturn:
@@ -96,6 +125,14 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
             transform.actions.append(Action.turn)
             transform.args.append(tuple([ct]))
             return transform
+    for code in ["|", "_"]:
+        for ct in [1, 2, 3]:
+            if Action()[code](Action.turn(left, ct)) == right:
+                transform.actions.append(Action.turn)
+                transform.args.append(tuple([ct]))
+                transform.actions.append(Action()[code])
+                transform.args.append(tuple())
+                return transform
 
     return transform
 

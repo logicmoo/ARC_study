@@ -1,11 +1,12 @@
 from collections import defaultdict
-from typing import TypeAlias
+from typing import Any, TypeAlias
 from arc.actions import Action, pair_actions, subs
 from arc.board import Inventory
+from arc.comparisons import compare_structure
 from arc.generator import ActionType
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
-from arc.object_delta import ObjectDelta
+from arc.object_delta import ObjectDelta, ObjectTarget
 from arc.scene import Scene
 from arc.selector import Selector
 from arc.util import logger
@@ -31,12 +32,14 @@ class SolutionNode:
         selector: Selector,
         action: ActionType = Action.identity,
         args: tuple[ActionArg, ...] = tuple(),
+        target: ObjectTarget = tuple(),
     ) -> None:
         # TODO: For now, only depth-1 Solutions, so assume no children.
         # self.children: list[SolutionNode] = []
         self.selector = selector
         self.action = action
         self.args = args
+        self.target = target
 
     def __repr__(self) -> str:
         return f"Select {self.selector} -> {self.action.__name__}{self.args}"
@@ -51,6 +54,10 @@ class SolutionNode:
         # The selection is every object that will be transformed
         selection = [[delta.left for delta in group] for group in path_node]
         deltas = [delta for group in path_node for delta in group]
+
+        # TODO This is a simple starting implementation for structuring
+        # 'Target' should be developed further
+        target = min([delta.target for delta in deltas])
 
         # TODO Implement what happens if there's a null selector
         selector = Selector(inputs, selection)
@@ -73,10 +80,10 @@ class SolutionNode:
                 nodes: list[SolutionNode | None] = []
                 for color, color_groups in colors.items():
                     selector = Selector(inputs, color_groups)
-                    nodes.append(cls(selector))
+                    nodes.append(cls(selector, target=target))
                 return nodes
             else:
-                return [cls(selector)]
+                return [cls(selector, target=target)]
         elif action in pair_actions:
             log.debug(f"Determining selector for {action}")
             secondaries: list[Object] = []
@@ -101,7 +108,7 @@ class SolutionNode:
             else:
                 args = all_args.pop()
 
-        return [cls(selector, action, args)]
+        return [cls(selector, action, args, target)]
 
     @staticmethod
     def determine_map(
@@ -174,6 +181,7 @@ class Solution:
     def __init__(self) -> None:
         self.nodes: list[SolutionNode] = []
         self.transform_map: dict[str, list[str]] = defaultdict(list)
+        self.structure: dict[str, Any] = {}
 
     def __repr__(self) -> str:
         msg: list[str] = []
@@ -219,6 +227,13 @@ class Solution:
 
         log.debug(f"Transform mapping: {self.transform_map}")
 
+    def create_structure(self, cases: list[Scene]):
+        """Determine any common elements in the output Grids.
+
+        This also provides a basic frame on which to build the test case outputs."""
+        objs = [scene.output.rep for scene in cases]
+        self.structure = compare_structure(objs)
+
     def create_nodes(self, cases: list[Scene]) -> None:
         self.nodes = []
         inputs = [Inventory(case.input.rep).all for case in cases]
@@ -247,13 +262,19 @@ class Solution:
         input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
-        output_children: list[Object] = []
+        output: Object = Object.from_structure(**self.structure)
         # NOTE: Just depth-1 solution graphs for now
-        for node in self.nodes:
-            output_children.extend(node.apply(input))
+        for node in sorted(self.nodes, key=lambda x: x.target):
+            objects = node.apply(input)
+            log.debug(f"Appending the following Objects at {node.target}:")
+            for obj in objects:
+                log.debug(obj)
+            # An empty target means there's a single, root object
+            if not node.target:
+                return objects[0]
+            loc = output
+            for child_idx in node.target[:-1]:
+                loc = loc[child_idx]
+            loc.children.extend(objects)
 
-        # TODO HACK To handle layering of transformed objects, sort by size for now
-        # This should ideally be some information passed through via the Inventory
-        # and noted by the SolutionNodes
-        output_children = sorted(output_children, key=lambda x: x.size, reverse=True)
-        return Object(children=output_children)
+        return output

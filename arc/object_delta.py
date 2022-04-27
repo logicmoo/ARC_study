@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Any
+from typing import Any, TypeAlias
 
 from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
@@ -9,6 +9,8 @@ from arc.util import logger
 
 
 log = logger.fancy_logger("ObjectDelta", level=30)
+
+ObjectTarget: TypeAlias = tuple[int, ...]
 
 
 class ObjectDelta:
@@ -23,10 +25,12 @@ class ObjectDelta:
         self,
         left: Object,
         right: Object,
+        target: ObjectTarget = tuple(),
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
         self.left: Object = left
         self.right: Object = right
+        self.target: ObjectTarget = target
         self.null: bool = False
         self.transform: Transform = Transform([])
         self.comparisons = comparisons

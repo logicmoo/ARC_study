@@ -39,11 +39,7 @@ def test_16(decomposition_samples: ARC):
     board = decomposition_samples.tasks[16].cases[0].input
     board.decompose()
     child_names = sorted([kid.id for kid in board.rep.children])
-    assert child_names == [
-        "Line(3x1)@(0, 0, 3)",
-        "Line(3x1)@(0, 1, 1)",
-        "Line(3x1)@(0, 2, 2)",
-    ]
+    assert child_names == ["Cell(1x3)@(0, 0, 10)"]
 
 
 def test_17(decomposition_samples: ARC):
@@ -52,7 +48,7 @@ def test_17(decomposition_samples: ARC):
     child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Cluster(15x17)@(4, 3, 0)",
-        "Pattern(21x21)@(0, 0, 10) 'Tiling(6,6)'",
+        "Pattern(21x21)@(0, 0, 10)",
     ]
 
 

@@ -15,7 +15,7 @@ def test_reflection_even():
     result = Reflection().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert grid_equal(result.children[0].grid, true_grid)
-    assert result.generator.codes == ["V*1", "H*1"]
+    assert result.generator.codes == ("V*1", "H*1")
 
 
 def test_reflection_odd():
@@ -29,7 +29,7 @@ def test_reflection_odd():
     result = Reflection().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert grid_equal(result.children[0].grid, true_grid)
-    assert result.generator.codes == ["v*1", "h*1"]
+    assert result.generator.codes == ("v*1", "h*1")
 
 
 def test_rotation():
@@ -44,7 +44,7 @@ def test_rotation():
     result = Rotation().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert grid_equal(result.children[0].grid, true_grid)
-    assert result.generator.codes == ["O*3"]
+    assert result.generator.codes == ("O*3",)
 
 
 if __name__ == "__main__":

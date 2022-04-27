@@ -157,14 +157,14 @@ class Generator:
         return f"({','.join(msg)})"
 
     @property
-    def codes(self) -> list[str]:
+    def codes(self) -> tuple[str, ...]:
         codes: list[str] = []
         for trans, copies in zip(self.transforms, self.copies):
             curr = trans.code
             if copies:
                 curr += f"*{copies}"
             codes.append(curr)
-        return codes
+        return tuple(codes)
 
     @classmethod
     def from_codes(cls, codes: list[str], bound: tuple[int, int] | None = None):
@@ -192,8 +192,9 @@ class Generator:
 
     @property
     def props(self) -> int:
+        """A generator has a prop for existence, for its transforms, and for its arg."""
         copies_props = sum([1 if val != 0 else 0 for val in self.copies])
-        return sum([trans.props for trans in self.transforms]) + copies_props
+        return 1 + sum([trans.props for trans in self.transforms]) + copies_props
 
     def copy(self, **kwargs: Any) -> "Generator":
         new_args = {

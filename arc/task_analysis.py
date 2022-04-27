@@ -48,10 +48,11 @@ class TaskTraits:
         # Test if either all inputs or outputs have high ordering
         ordered = False
         for scene in task.cases:
-            R, C, order = scene.input.rep.order
-            if R == 1 and C == 1:
+            rows, row_order = scene.input.rep.order_trans_row
+            cols, col_order = scene.input.rep.order_trans_col
+            if rows == 1 and cols == 1:
                 continue
-            elif order < threshold:
+            elif row_order < threshold and col_order < threshold:
                 ordered = False
                 break
             else:
@@ -61,10 +62,11 @@ class TaskTraits:
             return
 
         for scene in task.cases:
-            rows, cols, order = scene.output.rep.order
+            rows, row_order = scene.output.rep.order_trans_row
+            cols, col_order = scene.output.rep.order_trans_col
             if rows == 1 and cols == 1:
                 continue
-            elif order < threshold:
+            elif row_order < threshold and col_order < threshold:
                 ordered = False
                 break
             else:

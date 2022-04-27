@@ -25,6 +25,16 @@ class Process(ABC):
         """Check whether we believe we should run this process."""
         return True
 
+    def cell_test(self, object: Object, min_size: int, min_dim: int) -> bool:
+        """Common test for repeated elements (tiles, rotation, flip)."""
+        # A cell should have at least 4 points for symmetry to be useful
+        if object.size < min_size:
+            return False
+        # A cell should have a dimension of at least 3 in one direction
+        elif object.shape[0] < min_dim and object.shape[1] < min_dim:
+            return False
+        return True
+
     def repair(self, input: Object, output: Object) -> Object | None:
         """Repair any inconsistencies between input and output."""
         if input == output:
@@ -65,6 +75,8 @@ class Process(ABC):
     def run(self, object: Object) -> Object | None:
         self.info(object)
         if candidate := self.apply(object):
+            log.debug("Candidate object:")
+            log.debug(candidate.hier_repr())
             if repaired := self.repair(object, candidate):
                 self.success(candidate)
                 return repaired
@@ -189,26 +201,27 @@ class Tiling(Process):
     """
 
     code = "T"
+    threshold = 0.9
 
     def test(self, object: Object) -> bool:
         # TODO: Consider whether the 1x1 order situation can replace
         # using MakeBase for rect-decomp
-        if object.shape[0] < 3 and object.shape[1] < 3:
+        R, row_level = object.order_trans_row
+        C, col_level = object.order_trans_col
+        if (R, C) == object.shape:
             return False
-        R, C, level = object.order
-        if R == 1 and C == 1:
-            return False
-        if level < 0.9:
+        if row_level < self.threshold and col_level < self.threshold:
             return False
         return True
 
     def apply(self, object: Object) -> Object | None:
-        row_stride, col_stride, _ = object.order
-        # Check for a constant-valued axis, indicated by a "1" for an axis order
-        if row_stride == 1:
-            row_stride = object.grid.shape[0]
-        elif col_stride == 1:
-            col_stride = object.grid.shape[1]
+        row_stride, row_level = object.order_trans_row
+        col_stride, col_level = object.order_trans_col
+
+        if row_level < self.threshold:
+            row_stride = object.shape[0]
+        if col_level < self.threshold:
+            col_stride = object.shape[1]
 
         # Identify each point that's part of the unit cell
         cell_pts = eval_mesh(object.grid, row_stride, col_stride)
@@ -225,10 +238,10 @@ class Tiling(Process):
         if c_ct > 1:
             codes.append(f"C*{c_ct-1}")
         gen = Generator.from_codes(codes, bound=bound)
+        log.debug(f"Generator: {gen}")
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell = Object.from_points(
             cell_pts,
-            name=f"TCell({row_stride},{col_stride})",
             leaf=True,
             process="Cell",
         )
@@ -236,7 +249,6 @@ class Tiling(Process):
             *object.loc,
             generator=gen,
             children=[cell],
-            name=f"Tiling({row_stride},{col_stride})",
             leaf=True,
             process="Tile",
         )
@@ -249,9 +261,9 @@ class Reflection(Process):
     threshold = 0.9
 
     def test(self, object: Object) -> bool:
-        if object.shape[0] < 3 and object.shape[1] < 3:
+        if not self.cell_test(object, 4, 3):
             return False
-        r_level, c_level = object.symmetry
+        r_level, c_level = object.order_mirror
         if r_level < self.threshold and c_level < self.threshold:
             return False
         return True
@@ -262,10 +274,10 @@ class Reflection(Process):
         rs, cs = R, C
         odd_vertical = R % 2 == 1
         odd_horizontal = C % 2 == 1
-        if object.symmetry[0] >= self.threshold:
+        if object.order_mirror[0] >= self.threshold:
             rs = R // 2 + int(odd_vertical)
             axes[0] = True
-        if object.symmetry[1] >= self.threshold:
+        if object.order_mirror[1] >= self.threshold:
             cs = C // 2 + int(odd_horizontal)
             axes[1] = True
 
@@ -295,7 +307,8 @@ class Reflection(Process):
             else:
                 codes.append(f"H*1")
         gen = Generator.from_codes(codes)
-        # TODO For now, assume unit cells are not worth sub-analyzing
+        # TODO Should we assume unit cells are not worth sub-analyzing?
+        # e.g. should we set leaf=True in the args below
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")
         candidate = Object(
             *object.loc, generator=gen, children=[cell], leaf=True, process="Refl"
@@ -310,15 +323,16 @@ class Rotation(Process):
     threshold = 0.8
 
     def test(self, object: Object) -> bool:
-        if object.shape[0] < 3 and object.shape[1] < 3:
+        if not self.cell_test(object, 4, 3):
             return False
+
         # TODO Handle 180 deg rotations, which can have mismatched shape params
         elif object.shape[0] != object.shape[1]:
             return False
         # Odd shaped rot symmetry is equivalent to mirror symmetry
         elif object.shape[0] % 2 == 1:
             return False
-        elif object.rot_symmetry[1] < self.threshold:
+        elif object.order_rotation[1] < self.threshold:
             return False
         return True
 

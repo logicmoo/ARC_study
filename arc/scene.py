@@ -1,4 +1,6 @@
 from collections import defaultdict
+from typing import TypeAlias
+
 from arc.board import Board, Inventory
 from arc.contexts import SceneContext
 from arc.definitions import Constants as cst
@@ -8,6 +10,10 @@ from arc.types import SceneData
 from arc.util import logger
 
 log = logger.fancy_logger("Scene", level=20)
+
+
+# This is (match distance, [transform required for input -> output Object])
+PathElements: TypeAlias = tuple[int, list[ObjectDelta]]
 
 
 class Scene:
@@ -85,33 +91,36 @@ class Scene:
 
         log.info(f"Scene {self.idx} path | distance ({self.dist}):")
         for char, deltas in self.path.items():
-            log.info(f"  Generator Characteristic: {char or 'None'}")
+            log.info(f"  Transform Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"    {trans} | {obj1.id} -> {obj2.id}")
+                log.info(f"    {delta.target}, {trans} | {obj1.id} -> {obj2.id}")
 
     # TODO: Simplify the return here
+    # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
-        self, obj: Object, inventory: Inventory
-    ) -> tuple[int, list[ObjectDelta]]:
+        self, obj: Object, inventory: Inventory, location: tuple[int, ...] = tuple()
+    ) -> PathElements:
         """Recursively tries to most easily create the given object"""
-        result: tuple[int, list[ObjectDelta]] = (cst.MAX_DIST, [])
+        result: PathElements = (cst.MAX_DIST, [])
         delta = inventory.find_closest(obj, threshold=8)
         if delta:
+            # TODO Find a more holistic way to track "Object targets"
+            delta.target = location
             result = (delta.dist, [delta])
 
         total_dist = 0
-        total_deltas: list[ObjectDelta] = []
-        for kid in obj.children:
+        all_deltas: list[ObjectDelta] = []
+        for idx, kid in enumerate(obj.children):
             # TODO Handle Cutout in a better way?
             # It currently can't be used as an object on it's own because self.points is empty.
             if kid.category == "Cutout":
                 continue
-            kid_dist, kid_deltas = self.recreate(kid, inventory)
-            log.debug(f"{kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
+            kid_dist, kid_deltas = self.recreate(kid, inventory, location + (idx,))
+            log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist + cst.CHILD_DIST
-            total_deltas.extend(kid_deltas)
-        if total_deltas and total_dist < result[0]:
-            return (total_dist, total_deltas)
+            all_deltas.extend(kid_deltas)
+        if all_deltas and total_dist < result[0]:
+            return (total_dist, all_deltas)
         else:
             return result

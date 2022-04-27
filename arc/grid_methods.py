@@ -187,7 +187,9 @@ def _eval_row_mesh(grid: Grid, stride: int) -> tuple[int, float]:
     # A given order defect will fractionally count against a smaller grid more,
     # so without adjusting we will end up favoring larger order strides.
     # NOTE: The current fractional power isn't rigorously motivated...
-    order = np.power(hits / grid.size, stride / R)
+    # TODO Temporary, look into this...
+    # order = np.power(hits / grid.size, max(0.5, stride / R))
+    order = hits / grid.size
     return (stride, order)
 
 
