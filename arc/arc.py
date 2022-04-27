@@ -47,6 +47,7 @@ class ARC:
             idxs = set(range(1, N + 1))
         self.N: int = len(idxs)
         self.selection: set[int] = idxs
+        self.default_log_levels: dict[str, int] = self.get_log_levels()
 
         self.tasks: dict[int, Task] = {}
         self.load_tasks(idxs=idxs, folder=folder)
@@ -97,6 +98,17 @@ class ARC:
             f"Loaded {len(self.tasks)} Tasks, with {boards} boards and {tests} tests."
         )
 
+    def get_log_levels(self) -> dict[str, int]:
+        """Get all of the defined loggers and their default level.
+
+        This is used to easily re-initialize during debugging.
+        """
+        levels: dict[str, int] = {}
+        for logger_name in logging.root.manager.loggerDict:
+            if (level := logging.getLogger(logger_name).level) > 0:
+                levels[logger_name] = level
+        return levels
+
     def set_log(self, arg: int | dict[str, int] | None = None) -> None:
         """Set the logging level for ARC, or any named logger.
 
@@ -110,6 +122,8 @@ class ARC:
             case {**levels}:
                 for name, loglevel in levels.items():
                     logging.getLogger(name).setLevel(loglevel)
+            case None:
+                self.set_log(self.default_log_levels)
             case _:
                 log.warning(f"Unhandled 'arg' value {arg}")
 
