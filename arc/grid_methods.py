@@ -188,8 +188,7 @@ def _eval_row_mesh(grid: Grid, stride: int) -> tuple[int, float]:
     # so without adjusting we will end up favoring larger order strides.
     # NOTE: The current fractional power isn't rigorously motivated...
     # TODO Temporary, look into this...
-    # order = np.power(hits / grid.size, max(0.5, stride / R))
-    order = hits / grid.size
+    order = np.power(hits / grid.size, max(0.5, stride / R))
     return (stride, order)
 
 

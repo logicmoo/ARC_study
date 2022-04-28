@@ -18,10 +18,6 @@ log = logger.fancy_logger("ARC", level=20)
 Index: TypeAlias = int | str | tuple[int, int] | tuple[int, int, str]
 
 
-class SolveError(Exception):
-    pass
-
-
 class ARC:
     """Load and operate on a collection of Tasks.
 
@@ -29,11 +25,14 @@ class ARC:
     the solution process contained in this codebase. It handles loading the data
     and offering high-level control methods.
 
-    Tasks are given an integer index based on the sorted input filenames.
+    Tasks are given an integer index (1+) based on the sorted input filenames.
 
     Attributes:
-        N: The number of loaded tasks in the instance.
-        selection: The Task indices to consider for operations.
+        N: The number of loaded tasks in the instance. If passed as an argument,
+           ARC will load the first N indices, [1-N].
+        idxs: The task indices to load. If passed as argument, overrides 'N'.
+        selection: The Task indices to consider for operations. Defaults to 'idxs',
+           and can be focused further through calls to select()
         tasks: The mapping of Task index to Task objects.
     """
 
@@ -156,11 +155,16 @@ class ARC:
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
 
-    def solve_tasks(self, N: int = 0) -> dict[int, list[traceback.FrameSummary]]:
+    def solve_tasks(
+        self, N: int = 0, quiet: bool = False
+    ) -> dict[int, list[traceback.FrameSummary]]:
         """TODO needs updating"""
         errors: dict[int, list[traceback.FrameSummary]] = {}
-        for idx in self.selection:
-            log.info(f"Solving Task {idx}")
+        queue = sorted(self.selection)
+        log.info(f"Running the following tasks ({len(queue)}):")
+        log.info(queue)
+        for idx in queue:
+            log.info(f"Task {idx}:")
             try:
                 self.tasks[idx].solve()
             except Exception as exc:
@@ -168,7 +172,15 @@ class ARC:
                 exc_name = getattr(exc_type, "__name__", "")
                 tb = traceback.extract_tb(exc_tb)
                 exc_type = f"{type(exc).__name__}"
-                log.error(f"{exc_name} during solve of Task {idx}")
-                log.error(logger.pretty_traceback(tb, exc_name, str(exc_value)))
+                if not quiet:
+                    log.error(f"{exc_name} during solve of Task {idx}")
+                    log.error(logger.pretty_traceback(tb, exc_name, str(exc_value)))
                 errors[idx] = tb
+            finally:
+                if "Solved" in self.tasks[idx].traits:
+                    log.info("#!  Passed")
+                elif idx in errors:
+                    log.info(f"  failed due to exception")
+                else:
+                    log.info(f"  failed due to incorrect solution")
         return errors

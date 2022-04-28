@@ -204,6 +204,8 @@ class Tiling(Process):
     threshold = 0.9
 
     def test(self, object: Object) -> bool:
+        if not self.cell_test(object, 4, 3):
+            return False
         # TODO: Consider whether the 1x1 order situation can replace
         # using MakeBase for rect-decomp
         R, row_level = object.order_trans_row
