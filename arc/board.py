@@ -41,8 +41,9 @@ class Board:
         return self.tree[self.current]
 
     def clean(self) -> None:
+        current = self.tree[self.current]
         del self.tree
-        self.tree: dict[str, Object] = {"": self.raw}
+        self.tree: dict[str, Object] = {"": self.raw, self.current: current}
 
         del self.proc_q
         self.proc_q: list[str] = [""]

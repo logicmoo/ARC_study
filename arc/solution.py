@@ -11,7 +11,7 @@ from arc.scene import Scene
 from arc.selector import Selector
 from arc.util import logger
 
-log = logger.fancy_logger("Solution", level=20)
+log = logger.fancy_logger("Solution", level=30)
 
 ActionArg: TypeAlias = int | Selector | tuple[str, None | dict[int, int]]
 
@@ -94,7 +94,7 @@ class SolutionNode:
                         secondaries.append(obj)
                         break
             if len(secondaries) < len(deltas):
-                log.warning(f"Insufficient secondaries: {len(secondaries)}")
+                log.info(f"Insufficient secondaries: {len(secondaries)}")
             args = (Selector(inputs, [secondaries]),)
             log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
         else:
