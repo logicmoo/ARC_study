@@ -1,4 +1,4 @@
-matplotlib==3.4.3
-numpy==1.21.4
+matplotlib==3.5.1
+numpy==1.22.3
 # Numba isn't yet compatible with python3.10
 # numba==0.51.2

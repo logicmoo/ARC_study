@@ -1,0 +1,8 @@
+version: "3.7"
+services:
+  arc_dev:
+    build:
+      context: ${HOME}/${REPOS}/arc_study
+      dockerfile: docker/dev/Dockerfile
+    image: arc_dev:latest
+    command: ["/bin/bash"]
