@@ -8,7 +8,7 @@ from arc.task import Task
 
 
 class TaskTraits:
-    methods: list[str] = ["color_ct", "const_size", "size", "tiled"]
+    methods: list[str] = ["color_ct", "const_size", "size", "tiled", "from_paper"]
 
     @classmethod
     def color_ct(cls, task: Task) -> None:
@@ -75,3 +75,69 @@ class TaskTraits:
         if ordered:
             task.traits.add("tiled")
         return
+
+    @classmethod
+    def from_paper(cls, task: Task) -> None:
+        # Tasks solved in Sebastien Ferre's paper using MDL
+        ferre_idxs = {
+            10,
+            28,
+            31,
+            36,
+            47,
+            53,
+            100,
+            111,
+            128,
+            129,
+            153,
+            156,
+            171,
+            174,
+            192,
+            222,
+            245,
+            253,
+            254,
+            261,
+            263,
+            267,
+            276,
+            290,
+            293,
+            294,
+            298,
+            299,
+            300,
+            354,
+            362,
+            373,
+            374,
+        }
+
+        # Tasks mentioned the Alford thesis that mostly involve simple transforms
+        alford_idxs = {
+            83,
+            87,
+            106,
+            116,
+            140,
+            142,
+            150,
+            152,
+            154,
+            172,
+            179,
+            210,
+            211,
+            241,
+            249,
+            311,
+            380,
+        }
+
+        if task.idx in ferre_idxs:
+            task.traits.add("mdl")
+
+        if task.idx in alford_idxs:
+            task.traits.add("dreamcoder")

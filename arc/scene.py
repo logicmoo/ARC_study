@@ -54,11 +54,12 @@ class Scene:
         """Transformational distance measured between input and output"""
         return self._dist
 
-    def clean(self) -> None:
-        self._dist: float = -1
+    def clean(self, decomp_tree_only: bool = False) -> None:
 
-        del self.path
-        self.path: dict[str, list[ObjectDelta]] = {}
+        if not decomp_tree_only:
+            self._dist: float = -1
+            del self.path
+            self.path: dict[str, list[ObjectDelta]] = {}
 
         self.input.clean()
         self.output.clean()

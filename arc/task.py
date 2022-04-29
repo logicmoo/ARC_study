@@ -81,9 +81,9 @@ class Task:
         self.infer()
         self.test()
 
-    def clean(self) -> None:
+    def clean(self, decomp_tree_only: bool = False) -> None:
         for scene in self.cases + self.tests:
-            scene.clean()
+            scene.clean(decomp_tree_only=decomp_tree_only)
 
     def decompose(
         self,

@@ -3,6 +3,7 @@ import json
 import logging
 import pickle
 import sys
+import time
 import traceback
 from pathlib import Path
 from typing import Any, TypeAlias
@@ -12,6 +13,7 @@ from arc.definitions import Constants as cst
 from arc.task import Task
 from arc.task_analysis import TaskTraits
 from arc.util import logger
+from arc.util import profile
 
 log = logger.fancy_logger("ARC", level=20)
 
@@ -161,10 +163,9 @@ class ARC:
         """TODO needs updating"""
         errors: dict[int, list[traceback.FrameSummary]] = {}
         queue = sorted(self.selection)
-        log.info(f"Running the following tasks ({len(queue)}):")
-        log.info(queue)
+        log.info(f"Running tasks ({len(queue)}): {queue}")
         for idx in queue:
-            log.info(f"Task {idx}:")
+            start = time.time()
             try:
                 self.tasks[idx].solve()
             except Exception as exc:
@@ -177,10 +178,16 @@ class ARC:
                     log.error(logger.pretty_traceback(tb, exc_name, str(exc_value)))
                 errors[idx] = tb
             finally:
+                self.tasks[idx].clean(decomp_tree_only=True)
+                mem_mb = profile.get_mem() / 1000
+                seconds = time.time() - start
                 if "Solved" in self.tasks[idx].traits:
-                    log.info("#!  Passed")
+                    status = logger.color_text("Passed   ", "green")
                 elif idx in errors:
-                    log.info(f"  failed due to exception")
+                    status = logger.color_text("Exception", "red")
                 else:
-                    log.info(f"  failed due to incorrect solution")
+                    status = logger.color_text("Failed   ", "yellow")
+                log.info(
+                    f"Task {idx:>3} | {status} | runtime: {seconds:.3f}s  memory: {mem_mb:.2f}Mb"
+                )
         return errors

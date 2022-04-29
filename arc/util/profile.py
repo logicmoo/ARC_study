@@ -1,6 +1,7 @@
 import cProfile
 import functools
 import pstats
+import resource
 import signal
 import time
 from typing import Any, Callable
@@ -48,6 +49,10 @@ def profile(
         return wrapper
 
     return inner
+
+
+def get_mem() -> int:
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 
 class TimeoutException(Exception):

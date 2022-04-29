@@ -1,6 +1,7 @@
 import argparse
-import resource
 
+# Guppy provides a breakdown of data structures and their mem usage
+# which can be useful occasionally.
 # from guppy import hpy  # type: ignore
 
 from arc.arc import ARC
@@ -8,10 +9,6 @@ from arc.util import logger
 from arc.util import profile
 
 log = logger.fancy_logger("Profiler", level=20)
-
-
-def get_mem() -> int:
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
 
 @profile.time_limit(seconds=3)
@@ -57,10 +54,16 @@ def solution(_arc: ARC) -> None:
     # hp = hpy()
     for idx in _arc.selection:
         result, seconds = task_solution(_arc, idx)
-        if not result:
+        status = "Failed"
+        if "Solved" in _arc.tasks[idx].traits:
+            status = logger.color_text("Passed", "green")
+        elif not result:
             errors += 1
-        mem_mb = get_mem() / 1000
-        log.info(f"Task {idx:>3} | runtime: {seconds:.3f}s  memory: {mem_mb:.2f}Mb")
+            status = logger.color_text("Exception", "red")
+        mem_mb = profile.get_mem() / 1000
+        log.info(
+            f"Task {idx:>3} | {status} | runtime: {seconds:.3f}s  memory: {mem_mb:.2f}Mb"
+        )
         # print(hp.heap())
         _arc[idx].clean()
         runtime += seconds
