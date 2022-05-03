@@ -66,7 +66,7 @@ def task_selector() -> None:
     title = "Choose a task"
     _arc = st.session_state.arc
     _arc.select(set(st.session_state.filters))
-    options = [0] + list(_arc.selection)
+    options = [0] + list(sorted(_arc.selection))
 
     def labeler(option: int) -> str:
         if option == 0:

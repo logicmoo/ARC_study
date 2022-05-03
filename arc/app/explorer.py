@@ -8,7 +8,7 @@ from arc.app.util import cached_plot
 def explorer():
     _arc = st.session_state.arc
     pages: dict[int, list[list[int]]] = {}
-    tasks = list(_arc.selection)
+    tasks = list(sorted(_arc.selection))
     H, W = Settings.grid_height, Settings.grid_width
     page_size = H * W
     for page_idx in range(len(tasks) // page_size + 1):
