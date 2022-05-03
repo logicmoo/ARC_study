@@ -15,6 +15,7 @@ from arc.types import (
 )
 from arc.util import logger
 from arc.grid_methods import (
+    get_boundary,
     grid_overlap,
     gridify,
     mirror_order,
@@ -253,6 +254,21 @@ class Object:
     #     row = self.anchor[0] + (self.shape[0] - 1) / 2
     #     col = self.anchor[1] + (self.shape[1] - 1) / 2
     #     return (row, col)
+
+    @cached_property
+    def bound_info(self) -> tuple[PointList, PositionList]:
+        """Convenience property to support efficient processing."""
+        return get_boundary(self.grid)
+
+    @cached_property
+    def boundary(self) -> PointList:
+        """All points of the object that are reachable by STEPS_BASE from outside."""
+        return self.bound_info[0]
+
+    @cached_property
+    def enclosed(self) -> PositionList:
+        """All points not of the object not reachable by ALL_STEPS from outside."""
+        return self.bound_info[1]
 
     ## Comparisons
     def __eq__(self, other: "Object") -> bool:

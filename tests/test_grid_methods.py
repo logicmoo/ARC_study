@@ -3,6 +3,7 @@ import pytest
 
 from arc.grid_methods import (
     color_connect,
+    get_boundary,
     gridify,
     norm_points,
     rotational_order,
@@ -72,6 +73,70 @@ def test_color_connect():
     result, fail_msg = color_connect(grid.copy())
     assert fail_msg == ""
     assert result == [[(0, 0, 1), (0, 1, 1)], [(0, 3, 1), (0, 4, 1)]]
+
+
+def test_get_boundary():
+    nc = cst.NULL_COLOR
+    grid = gridify([[1, 1, 1], [1, nc, 1], [1, 1, 1]])
+    bounds, enclosed = get_boundary(grid)
+    assert bounds == [
+        (0, 0, 1),
+        (0, 2, 1),
+        (1, 0, 1),
+        (1, 2, 1),
+        (2, 0, 1),
+        (2, 2, 1),
+        (0, 1, 1),
+        (2, 1, 1),
+    ]
+    assert enclosed == [(1, 1)]
+
+    # Task 2 scene 3 green points
+    grid = gridify(
+        [
+            [3, 3, 3, 3, nc, nc, nc, nc],
+            [3, nc, nc, 3, nc, nc, nc, nc],
+            [3, nc, nc, 3, nc, 3, nc, nc],
+            [3, 3, 3, 3, 3, 3, 3, nc],
+            [nc, 3, nc, nc, nc, nc, 3, nc],
+            [nc, 3, nc, nc, nc, 3, 3, nc],
+            [nc, 3, 3, nc, nc, 3, nc, 3],
+            [nc, 3, nc, 3, nc, nc, 3, nc],
+            [nc, nc, 3, nc, nc, nc, nc, nc],
+        ]
+    )
+    bounds, enclosed = get_boundary(grid)
+    assert sorted(bounds) == [
+        (0, 0, 3),
+        (0, 1, 3),
+        (0, 2, 3),
+        (0, 3, 3),
+        (1, 0, 3),
+        (1, 3, 3),
+        (2, 0, 3),
+        (2, 3, 3),
+        (2, 5, 3),
+        (3, 0, 3),
+        (3, 2, 3),
+        (3, 3, 3),
+        (3, 4, 3),
+        (3, 5, 3),
+        (3, 6, 3),
+        (4, 1, 3),
+        (4, 6, 3),
+        (5, 1, 3),
+        (5, 5, 3),
+        (5, 6, 3),
+        (6, 1, 3),
+        (6, 2, 3),
+        (6, 5, 3),
+        (6, 7, 3),
+        (7, 1, 3),
+        (7, 3, 3),
+        (7, 6, 3),
+        (8, 2, 3),
+    ]
+    assert enclosed == [(1, 1), (1, 2), (2, 1), (2, 2), (6, 6), (7, 2)]
 
 
 def _disorder(grid: Grid, anchor: int = 7):

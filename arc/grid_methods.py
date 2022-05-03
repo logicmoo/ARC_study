@@ -7,7 +7,7 @@ from arc.definitions import Constants as cst
 
 log = logger.fancy_logger("GridMethods", level=30)
 
-from arc.types import Grid, Point, PointDict, PointList, Position
+from arc.types import Grid, Point, PointDict, PointList, Position, PositionList
 
 
 def gridify(data: Grid | list[list[int]], tile: tuple[int, int] = (1, 1)) -> Grid:
@@ -119,6 +119,48 @@ def get_blob(marked: Grid, start: Position) -> PointList:
     return pts
 
 
+def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
+    """Determine all points on the outside surface of a 2D grid."""
+    M, N = grid.shape
+    if M == 1 or N == 1:
+        log.error("Object.bound_info should handle cases with small shape parameters.")
+    marked = grid.copy()
+    bound_pts: PointList = []
+    queue: PositionList = []
+    for row in range(M):
+        for pt in [(row, 0), (row, N - 1)]:
+            if marked[pt] == cst.NULL_COLOR:
+                queue.append(pt)
+            else:
+                bound_pts.append((*pt, marked[pt]))
+            marked[pt] = cst.MARKED_COLOR
+    for col in range(1, N - 1):
+        for pt in [(0, col), (M - 1, col)]:
+            if marked[pt] == cst.NULL_COLOR:
+                queue.append(pt)
+            else:
+                bound_pts.append((*pt, marked[pt]))
+            marked[pt] = cst.MARKED_COLOR
+
+    while queue:
+        c_row, c_col = queue.pop()
+        for dr, dc in cst.STEPS_BASE:
+            new_r, new_c = (c_row + dr, c_col + dc)
+            if 0 <= new_r < M and 0 <= new_c < N:
+                if marked[new_r][new_c] != cst.MARKED_COLOR:
+                    if marked[new_r][new_c] == cst.NULL_COLOR:
+                        queue.append((new_r, new_c))
+                    else:
+                        bound_pts.append((new_r, new_c, marked[new_r][new_c]))
+                    marked[new_r][new_c] = cst.MARKED_COLOR
+
+    enclosed_locs: PositionList = []
+    for row, col in zip(*np.where(marked == cst.NULL_COLOR)):  # type: ignore
+        enclosed_locs.append((row, col))  # type: ignore
+
+    return bound_pts, enclosed_locs
+
+
 # @logger.log_call(log, "warning", ignore_idxs={0})
 def eval_mesh(
     grid: Grid,
@@ -188,8 +230,8 @@ def _eval_row_mesh(grid: Grid, stride: int) -> tuple[int, float]:
     # so without adjusting we will end up favoring larger order strides.
     # NOTE: The current fractional power isn't rigorously motivated...
     # TODO Temporary, look into this...
-    order = np.power(hits / grid.size, max(0.5, stride / R))
-    return (stride, order)
+    order = np.power(hits / grid.size, max(0.5, stride / R))  # type: ignore
+    return (stride, order)  # type: ignore
 
 
 # TODO WIP
