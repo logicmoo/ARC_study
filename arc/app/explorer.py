@@ -20,6 +20,7 @@ def explorer():
     title_col, slider_col, _ = st.columns([3, 1, 1])
     with title_col:
         st.title(f"Explore each input to the first scene")
+    page_idx = 0
     if len(pages) > 1:
         with slider_col:
             st.select_slider(
@@ -28,7 +29,9 @@ def explorer():
                 key="page_idx",
             )
 
-    grid = pages[int(st.session_state.page_idx)]
+    # TODO Storing page_idx in session state didn't give permanence
+    # grid = pages[int(st.session_state.page_idx)]
+    grid = pages[page_idx]
     columns = st.columns(W)
     for column, task_idxs in zip(columns, grid):
         with column:

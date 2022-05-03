@@ -59,8 +59,10 @@ class SolutionNode:
         # 'Target' should be developed further
         target = min([delta.target for delta in deltas])
 
-        # TODO Implement what happens if there's a null selector
         selector = Selector(inputs, selection)
+        if not selector:
+            log.info("Selection failed")
+            return [None]
 
         args: tuple[ActionArg, ...] = ()
 
@@ -85,16 +87,18 @@ class SolutionNode:
             else:
                 return [cls(selector, target=target)]
         elif action in pair_actions:
-            log.debug(f"Determining selector for {action}")
+            log.debug(f"Determining selector for {action.__name__}")
             secondaries: list[Object] = []
-            for delta, candidates in zip(deltas, inputs):
-                for obj in candidates:
-                    if action(delta.left, obj) == delta.right:
-                        log.debug(f"Choosing secondary: {obj}")
-                        secondaries.append(obj)
-                        break
-            if len(secondaries) < len(deltas):
-                log.info(f"Insufficient secondaries: {len(secondaries)}")
+            for delta_group, candidates in zip(path_node, inputs):
+                for delta in delta_group:
+                    for obj in candidates:
+                        if action(delta.left, obj) == delta.right:
+                            log.debug(f"Choosing secondary: {obj}")
+                            secondaries.append(obj)
+                            break
+            if len(secondaries) < len(path_node):
+                log.info(f"Insufficient secondaries found for {action.__name__}")
+                return [None]
             args = (Selector(inputs, [secondaries]),)
             log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
         else:
@@ -104,7 +108,10 @@ class SolutionNode:
             if len(all_args) > 1:
                 # Non-constant action arguments means we should look for a mapping
                 labeler = Labeler(selection)
-                args = (cls.determine_map(deltas, labeler),)
+                arg_mapping = cls.determine_map(deltas, labeler)
+                if not arg_mapping[0]:
+                    return [None]
+                args = (arg_mapping,)
             else:
                 args = all_args.pop()
 
@@ -193,12 +200,7 @@ class Solution:
         """Bundle object transforms together from the Scene paths.
 
         This aims to approximately identify the SolutionNodes we need.
-
-        In many cases, a Solution will involve nodes with unique transforms. E.g.
-        there will be only one node that performs a recoloring. This is sufficient
-        to handle most tasks. One must still consider whether the transform identified
-        during Matching is the best choice, or should it be replaced by a higher-order
-        transform."""
+        """
         self.transform_map: dict[str, list[str]] = defaultdict(list)
         for case in cases:
             self.transform_map.update({key: [key] for key in case.path})
@@ -241,6 +243,7 @@ class Solution:
         for codes, base_chars in self.transform_map.items():
             # The path node is a list of lists of ObjectDeltas related to the transform
             path_node = [case.path.get(key, []) for case in cases for key in base_chars]
+            path_node = list(filter(None, path_node))
 
             if len(codes) <= 1:
                 action = Action()[codes]
@@ -250,9 +253,9 @@ class Solution:
                     self.nodes.extend(nodes)
             else:
                 for char in codes:
+                    log.info(f"Attempting Solution node for char '{char}'")
                     action = Action()[char]
                     raw_nodes = SolutionNode.from_action(inputs, path_node, action)
-                    nodes = filter(None, raw_nodes)
                     if nodes:
                         self.nodes.extend(nodes)
                         break

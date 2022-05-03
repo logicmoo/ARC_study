@@ -256,4 +256,4 @@ class Action:
 # substituted by the second action as a 2-object function
 # TODO WIP
 pair_actions = [Action.adjoin, Action.align, Action.resize]
-subs = [("fp", "S"), ("ws", "A")]
+subs = [("fp", "S"), ("ws", "AL")]

@@ -163,9 +163,12 @@ class ARC:
         """TODO needs updating"""
         errors: dict[int, list[traceback.FrameSummary]] = {}
         queue = sorted(self.selection)
-        log.info(f"Running tasks ({len(queue)}): {queue}")
+        n = len(queue)
+        log.info(f"Running tasks ({n}): {queue}")
+        start = time.time()
+        passed = 0
         for idx in queue:
-            start = time.time()
+            task_start = time.time()
             try:
                 self.tasks[idx].solve()
             except Exception as exc:
@@ -180,14 +183,21 @@ class ARC:
             finally:
                 self.tasks[idx].clean(decomp_tree_only=True)
                 mem_mb = profile.get_mem() / 1000
-                seconds = time.time() - start
+                task_seconds = time.time() - task_start
                 if "Solved" in self.tasks[idx].traits:
                     status = logger.color_text("Passed   ", "green")
+                    passed += 1
                 elif idx in errors:
                     status = logger.color_text("Exception", "red")
                 else:
                     status = logger.color_text("Failed   ", "yellow")
                 log.info(
-                    f"Task {idx:>3} | {status} | runtime: {seconds:.3f}s  memory: {mem_mb:.2f}Mb"
+                    f"Task {idx:>3} | {status} | runtime: {task_seconds:.3f}s"
+                    f" memory: {mem_mb:.2f}Mb"
                 )
+        seconds = time.time() - start
+        log.info(
+            f"{n} tasks run in {seconds:.3f}s ({seconds/n:.2f}s per task) |"
+            f" {passed} passed ({100*passed/n:.1f}%), {len(errors)} errors "
+        )
         return errors
