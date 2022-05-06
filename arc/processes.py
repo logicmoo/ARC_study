@@ -74,16 +74,21 @@ class Process(ABC):
 
     def run(self, object: Object) -> Object | None:
         self.info(object)
-        if candidate := self.apply(object):
-            log.debug("Candidate object:")
-            log.debug(candidate.hier_repr())
-            if repaired := self.repair(object, candidate):
-                self.success(candidate)
-                return repaired
+        try:
+            if candidate := self.apply(object):
+                log.debug("Candidate object:")
+                log.debug(candidate.hier_repr())
+                if repaired := self.repair(object, candidate):
+                    self.success(candidate)
+                    return repaired
+                else:
+                    self.fail("Repair unsuccessful")
+                    return None
             else:
-                self.fail("Repair unsuccessful")
                 return None
-        else:
+        except Exception as exc:
+            log.warning(f"Exception during {self.__class__.__name__}")
+            log.warning(exc)
             return None
 
     @abstractmethod
