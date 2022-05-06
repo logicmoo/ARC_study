@@ -18,6 +18,7 @@ from arc.util import profile
 log = logger.fancy_logger("ARC", level=20)
 
 Index: TypeAlias = int | str | tuple[int, int] | tuple[int, int, str]
+Traceback: TypeAlias = list[traceback.FrameSummary]
 
 
 class ARC:
@@ -157,16 +158,15 @@ class ARC:
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
 
-    def solve_tasks(
-        self, N: int = 0, quiet: bool = False
-    ) -> dict[int, list[traceback.FrameSummary]]:
-        """TODO needs updating"""
-        errors: dict[int, list[traceback.FrameSummary]] = {}
+    def solve_tasks(self, quiet: bool = False) -> dict[int, Traceback]:
+        """Solve all tasks in the selection, catching errors and run info."""
         queue = sorted(self.selection)
         n = len(queue)
-        log.info(f"Running tasks ({n}): {queue}")
-        start = time.time()
+        errors: dict[int, Traceback] = {}
         passed = 0
+
+        start = time.time()
+        log.info(f"Running tasks ({n}): {queue}")
         for idx in queue:
             task_start = time.time()
             try:

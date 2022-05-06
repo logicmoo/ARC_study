@@ -248,13 +248,6 @@ class Object:
     def height(self) -> int:
         return self.shape[1]
 
-    # TODO Unused, eliminate?
-    # @cached_property
-    # def center(self):
-    #     row = self.anchor[0] + (self.shape[0] - 1) / 2
-    #     col = self.anchor[1] + (self.shape[1] - 1) / 2
-    #     return (row, col)
-
     @cached_property
     def bound_info(self) -> tuple[PointList, PositionList]:
         """Convenience property to support efficient processing."""

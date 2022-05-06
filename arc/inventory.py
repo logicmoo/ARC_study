@@ -37,9 +37,6 @@ class Inventory:
     def create_inventory(self, obj: Object, depth: int = 0) -> dict[int, list[Object]]:
         """Recursively find all non-Dot objects in the hierarchy."""
         inventory: dict[int, list[Object]] = collections.defaultdict(list)
-        # TODO Make sure to handle when to inventory Dots
-        # if obj.category == "Dot":
-        #     return {}
         inventory[depth].append(obj)
         for kid in obj.children:
             # TODO Handle Cutout in a better way?

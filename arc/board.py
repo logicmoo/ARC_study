@@ -70,7 +70,7 @@ class Board:
 
         # TODO WIP
         threshold = 4
-        log.info(f"== Begin decomposition")
+        log.info(f"  Begin decomposition")
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
@@ -87,9 +87,9 @@ class Board:
             if ct % batch == 0:
                 self.choose_representation()
                 self.prune_queue()
-                log.info(f"== {ct}: {self.rep}")
+                log.info(f"  i{ct}: {self.rep}")
             if not self.proc_q:
-                log.info(f"==! {ct}: Ending due to empty processing queue.")
+                log.info(f"  i{ct}: Ending due to empty processing queue.")
                 break
         self.choose_representation()
 
