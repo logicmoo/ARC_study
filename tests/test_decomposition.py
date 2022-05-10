@@ -44,7 +44,7 @@ def test_16(decomposition_samples: ARC):
 
 def test_17(decomposition_samples: ARC):
     board = decomposition_samples.tasks[17].cases[0].input
-    board.decompose(batch=3, max_iter=3)
+    board.decompose(max_iter=3)
     child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == [
         "Cluster(15x17)@(4, 3, 0)",
