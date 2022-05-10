@@ -50,7 +50,6 @@ class Board:
 
     def decompose(
         self,
-        batch: int = cst.DEFAULT_BATCH,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         inventory: Inventory | None = None,
         init: bool = False,
@@ -58,7 +57,6 @@ class Board:
         """Determine the optimal representation of the Board.
 
         Args:
-            batch: period, in iterations, before choosing a new representation.
             max_iter: Maximum number of iterations of decomposition.
         """
 
@@ -84,10 +82,8 @@ class Board:
                     obj = flat_obj
                 self.tree[new_key] = obj
                 self.proc_q.append(new_key)
-            if ct % batch == 0:
                 self.choose_representation()
                 self.prune_queue()
-                log.info(f"  i{ct}: {self.rep}")
             if not self.proc_q:
                 log.info(f"  i{ct}: Ending due to empty processing queue.")
                 break
@@ -103,12 +99,13 @@ class Board:
 
     def prune_queue(self) -> None:
         """Clean out any low-priority branches from decomposition."""
-        # TODO WIP
+        # TODO WIP, move these to constants eventually.
         safe_gen = 3
         skip_gen = 2
+        threshold_factor = 4
 
         # cousin_base = self.current[:-2]
-        threshold = 4 * self.rep.props
+        threshold = threshold_factor * self.rep.props
         to_prune: list[int] = []
         for idx, key in enumerate(self.proc_q):
             baseline = self.tree[key[:-skip_gen]].props

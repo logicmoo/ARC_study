@@ -64,19 +64,17 @@ class Scene:
         self.input.clean()
         self.output.clean()
 
-    def decompose(
-        self,
-        batch: int = cst.DEFAULT_BATCH,
+    def decompose(self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         init: bool = False,
-    ) -> None:
+        ) -> None:
         """Determine a compact representation of the input and output Boards."""
-        self.input.decompose(batch=batch, max_iter=max_iter, init=init)
+        self.input.decompose(max_iter=max_iter, init=init)
         log.info(f"Scene {self.idx} input rep | props {self.input.rep.props}:")
         log.info(self.input.rep)
 
         inventory = Inventory(self.input.rep)
-        self.output.decompose(batch, max_iter, inventory=inventory, init=init)
+        self.output.decompose(max_iter=max_iter, inventory=inventory, init=init)
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
