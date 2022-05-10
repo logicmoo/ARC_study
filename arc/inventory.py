@@ -20,24 +20,21 @@ class Inventory:
 
     @cached_property
     def all(self) -> list[Object]:
-        return [obj for sized_objs in self.inventory.values() for obj in sized_objs]
-
+        return [obj for ranked_objs in self.inventory.values() for obj in ranked_objs]
+    
     @cached_property
-    def depth(self) -> list[tuple[int, Object]]:
+    def depth(self) -> list[tuple[str, Object]]:
         return [
             (depth, obj)
             for depth, obj_list in self.inventory.items()
             for obj in obj_list
         ]
 
-    def less(self, mask: list[Object]) -> list[Object]:
-        """Return the inventory without the objects in the mask."""
-        return [obj for obj in self.all if obj not in mask]
-
-    def create_inventory(self, obj: Object, depth: int = 0) -> dict[int, list[Object]]:
-        """Recursively find all non-Dot objects in the hierarchy."""
-        inventory: dict[int, list[Object]] = collections.defaultdict(list)
-        inventory[depth].append(obj)
+    def create_inventory(self, obj: Object, depth: int = 0) -> dict[str, list[Object]]:
+        """Recursively find all objects, index them by their generator."""
+        inventory: dict[str, list[Object]] = collections.defaultdict(list)
+        obj_char = "" if obj.generator is None else obj.generator.char
+        inventory[obj_char].append(obj)
         for kid in obj.children:
             # TODO Handle Cutout in a better way?
             # It currently can't be used as an object on it's own because self.points is empty.
@@ -47,8 +44,12 @@ class Inventory:
         return inventory
 
     def find_closest(self, obj: Object, threshold: float = 8) -> ObjectDelta | None:
-        # TODO Use object generation to prune search?
-        candidates = self.all
+        # We prune the search for transformation matches by generator characteristic
+        # as there (currently) is no presumption of dynamic generators--we assume
+        # that if the output contains objects with generators, their characteristics
+        # are constant across cases.
+        obj_char = "" if obj.generator is None else obj.generator.char
+        candidates = self.inventory.get(obj_char, [])
 
         if not candidates:
             return None

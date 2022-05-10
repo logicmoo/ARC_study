@@ -76,8 +76,6 @@ class Process(ABC):
         self.info(object)
         try:
             if candidate := self.apply(object):
-                log.debug("Candidate object:")
-                log.debug(candidate.hier_repr())
                 if repaired := self.repair(object, candidate):
                     self.success(candidate)
                     return repaired

@@ -80,12 +80,18 @@ if __name__ == "__main__":
         "-q", "--quiet", help="Only show profiler logging", action="store_true"
     )
     parser.add_argument(
+        "-s", "--single", help="Run a single task index (uses N)", action="store_true"
+    )
+    parser.add_argument(
         "-v", "--verbose", help="Show debug logging", action="store_true"
     )
     parser.add_argument("N", metavar="N", type=int, help="Total tasks to run")
     args = parser.parse_args()
 
-    _arc = ARC(N=args.N)
+    if args.single:
+        _arc = ARC(idxs={args.N})
+    else:
+        _arc = ARC(N=args.N)
 
     if args.quiet:
         _arc.set_log(50)
