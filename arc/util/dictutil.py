@@ -1,3 +1,4 @@
+import collections
 from typing import Any, TypeVar
 
 _KeyT = TypeVar("_KeyT", bound=str | int | tuple[Any, ...])
@@ -39,6 +40,33 @@ def dict_and_group(dict_group: list[dict[_KeyT, Any]]) -> dict[_KeyT, Any]:
     for other in dict_group[1:]:
         result = dict_and(result, other)
     return result
+
+
+def dict_val2set(
+    dict_group: list[dict[_KeyT, int | str]]
+) -> dict[_KeyT, set[int | str]]:
+    if not dict_group:
+        return {}
+    result: dict[_KeyT, set[int | str]] = collections.defaultdict(set)
+    for inp in dict_group:
+        for key, val in inp.items():
+            result[key].add(val)
+    return result
+
+
+def dict_popset(
+    base: dict[_KeyT, set[int | str]], dict_group: list[dict[_KeyT, int | str]]
+) -> dict[_KeyT, set[int | str]]:
+    if not base:
+        return {}
+    for inp in dict_group:
+        for key, val in inp.items():
+            if key not in base:
+                continue
+            base[key].discard(val)
+            if not base[key]:
+                base.pop(key)
+    return base
 
 
 def dict_xor(d_left: dict[_KeyT, Any], d_right: dict[_KeyT, Any]) -> dict[_KeyT, Any]:

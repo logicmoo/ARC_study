@@ -1,4 +1,3 @@
-from typing import Any
 from arc.object import Object
 
 from arc.labeler import Labeler, all_traits
@@ -20,22 +19,30 @@ class Selector:
         # E.g. Select blue rectangles
 
         flat_selection = [obj for group in selection for obj in group]
+        flat_complement = [
+            obj for group in obj_groups for obj in group if obj not in flat_selection
+        ]
         log.debug("Choosing criteria for the following inputs, selection:")
         log.debug(obj_groups)
         log.debug(flat_selection)
 
         labeler = Labeler(obj_groups)
 
-        self.criteria: dict[str, Any] = dictutil.dict_and_group(
+        base_criteria: dict[str, set[int | str]] = dictutil.dict_val2set(
             [labeler.labels[obj.uid] for obj in flat_selection]
         )
-        log.debug(f"Initial Criteria: {self.criteria}")
+        log.debug(f"Initial Criteria: {base_criteria}")
+
         # Remove any traits present in the other Objects
-        for group in obj_groups:
-            for obj in group:
-                if obj in flat_selection:
-                    continue
-                dictutil.dict_sub(self.criteria, labeler.labels[obj.uid])
+        dictutil.dict_popset(
+            base_criteria, [labeler.labels[obj.uid] for obj in flat_complement]
+        )
+
+        # Try single traits first, then pairs, etc.
+        # for rank in (1,):
+        # current: dict[str, Any] = set(itertools.combinations(base_criteria, rank))
+
+        self.criteria = base_criteria
         log.debug(f"Filter other objects: {self.criteria}")
         # Choose the highest priority trait of remaining traits
         for trait in all_traits:
@@ -59,8 +66,8 @@ class Selector:
                 obj
                 for obj in group
                 if (
-                    labeler.labels[obj.uid].get(key) == val
-                    or getattr(obj, key, None) == val
+                    labeler.labels[obj.uid].get(key) in val
+                    or getattr(obj, key, None) in val
                 )
             ]
         return group

@@ -64,10 +64,11 @@ class Scene:
         self.input.clean()
         self.output.clean()
 
-    def decompose(self,
+    def decompose(
+        self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         init: bool = False,
-        ) -> None:
+    ) -> None:
         """Determine a compact representation of the input and output Boards."""
         self.input.decompose(max_iter=max_iter, init=init)
         log.info(f"Scene {self.idx} input rep | props {self.input.rep.props}:")
@@ -106,6 +107,9 @@ class Scene:
         if delta:
             # TODO Find a more holistic way to track "Object targets"
             delta.target = location
+            # TODO We add the scene index to the deltas to avoid heavy structuring later on
+            # (i.e. avoid dicts of lists of lists)
+            delta.tag = self.idx
             result = (delta.dist, [delta])
 
         total_dist = 0

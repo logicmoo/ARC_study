@@ -25,11 +25,13 @@ class ObjectDelta:
         self,
         left: Object,
         right: Object,
+        tag: int = 0,
         target: ObjectTarget = tuple(),
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
         self.left: Object = left
         self.right: Object = right
+        self.tag: int = tag
         self.target: ObjectTarget = target
         self.null: bool = False
         self.transform: Transform = Transform([])

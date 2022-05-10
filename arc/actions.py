@@ -243,12 +243,13 @@ class Action:
     def align(cls, object: "Object", secondary: "Object") -> "Object":
         """Move the primary the smallest amount to align on an axis with secondary."""
         result = object.copy()
-        row_dist = secondary.row - object.row
-        col_dist = secondary.col - object.col
-        if abs(row_dist) <= abs(col_dist):
-            result = Action().vertical(result, row_dist)
-        else:
-            result = Action().horizontal(result, col_dist)
+        ch_vector = chebyshev_vector(object, secondary)
+        if ch_vector[0]:
+            sign = -1 if ch_vector[0] < 0 else 1
+            result = Action().vertical(result, ch_vector[0] + sign * object.shape[0])
+        elif ch_vector[1]:
+            sign = -1 if ch_vector[1] < 0 else 1
+            result = Action().horizontal(result, ch_vector[1] + sign * object.shape[1])
         return result
 
 
@@ -257,3 +258,4 @@ class Action:
 # TODO WIP
 pair_actions = [Action.adjoin, Action.align, Action.resize]
 subs = [("fp", "S"), ("ws", "AL")]
+degeneracies = [{"|", "_", "t"}]

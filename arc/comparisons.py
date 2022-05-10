@@ -120,11 +120,8 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
             transform.actions.append(Action()[code])
             transform.args.append(tuple())
             return transform
-    for ct in [1, 2, 3]:
-        if Action.turn(left, ct) == right:
-            transform.actions.append(Action.turn)
-            transform.args.append(tuple([ct]))
-            return transform
+    if (rotation := compare_rotation(left, right)).actions:
+        return rotation
     for code in ["|", "_"]:
         for ct in [1, 2, 3]:
             if Action()[code](Action.turn(left, ct)) == right:
@@ -135,6 +132,13 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
                 return transform
 
     return transform
+
+def compare_rotation(left: "Object", right: "Object") -> ComparisonReturn:
+    log.debug("Comparing Rotation")
+    for ct in [1, 2, 3]:
+        if Action.turn(left, ct) == right:
+            return Transform([Action.turn], [(ct,)])
+    return Transform([])
 
 
 default_comparisons = [

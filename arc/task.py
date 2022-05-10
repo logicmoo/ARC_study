@@ -89,7 +89,7 @@ class Task:
         self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         init: bool = False,
-        ) -> None:
+    ) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
         # TODO apply context
         log.info(f" + Decomposition")

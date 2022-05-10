@@ -1,8 +1,9 @@
 from collections import defaultdict
 from typing import Any, TypeAlias
-from arc.actions import Action, pair_actions, subs
+
+from arc.actions import Action, pair_actions, degeneracies, subs
 from arc.board import Inventory
-from arc.comparisons import compare_structure
+from arc.comparisons import compare_structure, compare_rotation
 from arc.generator import ActionType
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
@@ -10,6 +11,7 @@ from arc.object_delta import ObjectDelta, ObjectTarget
 from arc.scene import Scene
 from arc.selector import Selector
 from arc.util import logger
+from arc.util import dictutil
 
 log = logger.fancy_logger("Solution", level=30)
 
@@ -57,10 +59,11 @@ class SolutionNode:
 
         # TODO This is a simple starting implementation for structuring
         # 'Target' should be developed further
+        # target represents the location in the output structure for the result
         target = min([delta.target for delta in deltas])
 
         selector = Selector(inputs, selection)
-        if not selector:
+        if not selector.criteria:
             log.info("Selection failed")
             return [None]
 
@@ -105,8 +108,8 @@ class SolutionNode:
             # now check the arguments
             transforms = [delta.transform for delta in deltas]
             all_args = set([transform.args[0] for transform in transforms])
-            if len(all_args) > 1:
-                # Non-constant action arguments means we should look for a mapping
+            if all(all_args) and len(all_args) > 1:
+                # Non-null, non-constant action arguments means we need a mapping
                 labeler = Labeler(selection)
                 arg_mapping = cls.determine_map(deltas, labeler)
                 if not arg_mapping[0]:
@@ -128,6 +131,7 @@ class SolutionNode:
             for delta in delta_list:
                 inp = labeler.labels[delta.left.uid][trait]
                 # TODO We're assuming a single action with a single arg for now
+
                 out = delta.transform.args[0][0]
                 if inp in trial_map:
                     # TODO: Handle Labeling with type safety, non-mutation
@@ -201,14 +205,50 @@ class Solution:
 
         This aims to approximately identify the SolutionNodes we need.
         """
-        self.transform_map: dict[str, list[str]] = defaultdict(list)
+        self.bundled: dict[str, list[ObjectDelta]] = defaultdict(list)
         for case in cases:
-            self.transform_map.update({key: [key] for key in case.path})
+            self.bundled = dictutil.merge(self.bundled, case.path)
+
+        # Attempt replacing degenerate transforms to reduce unique transforms used
+        # E.g. Rotate 90 and Flipping could be equivalent for some objects
+        for group in degeneracies:
+            overlap = self.bundled.keys() & group
+            # If we have two or more elements from the degeneracy group, try stuff
+            if len(overlap) > 1:
+                log.debug(f"Attempting to bundle {overlap}")
+                results: dict[str, list[ObjectDelta]] = defaultdict(list)
+                for target in overlap:
+                    deltas = [
+                        delta
+                        for key in overlap - {target}
+                        for delta in self.bundled[key]
+                    ]
+                    for delta in deltas:
+                        # TODO WIP Just try rotational substitution manually
+                        new_delta = ObjectDelta(
+                            delta.left, delta.right, comparisons=[compare_rotation]
+                        )
+                        if not new_delta.null:
+                            results[target].append(new_delta)
+                        else:
+                            results[target] = []
+                            break
+                if results:
+                    best = sorted(results.items(), key=lambda x: len(x[1]))[0]
+                    log.debug(f"Choosing smallest mapping: {best}")
+                    for key in overlap - {best[0]}:
+                        self.bundled.pop(key)
+                    self.bundled[best[0]].extend(best[1])
+
+        self.transform_map: dict[str, list[str]] = defaultdict(list)
+        for key in self.bundled:
+            self.transform_map[key] = [key]
 
         # TODO WIP
         # We check a few rules to know when we should attempt a higher-level transform
         for left, right in subs:
             log.debug(f"Checking subsitution: {left} -> {right}")
+
             # Case 1: Double transforms ("ws", "fp") -> map to pairwise action
             if left in self.transform_map:
                 self.transform_map[right].extend(self.transform_map.pop(left))
@@ -242,7 +282,17 @@ class Solution:
 
         for codes, base_chars in self.transform_map.items():
             # The path node is a list of lists of ObjectDeltas related to the transform
-            path_node = [case.path.get(key, []) for case in cases for key in base_chars]
+            # path_node = [case.path.get(key, []) for case in cases for key in base_chars]
+            path_node: list[list[ObjectDelta]] = []
+            for case in cases:
+                case_node = [
+                    delta
+                    for key in base_chars
+                    for delta in self.bundled.get(key, [])
+                    if delta.tag == case.idx
+                ]
+                path_node.append(case_node)
+            # path_node = [self.bundled.get(key, []) for case in cases for key in base_chars]
             path_node = list(filter(None, path_node))
 
             if len(codes) <= 1:
@@ -256,6 +306,7 @@ class Solution:
                     log.info(f"Attempting Solution node for char '{char}'")
                     action = Action()[char]
                     raw_nodes = SolutionNode.from_action(inputs, path_node, action)
+                    nodes = filter(None, raw_nodes)
                     if nodes:
                         self.nodes.extend(nodes)
                         break
