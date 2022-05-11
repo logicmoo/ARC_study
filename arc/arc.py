@@ -55,7 +55,7 @@ class ARC:
         self.load_tasks(idxs=idxs, folder=folder)
 
         # TODO find a way to incorporate using blacklist coherently
-        self.blacklist: set[int] = set([])
+        self.blacklist: set[int] = cst.blacklist
         self.stats: dict[str, int] = Counter()
 
     @staticmethod
@@ -166,7 +166,10 @@ class ARC:
         passed = 0
 
         start = time.time()
-        log.info(f"Running tasks ({n}): {queue}")
+        queue_str = (
+            queue if len(queue) < 30 else f"[{','.join(map(str, queue[:30]))} ...]"
+        )
+        log.info(f"Running tasks ({n}): {queue_str}")
         for idx in queue:
             task_start = time.time()
             try:

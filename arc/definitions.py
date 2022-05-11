@@ -45,3 +45,17 @@ class Constants:
         10: "Trans",
         -1: "Cutout",
     }
+
+    # Set of tasks that engage in significant compute at present, and are not
+    # under consideration for finding a solution. We filter these out to
+    # save time on larger runs.
+    blacklist = {
+        74,
+        80,
+        110,
+        118,
+        175,
+        208,
+        243,
+        255,
+    }
