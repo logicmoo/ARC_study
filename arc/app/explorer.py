@@ -11,27 +11,25 @@ def explorer():
     tasks = list(sorted(_arc.selection))
     H, W = Settings.grid_height, Settings.grid_width
     page_size = H * W
-    for page_idx in range(len(tasks) // page_size + 1):
-        base_idx = page_idx * page_size
+    for p_idx in range(len(tasks) // page_size + 1):
+        base_idx = p_idx * page_size
         page = np.array(tasks[base_idx : base_idx + page_size])
         page.resize(page_size)
-        pages[page_idx] = page.reshape((W, H), order="F").tolist()
+        pages[p_idx] = page.reshape((W, H), order="F").tolist()
 
     title_col, slider_col, _ = st.columns([3, 1, 1])
     with title_col:
         st.title(f"Explore each input to the first scene")
-    page_idx = 0
+    page_idx = 1
     if len(pages) > 1:
         with slider_col:
-            st.select_slider(
-                label="Page",
-                options=[str(i) for i in range(len(pages))],
-                key="page_idx",
+            page_idx = st.select_slider(
+                label="Page", options=[i + 1 for i in range(len(pages))]
             )
 
     # TODO Storing page_idx in session state didn't give permanence
     # grid = pages[int(st.session_state.page_idx)]
-    grid = pages[page_idx]
+    grid = pages[page_idx - 1]
     columns = st.columns(W)
     for column, task_idxs in zip(columns, grid):
         with column:
