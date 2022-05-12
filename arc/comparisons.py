@@ -133,6 +133,7 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
 
     return transform
 
+
 def compare_rotation(left: "Object", right: "Object") -> ComparisonReturn:
     log.debug("Comparing Rotation")
     for ct in [1, 2, 3]:
@@ -141,9 +142,15 @@ def compare_rotation(left: "Object", right: "Object") -> ComparisonReturn:
     return Transform([])
 
 
-default_comparisons = [
+# TODO handle type
+default_comparisons: list[Any] = [
     compare_position,
     compare_color,
     compare_order,
     compare_orientation,
+]
+
+decomposition_comparisons: list[Any] = [
+    compare_position,
+    compare_color,
 ]

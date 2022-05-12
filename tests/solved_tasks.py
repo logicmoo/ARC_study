@@ -1,9 +1,10 @@
 from arc.arc import ARC
 
+# TODO Task 30 needs Selection fixing (negation or props)
 # TODO Task 31 has some decomposition issues
-solved_tasks = {8, 16, 17, 30, 39}
+solved_tasks = {8, 16, 17, 39}
 
-dc_solved = {87, 140, 150, 155, 179, 380}
+dc_solved = {87, 140, 142, 150, 152, 155, 179, 380}
 mdl_solved = {10, 374}
 
 solved_tasks |= dc_solved

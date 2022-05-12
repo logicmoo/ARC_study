@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from arc.actions import Action
 from arc.types import Position
+from arc.util import strutil
 
 
 if TYPE_CHECKING:
@@ -181,10 +182,10 @@ class Generator:
     @property
     def char(self) -> str:
         """Characteristic of the Generator: the unique, sorted Actions involved."""
-        characteristic: set[str] = set()
+        chars = ""
         for transform in self.transforms:
-            characteristic |= set(transform.char)
-        return "".join(sorted(characteristic))
+            chars += transform.char
+        return strutil.get_characteristic(chars)
 
     @property
     def dim(self) -> int:

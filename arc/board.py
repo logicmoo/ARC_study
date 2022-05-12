@@ -130,11 +130,12 @@ class Board:
             return []
         # Search for the first object that's not decomposed and apply decomposition
         # TODO Need to redo occlusion
-        elif not obj.leaf and (match := inventory.find_closest(obj, threshold=2)):
+        elif not obj.leaf and (match := inventory.find_decomposition_match(obj)):
             log.info(f"Match at distance: {match.dist} to {match.left}")
             # TODO: Figure out full set of operations/links we need for use
             # of objects prescribed from context.
-            linked = match.right.copy(leaf=True, process="Inv")
+            # TODO HACK this assumes color and translation allowed only
+            linked = match.left.copy(match.right.anchor, leaf=True, process="Inv")
             return [("I", linked)]
         elif obj.leaf:
             # NOTE: We run in reverse order to handle occlusion

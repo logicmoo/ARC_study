@@ -1,10 +1,13 @@
+from arc.board import Board
 from arc.contexts import TaskContext
 from arc.definitions import Constants as cst
+from arc.inventory import Inventory
 from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution
 from arc.types import TaskData
 from arc.util import logger
+from arc.util import strutil
 
 log = logger.fancy_logger("Task", level=20)
 
@@ -54,11 +57,6 @@ class Task:
                     log.error(f"Unable to index a Task using '{test_code}'")
                     raise
 
-    def info(self) -> None:
-        """Display a set of key info about the task to the user."""
-        log.info(f"Task {self.idx} UID = {self.uid} | First input board:")
-        log.info(self.raw["train"][0]["input"], extra={"fmt": "bare"})
-
     @property
     def ppp(self) -> float:
         """Average properties-per-point across cases."""
@@ -74,6 +72,15 @@ class Task:
         """Number of total boards in the Task."""
         return 2 * (len(self.cases) + len(self.tests))
 
+    def info(self) -> None:
+        """Display a set of key info about the task to the user."""
+        log.info(f"Task {self.idx} UID = {self.uid} | First input board:")
+        log.info(self.raw["train"][0]["input"], extra={"fmt": "bare"})
+
+    def clean(self, decomp_tree_only: bool = False) -> None:
+        for scene in self.cases + self.tests:
+            scene.clean(decomp_tree_only=decomp_tree_only)
+
     def solve(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
         self.decompose()
@@ -81,22 +88,67 @@ class Task:
         self.infer()
         self.test()
 
-    def clean(self, decomp_tree_only: bool = False) -> None:
-        for scene in self.cases + self.tests:
-            scene.clean(decomp_tree_only=decomp_tree_only)
-
     def decompose(
         self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         init: bool = False,
     ) -> None:
         """Apply decomposition across all cases, learning context and iterating."""
+        inputs = [case.input for case in self.cases]
+        outputs = [case.output for case in self.cases]
+
         # TODO apply context
-        log.info(f" + Decomposition")
-        for scene in self.cases:
-            scene.decompose(max_iter=max_iter, init=init)
-        scene_ppps = [round(scene.ppp, 2) for scene in self.cases]
-        log.info(f"Scene PpPs {scene_ppps} -> avg {self.ppp:.3f}")
+        for idx, board in enumerate(inputs):
+            board.decompose(max_iter=max_iter, init=init)
+            log.info(f"Scene {idx} input rep | props {board.rep.props}:")
+            log.info(board.rep)
+
+        self.align_representation(inputs)
+
+        for idx, (inp, out) in enumerate(zip(inputs, outputs)):
+            inventory = Inventory(inp.rep)
+            out.decompose(max_iter=max_iter, inventory=inventory, init=init)
+            log.info(f"Scene {idx} input rep | props {out.rep.props}:")
+            log.info(out.rep)
+
+        self.align_representation(outputs)
+
+    def align_representation(self, boards: list[Board]) -> None:
+        """Match the characteristics of the decompositions across scenes."""
+        # Identify candidate characteristics
+        candidates: list[str] = [
+            strutil.get_characteristic(board.current) for board in boards
+        ]
+        log.info(f"Candidate characteristics: {candidates}")
+
+        # Choose the characteristic giving the minimal representation
+        best_props: int = 4 * 900 * len(boards)
+        best_rep: list[str] = [board.current for board in boards]
+        log.info(f"Current rep {best_rep}")
+        for characteristic in candidates:
+            new_rep: list[str] = []
+            new_props = 0
+            for board in boards:
+                # Find the minimal representation matching the candidate characteristic
+                best_score = 4 * 900
+                best_scene_rep = ""
+                for key, object in board.tree.items():
+                    if (
+                        strutil.get_characteristic(key) == characteristic
+                        and object.props < best_score
+                    ):
+                        best_scene_rep = key
+                        best_score = object.props
+                new_rep.append(best_scene_rep)
+                new_props += best_score
+            if new_props < best_props:
+                best_props = new_props
+                best_rep = new_rep
+
+        # Set the new representation
+        log.info(f"Choosing rep {best_rep}")
+        for rep, board in zip(best_rep, boards):
+            board.current = rep
 
     def match(self) -> None:
         """Match input and output objects for each case."""

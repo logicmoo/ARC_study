@@ -103,7 +103,7 @@ class Scene:
     ) -> PathElements:
         """Recursively tries to most easily create the given object"""
         result: PathElements = (cst.MAX_DIST, [])
-        delta = inventory.find_closest(obj, threshold=8)
+        delta = inventory.find_scene_match(obj)
         if delta:
             # TODO Find a more holistic way to track "Object targets"
             delta.target = location
