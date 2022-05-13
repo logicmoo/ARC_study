@@ -44,7 +44,7 @@ class SolutionNode:
         self.target = target
 
     def __repr__(self) -> str:
-        return f"Select {self.selector} -> {self.action.__name__}{self.args}"
+        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.target}"
 
     @classmethod
     def from_action(
@@ -95,6 +95,10 @@ class SolutionNode:
             for delta_group, candidates in zip(path_node, inputs):
                 for delta in delta_group:
                     for obj in candidates:
+                        # TODO Figure out a better way for an object to not be
+                        # matched up with its children
+                        if obj in delta.left.children:
+                            continue
                         if action(delta.left, obj) == delta.right:
                             log.debug(f"Choosing secondary: {obj}")
                             secondaries.append(obj)
@@ -198,6 +202,7 @@ class Solution:
         msg: list[str] = []
         for node in self.nodes:
             msg.append(str(node))
+        msg.append(str(self.structure))
         return "\n".join(msg)
 
     def bundle(self, cases: list[Scene]) -> None:

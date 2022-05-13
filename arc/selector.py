@@ -1,9 +1,18 @@
+from dataclasses import dataclass
+from typing import Any
 from arc.object import Object
 
 from arc.labeler import Labeler, all_traits
-from arc.util import dictutil, logger
+from arc.util import logger
 
 log = logger.fancy_logger("Selector", level=30)
+
+
+@dataclass
+class Criterion:
+    trait: str
+    values: set[str | int]
+    negated: bool = False
 
 
 class Selector:
@@ -27,30 +36,19 @@ class Selector:
         log.debug(flat_selection)
 
         labeler = Labeler(obj_groups)
-
-        base_criteria: dict[str, set[int | str]] = dictutil.dict_val2set(
-            [labeler.labels[obj.uid] for obj in flat_selection]
-        )
-        log.debug(f"Initial Criteria: {base_criteria}")
-
-        # Remove any traits present in the other Objects
-        dictutil.dict_popset(
-            base_criteria, [labeler.labels[obj.uid] for obj in flat_complement]
-        )
-
-        # Try single traits first, then pairs, etc.
-        # for rank in (1,):
-        # current: dict[str, Any] = set(itertools.combinations(base_criteria, rank))
-
-        self.criteria = base_criteria
-        log.debug(f"Filter other objects: {self.criteria}")
-        # Choose the highest priority trait of remaining traits
+        best_score = 1000
+        best: list[Criterion] = []
+        splits: dict[str, tuple[set[Any], set[Any]]] = {}
         for trait in all_traits:
-            if trait in self.criteria:
-                # NOTE: Requires fixing for multi-trait
-                # We would flatten out the trait group...
-                self.criteria = {trait: self.criteria[trait]}
-                break
+            in_set = {labeler.labels[obj.uid][trait] for obj in flat_selection}
+            out_set = {labeler.labels[obj.uid][trait] for obj in flat_complement}
+            splits[trait] = (in_set, out_set)
+            if not in_set & out_set:
+                if (score := len(in_set)) < best_score:
+                    best_score = score
+                    best = [Criterion(trait, in_set)]
+
+        self.criteria: list[Criterion] = best
         log.info(f"Criteria: {self.criteria}")
 
     def __repr__(self) -> str:
@@ -60,14 +58,14 @@ class Selector:
         # TODO Handle the timing of Labeling traits, vs intrinsic traits
         # Here, we must access traits before we've selected into groups. But,
         # only when we have groups can we do ranked labeling.
-        labeler = Labeler([group])
-        for key, val in self.criteria.items():
-            group = [
-                obj
-                for obj in group
-                if (
-                    labeler.labels[obj.uid].get(key) in val
-                    or getattr(obj, key, None) in val
-                )
-            ]
-        return group
+        labels = Labeler([group]).labels
+        selection: list[Object] = []
+        for obj in group:
+            match = True
+            for crit in self.criteria:
+                if (labels[obj.uid].get(crit.trait) in crit.values) == crit.negated:
+                    match = False
+                    break
+            if match:
+                selection.append(obj)
+        return selection
