@@ -161,7 +161,9 @@ def log_call(
 
 
 def pretty_traceback(
-    tb: list[traceback.FrameSummary], exc_name: str, exc_value: str
+    exc_name: str,
+    exc_value: str,
+    tb: list[traceback.FrameSummary],
 ) -> str:
     msg: list[str] = []
     for frame in tb:

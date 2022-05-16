@@ -19,6 +19,7 @@ log = logger.fancy_logger("ARC", level=20)
 
 Index: TypeAlias = int | str | tuple[int, int] | tuple[int, int, str]
 Traceback: TypeAlias = list[traceback.FrameSummary]
+ErrorReport: TypeAlias = tuple[str, str, Traceback]
 
 
 class ARC:
@@ -158,11 +159,11 @@ class ARC:
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
 
-    def solve_tasks(self, quiet: bool = False) -> dict[int, Traceback]:
+    def solve_tasks(self, quiet: bool = False) -> dict[int, ErrorReport]:
         """Solve all tasks in the selection, catching errors and run info."""
         queue = sorted(self.selection)
         n = len(queue)
-        errors: dict[int, Traceback] = {}
+        errors: dict[int, ErrorReport] = {}
         passed = 0
 
         start = time.time()
@@ -179,10 +180,10 @@ class ARC:
                 exc_name = getattr(exc_type, "__name__", "")
                 tb = traceback.extract_tb(exc_tb)
                 exc_type = f"{type(exc).__name__}"
+                errors[idx] = (exc_name, str(exc_value), tb)
                 if not quiet:
                     log.error(f"{exc_name} during solve of Task {idx}")
-                    log.error(logger.pretty_traceback(tb, exc_name, str(exc_value)))
-                errors[idx] = tb
+                    log.error(logger.pretty_traceback(*errors[idx]))
             finally:
                 self.tasks[idx].clean(decomp_tree_only=True)
                 mem_mb = profile.get_mem() / 1000
