@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from arc.grid_methods import (
-    color_connect,
+    connect,
     get_boundary,
     gridify,
     norm_points,
@@ -52,26 +52,19 @@ def test_norm_pts():
     assert mono == True
 
 
-def test_color_connect():
+def test_connect():
     mc = cst.MARKED_COLOR
     grid = gridify([[1, mc, 1, mc, 1]])
 
-    result, fail_msg = color_connect(grid.copy(), max_ct=2)
-    assert result == []
-    assert fail_msg == "Too many blobs"
-
-    result, fail_msg = color_connect(grid.copy(), max_ct=3)
-    assert result == []
-    assert fail_msg == "All blobs are dots"
+    result = connect(grid.copy())
+    assert result == [[(0, 0, 1)], [(0, 2, 1)], [(0, 4, 1)]]
 
     grid = gridify([[1, 1, 1, 1, 1]])
-    result, fail_msg = color_connect(grid.copy())
-    assert result == []
-    assert fail_msg == "Only one blob"
+    result = connect(grid.copy())
+    assert result == [[(0, i, 1) for i in range(5)]]
 
     grid = gridify([[1, 1, mc, 1, 1]])
-    result, fail_msg = color_connect(grid.copy())
-    assert fail_msg == ""
+    result = connect(grid.copy())
     assert result == [[(0, 0, 1), (0, 1, 1)], [(0, 3, 1), (0, 4, 1)]]
 
 
