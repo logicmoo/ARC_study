@@ -1,11 +1,11 @@
 from arc.arc import ARC
 
 # TODO Task 30 needs Align action touched up
-solved_tasks = {8, 16, 31, 39, 188}
+solved_tasks = {8, 16, 31, 36, 39, 188, 309}
 large_tiling = {17, 61, 287, 305}
 
-dc_solved = {87, 140, 142, 150, 152, 155, 179, 380}
-mdl_solved = {10, 53, 374}
+dc_solved = {87, 106, 140, 142, 150, 152, 155, 179, 380}
+mdl_solved = {10, 53, 263, 276, 374}
 
 solved_tasks |= dc_solved
 solved_tasks |= mdl_solved

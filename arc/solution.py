@@ -1,6 +1,8 @@
 from collections import defaultdict
 from typing import Any, TypeAlias
 
+import numpy as np
+
 from arc.actions import Action, pair_actions, degeneracies, subs
 from arc.board import Inventory
 from arc.comparisons import compare_structure, compare_rotation
@@ -9,7 +11,7 @@ from arc.labeler import Labeler, all_traits
 from arc.object import Object
 from arc.object_delta import ObjectDelta, ObjectTarget
 from arc.scene import Scene
-from arc.selector import Selector
+from arc.selector import Selector, subdivide_groups
 from arc.util import logger
 from arc.util import dictutil
 
@@ -53,76 +55,94 @@ class SolutionNode:
         path_node: list[list[ObjectDelta]],
         action: ActionType = Action.identity,
     ) -> list["SolutionNode | None"]:
-        # The selection is every object that will be transformed
+        selectors: list[Selector] = []
+
+        # Try a single selector first
         selection = [[delta.left for delta in group] for group in path_node]
-        deltas = [delta for group in path_node for delta in group]
-
-        # TODO This is a simple starting implementation for structuring
-        # 'Target' should be developed further
-        # target represents the location in the output structure for the result
-        target = min([delta.target for delta in deltas])
-
+        path: Any = [path_node]
         selector = Selector(inputs, selection)
-        if not selector.criteria:
-            log.info("Selection failed")
-            return [None]
-
-        args: tuple[ActionArg, ...] = ()
-
-        if action == Action.identity:
-            # TODO Expand upon group subdivision. For now, identity is the most likely
-            # transform to be affected by it.
-            if not selector.criteria:
-                # TODO Hack, divide by color for now
-                colors: dict[int, list[list[Object]]] = defaultdict(list)
-                for case in selection:
-                    color_case: dict[int, list[Object]] = defaultdict(list)
-                    for obj in case:
-                        color_case[obj.color].append(obj)
-                    for color, obj_list in color_case.items():
-                        colors[color].append(obj_list)
-
-                nodes: list[SolutionNode | None] = []
-                for color, color_groups in colors.items():
-                    selector = Selector(inputs, color_groups)
-                    nodes.append(cls(selector, target=target))
-                return nodes
-            else:
-                return [cls(selector, target=target)]
-        elif action in pair_actions:
-            log.debug(f"Determining selector for {action.__name__}")
-            secondaries: list[Object] = []
-            for delta_group, candidates in zip(path_node, inputs):
-                for delta in delta_group:
-                    for obj in candidates:
-                        # TODO Figure out a better way for an object to not be
-                        # matched up with its children
-                        if obj in delta.left.children:
-                            continue
-                        if action(delta.left, obj) == delta.right:
-                            log.debug(f"Choosing secondary: {obj}")
-                            secondaries.append(obj)
-                            break
-            if len(secondaries) < len(path_node):
-                log.info(f"Insufficient secondaries found for {action.__name__}")
-                return [None]
-            args = (Selector(inputs, [secondaries]),)
-            log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
-        else:
-            # now check the arguments
-            transforms = [delta.transform for delta in deltas]
-            all_args = set([transform.args[0] for transform in transforms])
-            if all(all_args) and len(all_args) > 1:
-                # Non-null, non-constant action arguments means we need a mapping
-                labeler = Labeler(selection)
-                arg_mapping = cls.determine_map(deltas, labeler)
-                if not arg_mapping[0]:
+        if not selector:
+            log.info("Single Selection failed, trying to split")
+            # Attempt to divide the path node into groups based on similarity
+            path = subdivide_groups(path_node)
+            for subnode in path:
+                subselection = [[delta.left for delta in group] for group in subnode]
+                selector = Selector(inputs, subselection)
+                if not selector:
+                    log.info("Failed to yield selectors")
                     return [None]
-                args = (arg_mapping,)
-            else:
-                args = all_args.pop()
+                selectors.append(selector)
+            if not selectors:
+                log.info("Failed to yield selectors")
+                return [None]
+        else:
+            selectors = [selector]
 
-        return [cls(selector, action, args, target)]
+        nodes: list[SolutionNode | None] = []
+        for selector, subnode in zip(selectors, path):
+
+            args: tuple[ActionArg, ...] = ()
+
+            deltas = [delta for group in subnode for delta in group]
+
+            # TODO This is a simple starting implementation for structuring
+            # 'Target' should be developed further
+            # target represents the location in the output structure for the result
+            target = min([delta.target for delta in deltas])
+
+            if action in pair_actions:
+                log.debug(f"Determining selector for {action.__name__}")
+                secondaries: list[Object] = []
+                for delta_group, candidates in zip(subnode, inputs):
+                    for delta in delta_group:
+                        for obj in candidates:
+                            # TODO Figure out a better way for an object to not be
+                            # matched up with its children
+                            if obj in delta.left.children:
+                                continue
+                            if action(delta.left, obj) == delta.right:
+                                log.debug(f"Choosing secondary: {obj}")
+                                secondaries.append(obj)
+                                break
+                if len(secondaries) < len(path_node):
+                    log.info(f"Insufficient secondaries found for {action.__name__}")
+                    return [None]
+                args = (Selector(inputs, [secondaries]),)
+                log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
+            elif action == Action.identity:
+                # Identity actions won't have args, so skip the next block
+                pass
+            else:
+                # now check the arguments
+                transforms = [delta.transform for delta in deltas]
+                all_args: set[tuple[int, ...]] = set()
+                # TODO HACK This messily handles finding the args that might belong
+                # to the desired transform node from a multi-action delta.
+                for transform in transforms:
+                    matched_args = [
+                        d_args
+                        for d_act, d_args in zip(transform.actions, transform.args)
+                        if d_act == action
+                    ]
+                    # TODO Add arg count matching
+                    if matched_args:
+                        all_args.add(matched_args[0])
+                    else:
+                        all_args.add(transform.args[0])
+
+                if all(all_args) and len(all_args) > 1:
+                    # Non-null, non-constant action arguments means we need a mapping
+                    labeler = Labeler(selection)
+                    arg_mapping = cls.determine_map(deltas, labeler)
+                    if not arg_mapping[0]:
+                        return [None]
+                    args = (arg_mapping,)
+                else:
+                    args = all_args.pop()
+
+            nodes.append(cls(selector, action, args, target))
+
+        return nodes
 
     @staticmethod
     def determine_map(
@@ -135,8 +155,10 @@ class SolutionNode:
             for delta in delta_list:
                 inp = labeler.labels[delta.left.uid][trait]
                 # TODO We're assuming a single action with a single arg for now
-
+                if not delta.transform.args or not delta.transform.args[0]:
+                    return result
                 out = delta.transform.args[0][0]
+
                 if inp in trial_map:
                     # TODO: Handle Labeling with type safety, non-mutation
                     if trial_map[inp] != out:  # type: ignore
@@ -165,8 +187,16 @@ class SolutionNode:
                 match arg:
                     case int(value):
                         args.append(value)
+                    # TODO Ideally, we avoid this type entirely. We should find all
+                    # points of entry for np.int64 and cast to int.
+                    case np.int64():
+                        args.append(arg)
                     case Selector():
-                        args.append(arg.select(input)[0])
+                        if selection := arg.select(input):
+                            args.append(selection[0])
+                        else:
+                            log.warning(f"No object selected for Selector({arg})")
+                            args.append(obj)
                     case (str(trait), None):
                         log.debug(f"Transforming using {self.action}({trait})")
                         trait_value = labeler.labels[obj.uid].get(trait)
@@ -194,12 +224,13 @@ class Solution:
     """
 
     def __init__(self) -> None:
+        self.characteristic: str = ""
         self.nodes: list[SolutionNode] = []
         self.transform_map: dict[str, list[str]] = defaultdict(list)
         self.structure: dict[str, Any] = {}
 
     def __repr__(self) -> str:
-        msg: list[str] = []
+        msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
         for node in self.nodes:
             msg.append(str(node))
         msg.append(str(self.structure))
@@ -317,7 +348,11 @@ class Solution:
                         break
 
     def generate(self, test_scene: Scene) -> Object:
-        test_scene.decompose()
+        if self.characteristic:
+            test_scene.input.decompose(characteristic=self.characteristic)
+        else:
+            test_scene.decompose()
+
         input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
@@ -325,15 +360,29 @@ class Solution:
         # NOTE: Just depth-1 solution graphs for now
         for node in sorted(self.nodes, key=lambda x: x.target):
             objects = node.apply(input)
+            if not objects:
+                continue
             log.debug(f"Appending the following Objects at {node.target}:")
             for obj in objects:
                 log.debug(obj)
             # An empty target means there's a single, root object
             if not node.target:
                 return objects[0]
+            # TODO Move this structure location code to its own functions
             loc = output
             for child_idx in node.target[:-1]:
-                loc = loc[child_idx]
+                try:
+                    loc = loc[child_idx]
+                except:
+                    log.warning(
+                        f"Can't access target {node.target[:-1]}, trying last child"
+                    )
+                    try:
+                        loc = loc[-1]
+                    except:
+                        log.warning(
+                            "Failed adding to output. Common structure likely incorrect"
+                        )
             loc.children.extend(objects)
 
         return output
