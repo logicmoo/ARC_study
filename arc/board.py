@@ -1,7 +1,7 @@
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
-from arc.processes import Process, default_processes
+from arc.processes import Process, default_processes, process_map
 from arc.types import BoardData
 from arc.util import logger
 
@@ -21,16 +21,14 @@ class Board:
         bank: Any decompositions with no further possible operations.
     """
 
-    def __init__(
-        self, data: BoardData, name: str = "", processes: list[Process] | None = None
-    ):
+    def __init__(self, data: BoardData, name: str = ""):
         self.name = name
         self.raw = Object.from_grid(grid=data)
-        self.processes = processes or default_processes
 
         # Used during decomposition process
         self.tree: dict[str, Object] = {"": self.raw}
         self.current: str = ""
+        self.processes: list[Process] = default_processes
         self.proc_q: list[str] = [""]
 
     def __repr__(self) -> str:
@@ -52,6 +50,7 @@ class Board:
         self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         inventory: Inventory | None = None,
+        characteristic: str = "",
         init: bool = False,
     ) -> None:
         """Determine the optimal representation of the Board.
@@ -59,6 +58,8 @@ class Board:
         Args:
             max_iter: Maximum number of iterations of decomposition.
         """
+        if characteristic:
+            self.processes = [process_map[char] for char in characteristic]
 
         inventory = inventory or Inventory()
         if not self.proc_q or init:

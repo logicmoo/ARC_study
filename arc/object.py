@@ -15,6 +15,7 @@ from arc.types import (
 )
 from arc.util import logger
 from arc.grid_methods import (
+    connect,
     get_boundary,
     grid_overlap,
     gridify,
@@ -169,7 +170,7 @@ class Object:
             row_b, col_b = self.generator.bound
             for loc, color in self.materialized.points.items():
                 if loc[0] < row_b and loc[1] < col_b:
-                    bounded_pts[loc] = color
+                    bounded_pts[loc] = int(color)
             return bounded_pts
 
         pts: PointDict = {}
@@ -180,7 +181,7 @@ class Object:
                 if val == cst.NEGATIVE_COLOR:
                     pts.pop(new_loc, None)
                 elif val != cst.NULL_COLOR:
-                    pts[new_loc] = val
+                    pts[new_loc] = int(val)
                 else:
                     pts[new_loc] = self.color
         return pts
@@ -203,6 +204,38 @@ class Object:
     @cached_property
     def size(self) -> int:
         return len(self.points)
+
+    @cached_property
+    def is_symm(self) -> bool:
+        if (
+            self.order_trans_col[1] == 1
+            or self.order_trans_row[1] == 1
+            or self.order_rotation[1] == 1
+            or self.order_mirror[0] == 1
+            or self.order_mirror[1] == 1
+        ):
+            return True
+        else:
+            return False
+
+    @cached_property
+    def symm(self) -> str:
+        if self.order_trans_col[1] == 1 or self.order_trans_row[1] == 1:
+            return "Translation"
+        elif self.order_rotation[1] == 1:
+            return "Rotation"
+        elif self.order_mirror[0] == 1 or self.order_mirror[1] == 1:
+            return "Mirror"
+        return ""
+
+    @cached_property
+    def meta(self) -> str:
+        if self.connectedness == 1:
+            return "Blob"
+        elif self.connectedness * 1.2 > self.size:
+            return "Static"
+        else:
+            return "Normal"
 
     @cached_property
     def category(self) -> str:
@@ -241,6 +274,10 @@ class Object:
         return (maxrow + 1, maxcol + 1)
 
     @cached_property
+    def area(self) -> int:
+        return self.shape[0] * self.shape[1]
+
+    @cached_property
     def width(self) -> int:
         return self.shape[0]
 
@@ -262,6 +299,18 @@ class Object:
     def enclosed(self) -> PositionList:
         """All points not of the object not reachable by ALL_STEPS from outside."""
         return self.bound_info[1]
+
+    @cached_property
+    def blobs(self) -> list[PointList]:
+        if len(self.points) == 1:
+            return [[self.anchor]]
+        marked = self.grid.copy()
+        marked[marked == cst.NULL_COLOR] = cst.MARKED_COLOR
+        return connect(marked)
+
+    @cached_property
+    def connectedness(self) -> int:
+        return len(self.blobs)
 
     ## Comparisons
     def __eq__(self, other: "Object") -> bool:
@@ -435,6 +484,10 @@ class Object:
 
         if self.category == "Dot":
             return cst.DOT_PROPS + own_props
+
+        # TODO WIP Add a bias against Cutout, so small shapes don't overuse it
+        if self.category == "Cutout":
+            own_props += cst.CUTOUT_PROPS * self.size
 
         from_children = sum([item.props for item in self.children])
         from_gen = 0 if not self.generator else self.generator.props

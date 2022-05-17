@@ -20,6 +20,7 @@ class Constants:
 
     # Processing
     MAX_DIST = 10000
+    MAX_BLOBS = 10
     CHILD_DIST = 2  # TODO: Additional measure of distance when comparing children?
     DEFAULT_MAX_ITER = 100  # Default maximum rounds of decomposition
 
@@ -30,6 +31,7 @@ class Constants:
     # Information
     DOT_PROPS = 1  # 'entropic weight' of a single point
     NON_DOT_PROPS = 2  # 'entropic weight' of a container object
+    CUTOUT_PROPS = 5
 
     cname = {
         0: "Black",
@@ -54,8 +56,11 @@ class Constants:
         80,
         110,
         118,
+        162,
+        165,
         175,
         208,
         243,
         255,
+        265,
     }

@@ -103,7 +103,8 @@ class Task:
             log.info(f"Scene {idx} input rep | props {board.rep.props}:")
             log.info(board.rep)
 
-        self.align_representation(inputs)
+        input_characteristic = self.align_representation(inputs)
+        self.solution.characteristic = input_characteristic
 
         for idx, (inp, out) in enumerate(zip(inputs, outputs)):
             inventory = Inventory(inp.rep)
@@ -113,7 +114,7 @@ class Task:
 
         self.align_representation(outputs)
 
-    def align_representation(self, boards: list[Board]) -> None:
+    def align_representation(self, boards: list[Board]) -> str:
         """Match the characteristics of the decompositions across scenes."""
         # Identify candidate characteristics
         candidates: list[str] = [
@@ -124,6 +125,7 @@ class Task:
         # Choose the characteristic giving the minimal representation
         best_props: int = 4 * 900 * len(boards)
         best_rep: list[str] = [board.current for board in boards]
+        best_characteristic: str = ""
         log.info(f"Current rep {best_rep}")
         for characteristic in candidates:
             new_rep: list[str] = []
@@ -132,6 +134,7 @@ class Task:
                 # Find the minimal representation matching the candidate characteristic
                 best_score = 4 * 900
                 best_scene_rep = ""
+                # Try strict characteristic matching first
                 for key, object in board.tree.items():
                     if (
                         strutil.get_characteristic(key) == characteristic
@@ -139,16 +142,33 @@ class Task:
                     ):
                         best_scene_rep = key
                         best_score = object.props
+
+                # TODO This block should be invoked only if we can't find any
+                # characteristic where each board has a valid representation.
+
+                # If no strict match found, allow any key containing the characteristic
+                # if not best_scene_rep:
+                #     for key, object in board.tree.items():
+                #         if (
+                #             set(characteristic).issubset(key)
+                #             and object.props < best_score
+                #         ):
+                #             best_scene_rep = key
+                #             best_score = object.props
+
                 new_rep.append(best_scene_rep)
                 new_props += best_score
             if new_props < best_props:
                 best_props = new_props
                 best_rep = new_rep
+                best_characteristic = characteristic
 
         # Set the new representation
         log.info(f"Choosing rep {best_rep}")
         for rep, board in zip(best_rep, boards):
             board.current = rep
+
+        return best_characteristic
 
     def match(self) -> None:
         """Match input and output objects for each case."""

@@ -6,7 +6,7 @@ import numpy as np
 from arc.generator import Generator
 from arc.types import Point, PointList
 from arc.util import logger
-from arc.grid_methods import color_connect, eval_mesh, point_filter
+from arc.grid_methods import eval_mesh, point_filter
 from arc.definitions import Constants as cst
 from arc.object import Object
 
@@ -176,18 +176,11 @@ class ConnectObjects(Process):
 
     code = "C"
 
+    def test(self, object: Object) -> bool:
+        return 1 < object.connectedness < cst.MAX_BLOBS
+
     def apply(self, object: Object) -> Object | None:
-        marked = object.grid.copy()
-
-        # TODO: we'll want to include context here soon
-        off_colors = [cst.NULL_COLOR]
-
-        for color in off_colors:
-            marked[marked == color] = cst.MARKED_COLOR
-        object_pts, fail_message = color_connect(marked)
-        if fail_message:
-            self.fail(fail_message)
-            return None
+        object_pts = object.blobs
         children: list[Object] = []
         for idx, pts in enumerate(object_pts):
             name = f"Conn{idx}"
@@ -381,7 +374,11 @@ all_processes = {
     "rotation": Rotation,
 }
 
-default_processes = [
+process_map: dict[str, Process] = {
+    process.code: process() for process in all_processes.values()
+}
+
+default_processes: list[Process] = [
     MakeBase(),
     ConnectObjects(),
     SeparateColor(),

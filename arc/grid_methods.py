@@ -77,46 +77,31 @@ def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
 #     return out
 
 
-# TODO Review
-def color_connect(marked: Grid, max_ct: int = 10) -> tuple[list[PointList], str]:
-    """Try connecting groups of points based on colors
-
-    If we only produce 1 group, or more than max_ct, we Fail.
-    If all groups are only size 1, we Fail.
-    """
+def connect(marked: Grid, max_ct: int = 10) -> list[PointList]:
+    """Connect any objects based on point adjacency."""
+    M, N = marked.shape
     blobs: list[PointList] = []
-    max_size = 0
     for start in zip(*np.where(marked != cst.MARKED_COLOR)):  # type: ignore
         if marked[start] == cst.MARKED_COLOR:
             continue
-        pts = get_blob(marked, start)  # type: ignore
-        max_size = max(max_size, len(pts))
-        blobs.append(pts)
-        if len(blobs) > max_ct:
-            return [], "Too many blobs"
-    if len(blobs) <= 1:
-        return [], "Only one blob"
-    elif max_size <= 1:
-        return [], "All blobs are dots"
-    return blobs, ""
-
-
-# TODO Review
-def get_blob(marked: Grid, start: Position) -> PointList:
-    M, N = marked.shape
-    pts: PointList = [(*start, marked[start])]
-    marked[start] = cst.MARKED_COLOR
-    idx = 0
-    while idx < len(pts):
-        c_row, c_col, _ = pts[idx]
-        idx += 1
-        for dr, dc in cst.ALL_STEPS:
-            new_r, new_c = (c_row + dr, c_col + dc)
-            if 0 <= new_r < M and 0 <= new_c < N:
-                if marked[new_r][new_c] != cst.MARKED_COLOR:
+        # Find all points connected to the start point
+        pts: PointList = [(*start, marked[start])]  # type: ignore
+        marked[start] = cst.MARKED_COLOR
+        idx = 0
+        while idx < len(pts):
+            c_row, c_col, _ = pts[idx]
+            idx += 1
+            for dr, dc in cst.ALL_STEPS:
+                new_r, new_c = (c_row + dr, c_col + dc)
+                if (
+                    0 <= new_r < M
+                    and 0 <= new_c < N
+                    and marked[new_r][new_c] != cst.MARKED_COLOR
+                ):
                     pts.append((new_r, new_c, marked[new_r][new_c]))
                     marked[new_r][new_c] = cst.MARKED_COLOR
-    return pts
+        blobs.append(pts)
+    return blobs
 
 
 def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
@@ -127,6 +112,8 @@ def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
     marked = grid.copy()
     bound_pts: PointList = []
     queue: PositionList = []
+    # The following two for loops check the bounding box of the Object. If the point is part
+    # of the object, it is added to the boundary, else it is queued for flood fill.
     for row in range(M):
         for pt in [(row, 0), (row, N - 1)]:
             if marked[pt] == cst.NULL_COLOR:
@@ -142,6 +129,8 @@ def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
                 bound_pts.append((*pt, marked[pt]))
             marked[pt] = cst.MARKED_COLOR
 
+    # For each queue point, look at all neighbors, assign to queue if transparent
+    # and assign to boundary (not queue) if it has a color.
     while queue:
         c_row, c_col = queue.pop()
         for dr, dc in cst.STEPS_BASE:
@@ -154,6 +143,8 @@ def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
                         bound_pts.append((new_r, new_c, marked[new_r][new_c]))
                     marked[new_r][new_c] = cst.MARKED_COLOR
 
+    # Enclosed points are points not part of the Object but contained in its
+    # boundary. They are the leftover transparent points after the exterior flood.
     enclosed_locs: PositionList = []
     for row, col in zip(*np.where(marked == cst.NULL_COLOR)):  # type: ignore
         enclosed_locs.append((row, col))  # type: ignore
