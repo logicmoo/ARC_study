@@ -9,6 +9,7 @@ class Constants:
     # Data loading
     N_TRAIN = 400
     FOLDER_TRAIN = "data/training"
+    FOLDER_EVAL = "data/evaluation"
 
     # Data specification
     N_COLORS = 12
@@ -17,6 +18,10 @@ class Constants:
     MARKED_COLOR = -2  # Used for grid methods, such as flood fill
     MAX_ROWS = 30
     MAX_COLS = 30
+
+    DEFAULT_ROW = 0
+    DEFAULT_COL = 0
+    DEFAULT_COLOR = NULL_COLOR
 
     # Processing
     MAX_DIST = 10000

@@ -50,12 +50,10 @@ class ARC:
             idxs = set(range(1, N + 1))
         self.N: int = len(idxs)
         self.selection: set[int] = idxs
-        self.default_log_levels: dict[str, int] = self.get_log_levels()
-
         self.tasks: dict[int, Task] = {}
         self.load_tasks(idxs=idxs, folder=folder)
 
-        # TODO find a way to incorporate using blacklist coherently
+        self.default_log_levels: dict[str, int] = self.get_log_levels()
         self.blacklist: set[int] = cst.blacklist
         self.stats: dict[str, int] = Counter()
 
@@ -102,7 +100,7 @@ class ARC:
         )
 
     def get_log_levels(self) -> dict[str, int]:
-        """Get all of the defined loggers and their default level.
+        """Get all of the defined loggers and their current level.
 
         This is used to easily re-initialize during debugging.
         """
@@ -131,6 +129,11 @@ class ARC:
                 log.warning(f"Unhandled 'arg' value {arg}")
 
     def scan(self, methods: list[str] = TaskTraits.methods) -> None:
+        """Analyze each task based on a set of pre-coded traits.
+
+        These traits can be used to alter the current selection, via the select()
+        method. See 'task_analysis.py' for trait details.
+        """
         self.stats = Counter()
         for task in self.tasks.values():
             for method in methods:
@@ -145,9 +148,10 @@ class ARC:
         self.selection = (selection or all_idxs) & all_idxs
         # The selector will sub-select from any included selection
         if selector is not None:
-            self.selection = self._select(selector)
+            self.selection = self._select_traits(selector)
 
-    def _select(self, selector: set[str]) -> set[int]:
+    def _select_traits(self, selector: set[str]) -> set[int]:
+        """Choose tasks that match the given set of traits in the selector."""
         selection = set([])
         for idx in self.selection:
             if selector.issubset(self.tasks[idx].traits):
@@ -158,6 +162,50 @@ class ARC:
             selection -= remove
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection
+
+    def solve_task(
+        self, idx: int, quiet: bool = False
+    ) -> tuple[bool, ErrorReport | None]:
+        """Run a single task with exception handling and general reporting."""
+        task = self.tasks[idx]
+        task_start = time.time()
+        solved: bool = False
+        error: ErrorReport | None = None
+        timeout: bool = False
+
+        try:
+            task.solve()
+        except profile.TimeoutException:
+            timeout = True
+            if not quiet:
+                log.error(f"Timeout during solve of Task {idx}")
+        except Exception as exc:
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            exc_name = getattr(exc_type, "__name__", "")
+            tb = traceback.extract_tb(exc_tb)
+            exc_type = f"{type(exc).__name__}"
+            error = (exc_name, str(exc_value), tb)
+            if not quiet:
+                log.error(f"{exc_name} during solve of Task {idx}")
+                log.error(logger.pretty_traceback(*error))
+        finally:
+            task.clean(decomp_tree_only=True)
+            mem_mb = profile.get_mem() / 1000
+            task_seconds = time.time() - task_start
+            if "Solved" in task.traits:
+                status = logger.color_text("Passed   ", "green")
+                solved = True
+            elif timeout:
+                status = logger.color_text("Timeout  ", "purple")
+            elif error is not None:
+                status = logger.color_text("Exception", "red")
+            else:
+                status = logger.color_text("Failed   ", "yellow")
+            log.info(
+                f"Task {idx:>3} | {status} | runtime: {task_seconds:.3f}s"
+                f" memory: {mem_mb:.2f}Mb"
+            )
+        return (solved, error)
 
     def solve_tasks(self, quiet: bool = False) -> dict[int, ErrorReport]:
         """Solve all tasks in the selection, catching errors and run info."""
@@ -172,33 +220,12 @@ class ARC:
         )
         log.info(f"Running tasks ({n}): {queue_str}")
         for idx in queue:
-            task_start = time.time()
-            try:
-                self.tasks[idx].solve()
-            except Exception as exc:
-                exc_type, exc_value, exc_tb = sys.exc_info()
-                exc_name = getattr(exc_type, "__name__", "")
-                tb = traceback.extract_tb(exc_tb)
-                exc_type = f"{type(exc).__name__}"
-                errors[idx] = (exc_name, str(exc_value), tb)
-                if not quiet:
-                    log.error(f"{exc_name} during solve of Task {idx}")
-                    log.error(logger.pretty_traceback(*errors[idx]))
-            finally:
-                self.tasks[idx].clean(decomp_tree_only=True)
-                mem_mb = profile.get_mem() / 1000
-                task_seconds = time.time() - task_start
-                if "Solved" in self.tasks[idx].traits:
-                    status = logger.color_text("Passed   ", "green")
-                    passed += 1
-                elif idx in errors:
-                    status = logger.color_text("Exception", "red")
-                else:
-                    status = logger.color_text("Failed   ", "yellow")
-                log.info(
-                    f"Task {idx:>3} | {status} | runtime: {task_seconds:.3f}s"
-                    f" memory: {mem_mb:.2f}Mb"
-                )
+            solved, error = self.solve_task(idx, quiet=quiet)
+            if solved:
+                passed += 1
+            if error is not None:
+                errors[idx] = error
+
         seconds = time.time() - start
         log.info(
             f"{n} tasks run in {seconds:.3f}s ({seconds/n:.2f}s per task) |"
