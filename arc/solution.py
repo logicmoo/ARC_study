@@ -10,7 +10,7 @@ from arc.object_relations import compare_structure
 from arc.generator import ActionType
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
-from arc.object_delta import ObjectDelta, ObjectTarget
+from arc.object_delta import ObjectDelta, ObjectPath
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.util import logger
@@ -37,36 +37,36 @@ class SolutionNode:
         selector: Selector,
         action: ActionType = Action.identity,
         args: tuple[ActionArg, ...] = tuple(),
-        target: ObjectTarget = tuple(),
+        path: ObjectPath = tuple(),
     ) -> None:
         # TODO: For now, only depth-1 Solutions, so assume no children.
         # self.children: list[SolutionNode] = []
         self.selector = selector
         self.action = action
         self.args = args
-        self.target = target
+        self.path = path
 
     def __repr__(self) -> str:
-        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.target}"
+        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.path}"
 
     @classmethod
     def from_action(
         cls,
         inputs: list[list[Object]],
-        path_node: list[list[ObjectDelta]],
+        link_node: list[list[ObjectDelta]],
         action: ActionType = Action.identity,
     ) -> list["SolutionNode | None"]:
         selectors: list[Selector] = []
 
         # Try a single selector first
-        selection = [[delta.left for delta in group] for group in path_node]
-        path: Any = [path_node]
+        selection = [[delta.left for delta in group] for group in link_node]
+        bundle: Any = [link_node]
         selector = Selector(inputs, selection)
         if not selector:
             log.info("Single Selection failed, trying to split")
             # Attempt to divide the path node into groups based on similarity
-            path = subdivide_groups(path_node)
-            for subnode in path:
+            bundle = subdivide_groups(link_node)
+            for subnode in bundle:
                 subselection = [[delta.left for delta in group] for group in subnode]
                 selector = Selector(inputs, subselection)
                 if not selector:
@@ -80,7 +80,7 @@ class SolutionNode:
             selectors = [selector]
 
         nodes: list[SolutionNode | None] = []
-        for selector, subnode in zip(selectors, path):
+        for selector, subnode in zip(selectors, bundle):
 
             args: tuple[ActionArg, ...] = ()
 
@@ -89,7 +89,7 @@ class SolutionNode:
             # TODO This is a simple starting implementation for structuring
             # 'Target' should be developed further
             # target represents the location in the output structure for the result
-            target = min([delta.target for delta in deltas])
+            path = min([delta.path for delta in deltas])
 
             if action in pair_actions:
                 log.debug(f"Determining selector for {action.__name__}")
@@ -105,7 +105,7 @@ class SolutionNode:
                                 log.debug(f"Choosing secondary: {obj}")
                                 secondaries.append(obj)
                                 break
-                if len(secondaries) < len(path_node):
+                if len(secondaries) < len(link_node):
                     log.info(f"Insufficient secondaries found for {action.__name__}")
                     return [None]
                 args = (Selector(inputs, [secondaries]),)
@@ -141,7 +141,7 @@ class SolutionNode:
                 else:
                     args = all_args.pop()
 
-            nodes.append(cls(selector, action, args, target))
+            nodes.append(cls(selector, action, args, path))
 
         return nodes
 
@@ -244,7 +244,7 @@ class Solution:
         """
         self.bundled: dict[str, list[ObjectDelta]] = defaultdict(list)
         for case in cases:
-            self.bundled = dictutil.merge(self.bundled, case.path)
+            self.bundled = dictutil.merge(self.bundled, case.link_map)
 
         # Attempt replacing degenerate transforms to reduce unique transforms used
         # E.g. Rotate 90 and Flipping could be equivalent for some objects
@@ -291,8 +291,8 @@ class Solution:
                 self.transform_map[right].extend(self.transform_map.pop(left))
             elif set(left) & set(self.transform_map.keys()):
                 for char in left:
-                    present = any([char in case.path for case in cases])
-                    complete = all([char in case.path for case in cases])
+                    present = any([char in case.link_map for case in cases])
+                    complete = all([char in case.link_map for case in cases])
                     # Case 2: Non-constant transforms across cases
                     if present and not complete:
                         self.transform_map[right].extend(self.transform_map.pop(char))
@@ -311,7 +311,8 @@ class Solution:
 
         This also provides a basic frame on which to build the test case outputs."""
         objs = [scene.output.rep for scene in cases]
-        self.structure = compare_structure(objs)
+        self.structure, hooks = compare_structure(objs, 0)
+        log.info(hooks)
 
     def create_nodes(self, cases: list[Scene]) -> None:
         self.nodes = []
@@ -319,8 +320,8 @@ class Solution:
 
         for codes, base_chars in self.transform_map.items():
             # The path node is a list of lists of ObjectDeltas related to the transform
-            # path_node = [case.path.get(key, []) for case in cases for key in base_chars]
-            path_node: list[list[ObjectDelta]] = []
+            # link_node = [case.path.get(key, []) for case in cases for key in base_chars]
+            link_node: list[list[ObjectDelta]] = []
             for case in cases:
                 case_node = [
                     delta
@@ -328,13 +329,13 @@ class Solution:
                     for delta in self.bundled.get(key, [])
                     if delta.tag == case.idx
                 ]
-                path_node.append(case_node)
-            # path_node = [self.bundled.get(key, []) for case in cases for key in base_chars]
-            path_node = list(filter(None, path_node))
+                link_node.append(case_node)
+            # link_node = [self.bundled.get(key, []) for case in cases for key in base_chars]
+            link_node = list(filter(None, link_node))
 
             if len(codes) <= 1:
                 action = Action()[codes]
-                raw_nodes = SolutionNode.from_action(inputs, path_node, action)
+                raw_nodes = SolutionNode.from_action(inputs, link_node, action)
                 nodes = filter(None, raw_nodes)
                 if nodes:
                     self.nodes.extend(nodes)
@@ -342,7 +343,7 @@ class Solution:
                 for char in codes:
                     log.info(f"Attempting Solution node for char '{char}'")
                     action = Action()[char]
-                    raw_nodes = SolutionNode.from_action(inputs, path_node, action)
+                    raw_nodes = SolutionNode.from_action(inputs, link_node, action)
                     nodes = filter(None, raw_nodes)
                     if nodes:
                         self.nodes.extend(nodes)
@@ -359,24 +360,24 @@ class Solution:
 
         output: Object = Object.from_structure(**self.structure)
         # NOTE: Just depth-1 solution graphs for now
-        for node in sorted(self.nodes, key=lambda x: x.target):
+        for node in sorted(self.nodes, key=lambda x: x.path):
             objects = node.apply(input)
             if not objects:
                 continue
-            log.debug(f"Appending the following Objects at {node.target}:")
+            log.debug(f"Appending the following Objects at {node.path}:")
             for obj in objects:
                 log.debug(obj)
             # An empty target means there's a single, root object
-            if not node.target:
+            if not node.path:
                 return objects[0]
             # TODO Move this structure location code to its own functions
             loc = output
-            for child_idx in node.target[:-1]:
+            for child_idx in node.path[:-1]:
                 try:
                     loc = loc[child_idx]
                 except:
                     log.warning(
-                        f"Can't access target {node.target[:-1]}, trying last child"
+                        f"Can't access path {node.path[:-1]}, trying last child"
                     )
                     try:
                         loc = loc[-1]

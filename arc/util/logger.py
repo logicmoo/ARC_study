@@ -96,7 +96,7 @@ class FancyFormatter(logging.Formatter):
         curr_conf = config.get(record.levelname, config["default"])
         pretty = record_dict["msg"]
         if isinstance(pretty, list | tuple | dict):
-            pretty = pprint.pformat(pretty).strip("'\"")
+            pretty = pprint.pformat(pretty).strip("'\"")  # type: ignore
         else:
             pretty = str(pretty)
         total_lines = pretty.count("\n")

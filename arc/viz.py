@@ -106,7 +106,7 @@ def scene_layout(scene: Scene) -> Layout:
 
 def match_layout(scene: Scene) -> Layout:
     layout: Layout = []
-    for delta_list in scene.path.values():
+    for delta_list in scene.link_map.values():
         for delta in delta_list:
             inp, out, trans = delta.right, delta.left, delta.transform
             left: PlotDef = {"grid": inp.grid, "name": inp.category}

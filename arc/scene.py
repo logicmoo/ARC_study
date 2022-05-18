@@ -5,15 +5,18 @@ from arc.board import Board, Inventory
 from arc.contexts import SceneContext
 from arc.definitions import Constants as cst
 from arc.object import Object
-from arc.object_delta import ObjectDelta
+from arc.object_delta import ObjectDelta, ObjectPath
 from arc.types import SceneData
 from arc.util import logger
 
 log = logger.fancy_logger("Scene", level=20)
 
 
-# This is (match distance, [transform required for input -> output Object])
-PathElements: TypeAlias = tuple[int, list[ObjectDelta]]
+# We use "Link" for the usage of ObjectDelta when comparing input to output
+# where it will also have the 'path' property set
+Link: TypeAlias = ObjectDelta
+LinkMap: TypeAlias = dict[str, list[Link]]
+LinkResult: TypeAlias = tuple[int, list[ObjectDelta]]
 
 
 class Scene:
@@ -37,7 +40,7 @@ class Scene:
         # A Scene aims to create a 'transformation path' between the inputs and
         # outputs that minimizes the required parameters.
         self._dist: float = -1
-        self.path: dict[str, list[ObjectDelta]] = {}
+        self.link_map: LinkMap = {}
 
     @property
     def props(self) -> int:
@@ -58,8 +61,8 @@ class Scene:
 
         if not decomp_tree_only:
             self._dist: float = -1
-            del self.path
-            self.path: dict[str, list[ObjectDelta]] = {}
+            del self.link_map
+            self.link_map: LinkMap = {}
 
         self.input.clean()
         self.output.clean()
@@ -85,28 +88,28 @@ class Scene:
         self._dist, deltas = self.recreate(self.output.rep, Inventory(self.input.rep))
 
         # Group the inputs to the match by the Generator characteristic
-        self.path = defaultdict(list)
+        self.link_map = defaultdict(list)
         for delta in deltas:
-            self.path[delta.transform.char].append(delta)
+            self.link_map[delta.transform.char].append(delta)
 
-        log.info(f"Scene {self.idx} path | distance ({self.dist}):")
-        for char, deltas in self.path.items():
+        log.info(f"Scene {self.idx} links | distance ({self.dist}):")
+        for char, deltas in self.link_map.items():
             log.info(f"  Transform Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"    {delta.target}, {trans} | {obj1.id} -> {obj2.id}")
+                log.info(f"    {delta.path}, {trans} | {obj1.id} -> {obj2.id}")
 
     # TODO: Simplify the return here
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
-        self, obj: Object, inventory: Inventory, location: tuple[int, ...] = tuple()
-    ) -> PathElements:
+        self, obj: Object, inventory: Inventory, path: ObjectPath = tuple()
+    ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
-        result: PathElements = (cst.MAX_DIST, [])
+        result: LinkResult = (cst.MAX_DIST, [])
         delta = inventory.find_scene_match(obj)
         if delta:
-            # TODO Find a more holistic way to track "Object targets"
-            delta.target = location
+            # TODO Find a more holistic way to track "Object paths"
+            delta.path = path
             # TODO We add the scene index to the deltas to avoid heavy structuring later on
             # (i.e. avoid dicts of lists of lists)
             delta.tag = self.idx
@@ -119,7 +122,7 @@ class Scene:
             # It currently can't be used as an object on it's own because self.points is empty.
             if kid.category == "Cutout":
                 continue
-            kid_dist, kid_deltas = self.recreate(kid, inventory, location + (idx,))
+            kid_dist, kid_deltas = self.recreate(kid, inventory, path + (idx,))
             log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist + cst.CHILD_DIST
             all_deltas.extend(kid_deltas)

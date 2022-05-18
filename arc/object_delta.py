@@ -10,7 +10,7 @@ from arc.util import logger
 
 log = logger.fancy_logger("ObjectDelta", level=30)
 
-ObjectTarget: TypeAlias = tuple[int, ...]
+ObjectPath: TypeAlias = tuple[int, ...]
 
 
 class ObjectDelta:
@@ -26,13 +26,13 @@ class ObjectDelta:
         left: Object,
         right: Object,
         tag: int = 0,
-        target: ObjectTarget = tuple(),
+        path: ObjectPath = tuple(),
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
         self.left: Object = left
         self.right: Object = right
         self.tag: int = tag
-        self.target: ObjectTarget = target
+        self.path: ObjectPath = path
         self.null: bool = False
         self.transform: Transform = Transform([])
         self.comparisons = comparisons
