@@ -12,9 +12,9 @@ class Constants:
 
     # Data specification
     N_COLORS = 12
-    NULL_COLOR = 10
-    NEGATIVE_COLOR = 11
-    MARKED_COLOR = -2
+    NULL_COLOR = 10  # Default color and treated as transparent
+    NEGATIVE_COLOR = 11  # 'Cuts out' the point from the parent
+    MARKED_COLOR = -2  # Used for grid methods, such as flood fill
     MAX_ROWS = 30
     MAX_COLS = 30
 
@@ -45,7 +45,7 @@ class Constants:
         8: "SkyBlue",
         9: "Brown",
         10: "Trans",
-        -1: "Cutout",
+        11: "Cutout",
     }
 
     # Set of tasks that engage in significant compute at present, and are not

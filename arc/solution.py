@@ -5,7 +5,8 @@ import numpy as np
 
 from arc.actions import Action, pair_actions, degeneracies, subs
 from arc.board import Inventory
-from arc.comparisons import compare_structure, compare_rotation
+from arc.comparisons import compare_rotation
+from arc.object_relations import compare_structure
 from arc.generator import ActionType
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
