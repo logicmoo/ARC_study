@@ -101,6 +101,8 @@ def connect(marked: Grid, max_ct: int = 10) -> list[PointList]:
                     pts.append((new_r, new_c, marked[new_r][new_c]))
                     marked[new_r][new_c] = cst.MARKED_COLOR
         blobs.append(pts)
+
+        blobs = sorted(blobs, key=lambda x: len(x), reverse=True)
     return blobs
 
 

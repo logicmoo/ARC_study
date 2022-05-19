@@ -25,7 +25,10 @@ class Board:
         self.name = name
         self.raw = Object.from_grid(grid=data)
 
-        # Used during decomposition process
+        self._decomp_init()
+
+    def _decomp_init(self) -> None:
+        """Initialize all decomposition-related attributes."""
         self.tree: dict[str, Object] = {"": self.raw}
         self.current: str = ""
         self.processes: list[Process] = default_processes
@@ -63,9 +66,7 @@ class Board:
 
         inventory = inventory or Inventory()
         if not self.proc_q or init:
-            self.tree = {"": self.raw}
-            self.current: str = ""
-            self.proc_q = [""]
+            self._decomp_init()
 
         # TODO WIP
         threshold = 4

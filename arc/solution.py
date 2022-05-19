@@ -311,7 +311,7 @@ class Solution:
 
         This also provides a basic frame on which to build the test case outputs."""
         objs = [scene.output.rep for scene in cases]
-        self.structure, hooks = compare_structure(objs, 0)
+        self.structure, hooks = compare_structure(objs, tuple())
         log.info(hooks)
 
     def create_nodes(self, cases: list[Scene]) -> None:

@@ -12,6 +12,7 @@ from arc.types import (
     PointList,
     Position,
     PositionList,
+    StructureDef,
 )
 from arc.util import logger
 from arc.grid_methods import (
@@ -118,7 +119,7 @@ class Object:
             return cls(*loc, children=children, **kwargs)
 
     @classmethod
-    def from_structure(cls, **kwargs: dict[str, Any]) -> "Object":
+    def from_structure(cls, **kwargs: StructureDef) -> "Object":
         """Create an Object from a nested set of arguments.
 
         This is used during Solution.generate().

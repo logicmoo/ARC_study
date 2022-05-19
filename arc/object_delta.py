@@ -1,16 +1,15 @@
 from functools import cached_property
-from typing import Any, TypeAlias
+from typing import Any
 
 from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
 from arc.generator import Transform
 from arc.object import Object
+from arc.types import ObjectPath
 from arc.util import logger
 
 
 log = logger.fancy_logger("ObjectDelta", level=30)
-
-ObjectPath: TypeAlias = tuple[int, ...]
 
 
 class ObjectDelta:
