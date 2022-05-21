@@ -1,8 +1,7 @@
-from functools import cached_property
 from typing import Any
 
-from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
+from arc.comparisons import ObjectComparison, default_comparisons
 from arc.generator import Transform
 from arc.object import Object
 from arc.types import ObjectPath
@@ -50,7 +49,10 @@ class ObjectDelta:
             self.null = True
             log.debug("Failed test")
 
-    @cached_property
+    def __bool__(self) -> bool:
+        return not self.null
+
+    @property
     def dist(self) -> int:
         """Returns the 'transformation distance' metric between objects.
 

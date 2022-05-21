@@ -59,9 +59,9 @@ class Selector:
         obj_groups: list[list[Object]],
         selection: list[list[Object]],
     ) -> None:
-        # TODO: For now this is based on single trait values. However, for
-        # the general case, trait combinations would need consideration.
-        # E.g. Select blue rectangles
+        # Whether this is a valid Selector
+        self.null: bool = True
+        self.criteria: list[Criterion] = []
 
         flat_selection = [obj for group in selection for obj in group]
         flat_complement = [
@@ -70,6 +70,11 @@ class Selector:
         log.debug("Choosing criteria for the following inputs, selection:")
         log.debug(obj_groups)
         log.debug(flat_selection)
+
+        if len(flat_complement) == 0:
+            log.debug("Trivial selection, no criteria")
+            self.null = False
+            return
 
         coeff = 3
 
@@ -80,12 +85,20 @@ class Selector:
         for trait in all_traits:
             in_set = {labels[obj.uid][trait] for obj in flat_selection}
             out_set = {labels[obj.uid][trait] for obj in flat_complement}
+            # We prohibit using a trait if a None value is in the inclusions.
+            # E.g. if a trait ranking contains a tie, the tie and later values
+            # will take None.
+            if None in in_set:
+                continue
             splits[trait] = (in_set, out_set)
             if in_set and out_set and (not in_set & out_set):
                 if (score := (len(in_set) - 1) * coeff) < best_score:
                     best_score = score
                     best = [Criterion(trait, in_set)]
                 if (score := (len(out_set) - 1) * coeff) < best_score:
+                    # NOTE: Try only allowing single-value negations
+                    if len(out_set) > 1:
+                        continue
                     best_score = score
                     best = [Criterion(trait, out_set, negated=True)]
 
@@ -115,6 +128,8 @@ class Selector:
                         best_score = score
                         best = [base_criterion, Criterion(trait_2, in_set)]
                     if (score := len(out_set) + base_len - 2) * coeff < best_score:
+                        if len(out_set) > 1:
+                            continue
                         best_score = score
                         best = [
                             base_criterion,
@@ -122,13 +137,15 @@ class Selector:
                         ]
 
         self.criteria: list[Criterion] = best
+        if len(best) > 0:
+            self.null = False
         log.info(f"Criteria: {self.criteria}")
 
     def __repr__(self) -> str:
         return str(self.criteria)
 
     def __bool__(self) -> bool:
-        return bool(self.criteria)
+        return not self.null
 
     def select(self, group: list[Object]) -> list[Object]:
         # TODO Handle the timing of Labeling traits, vs intrinsic traits
