@@ -58,16 +58,6 @@ class Task:
                     raise
 
     @property
-    def ppp(self) -> float:
-        """Average properties-per-point across cases."""
-        return sum([scene.ppp for scene in self.cases]) / len(self.cases)
-
-    @property
-    def dist(self) -> float:
-        """Average transformational distance across cases."""
-        return sum([scene.dist for scene in self.cases]) / len(self.cases)
-
-    @property
     def n_boards(self) -> int:
         """Number of total boards in the Task."""
         return 2 * (len(self.cases) + len(self.tests))
@@ -176,11 +166,16 @@ class Task:
         for scene in self.cases:
             scene.match()
         scene_dists = [scene.dist for scene in self.cases]
-        log.info(f"Scene distances {scene_dists} -> avg {self.dist:.1f}")
+        depths = {scene.depth for scene in self.cases}
+        depth = None
+        if len(depths) == 1:
+            depth = depths.pop()
+            self.solution.level_attention = depth
+        log.info(f"Scene depth: {depth}, distances {scene_dists}")
 
     def infer(self):
         self.solution.bundle(self.cases)
-        self.solution.create_structure(self.cases)
+        self.solution.define_template(self.cases)
         self.solution.create_nodes(self.cases)
 
     def generate(self, test_idx: int = 0) -> Object:

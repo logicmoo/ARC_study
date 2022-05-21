@@ -39,7 +39,8 @@ class Scene:
 
         # A Scene aims to create a 'transformation path' between the inputs and
         # outputs that minimizes the required parameters.
-        self._dist: float = -1
+        self._dist: int | None = None
+        self._depth: int | None = None
         self.link_map: LinkMap = {}
 
     @property
@@ -48,19 +49,20 @@ class Scene:
         return self.input.rep.props + self.output.rep.props
 
     @property
-    def ppp(self) -> float:
-        """Properties per Point: a measure of representation compactness."""
-        return self.props / (self.input.rep.size + self.output.rep.size)
-
-    @property
-    def dist(self) -> float:
+    def dist(self) -> int | None:
         """Transformational distance measured between input and output"""
         return self._dist
+
+    @property
+    def depth(self) -> int | None:
+        """Transformational distance measured between input and output"""
+        return self._depth
 
     def clean(self, decomp_tree_only: bool = False) -> None:
 
         if not decomp_tree_only:
-            self._dist: float = -1
+            self._dist: int | None = None
+            self._depth: int | None = None
             del self.link_map
             self.link_map: LinkMap = {}
 
@@ -89,8 +91,15 @@ class Scene:
 
         # Group the inputs to the match by the Generator characteristic
         self.link_map = defaultdict(list)
+        depths: set[int] = set([])
         for delta in deltas:
             self.link_map[delta.transform.char].append(delta)
+            if delta.left.depth is not None:
+                depths.add(delta.left.depth)
+
+        log.info(f"Depths during match: {depths}")
+        if len(depths) == 1:
+            self._depth = depths.pop()
 
         log.info(f"Scene {self.idx} links | distance ({self.dist}):")
         for char, deltas in self.link_map.items():
@@ -99,7 +108,6 @@ class Scene:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
                 log.info(f"    {delta.path}, {trans} | {obj1.id} -> {obj2.id}")
 
-    # TODO: Simplify the return here
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
         self, obj: Object, inventory: Inventory, path: ObjectPath = tuple()

@@ -12,7 +12,6 @@ from arc.types import (
     PointList,
     Position,
     PositionList,
-    StructureDef,
 )
 from arc.util import logger
 from arc.grid_methods import (
@@ -54,9 +53,16 @@ class Object:
         self.color = color
         self.children = children or []
         self.generator = generator
+
+        # Utility attributes
         self.name = name
+
+        # Attributes used during decomposition
         self.leaf = leaf
         self.process = process
+
+        # Attributes used during matching
+        self.depth: int | None = None
 
     ## Constructors
     @classmethod
@@ -117,22 +123,6 @@ class Object:
         else:
             children = [Object(*pt) for pt in normed]
             return cls(*loc, children=children, **kwargs)
-
-    @classmethod
-    def from_structure(cls, **kwargs: StructureDef) -> "Object":
-        """Create an Object from a nested set of arguments.
-
-        This is used during Solution.generate().
-        """
-        children = [
-            cls.from_structure(**child_args)
-            for child_args in kwargs.pop("children", [])
-        ]
-        generator = None
-        if gen_codes := kwargs.pop("generator", None):
-            # TODO Fix the typing for codes output and input
-            generator = Generator.from_codes(gen_codes)  # type: ignore
-        return cls(children=children, generator=generator, **kwargs)
 
     ## Core properties
     @property

@@ -19,6 +19,8 @@ class Inventory:
         obj: Object | None = None,
         comparisons: list[ObjectComparison] = default_comparisons,
     ):
+        # TODO WIP Refactor
+        self.depth: dict[int, list[Object]] = collections.defaultdict(list)
         self.inventory = self.create_inventory(obj) if obj else {}
         self.comparisons = comparisons
 
@@ -26,19 +28,13 @@ class Inventory:
     def all(self) -> list[Object]:
         return [obj for ranked_objs in self.inventory.values() for obj in ranked_objs]
 
-    @cached_property
-    def depth(self) -> list[tuple[str, Object]]:
-        return [
-            (depth, obj)
-            for depth, obj_list in self.inventory.items()
-            for obj in obj_list
-        ]
-
     def create_inventory(self, obj: Object, depth: int = 0) -> dict[str, list[Object]]:
         """Recursively find all objects, index them by their generator."""
         inventory: dict[str, list[Object]] = collections.defaultdict(list)
         obj_char = "" if obj.generator is None else obj.generator.char
         inventory[obj_char].append(obj)
+        self.depth[depth].append(obj)
+        obj.depth = depth
         for kid in obj.children:
             # TODO Handle Cutout in a better way?
             # It currently can't be used as an object on it's own because self.points is empty.
