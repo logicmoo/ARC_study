@@ -1,4 +1,5 @@
 import collections
+import copy
 from typing import TypeAlias, TypedDict
 
 from arc.definitions import Constants as cst
@@ -68,7 +69,7 @@ class Template:
 
     def generate(self) -> Object:
         """Create an Object representing the template."""
-        return self._generate(self.structure)
+        return self._generate(copy.deepcopy(self.structure))
 
     def _generate(self, structure: StructureDef) -> "Object":
         children = [
