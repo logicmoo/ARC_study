@@ -24,6 +24,7 @@ from arc.util import strutil
 if TYPE_CHECKING:
     from arc.object import Object
 
+ArgsType: TypeAlias = list[tuple[int, ...]]
 ActionType: TypeAlias = Callable[..., "Object"]
 
 # This regex parses the series of actions represented in a Generator 'code'.
@@ -40,12 +41,12 @@ class Transform:
     def __init__(
         self,
         actions: list[ActionType],
-        args: list[tuple[int, ...]] | None = None,
+        args: ArgsType | None = None,
     ):
         self.actions = actions
-        self.args = args or [tuple()] * len(self.actions)
+        self.args: ArgsType = args or [tuple([])] * len(self.actions)
         if len(self.args) < len(self.actions):
-            self.args.extend([tuple()] * (len(self.actions) - len(self.args)))
+            self.args.extend([tuple([])] * (len(self.actions) - len(self.args)))
 
     def __str__(self) -> str:
         if not self.actions:
@@ -68,7 +69,7 @@ class Transform:
     def from_code(cls, code: str) -> "Transform":
         """Create a Transform from a code (string of Action keys and args)."""
         chars, raw_args = zip(*act_regex.findall(code))
-        args = [
+        args: ArgsType = [
             tuple(map(int, item.split(","))) if item else tuple() for item in raw_args
         ]
         return cls(

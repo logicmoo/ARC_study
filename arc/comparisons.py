@@ -24,7 +24,7 @@ def compare_position(left: "Object", right: "Object") -> ComparisonReturn:
     # this could be a 'zeroing', a 'row-justify' or an upward move of 3 units.
     if r2 == 0 and c2 == 0:
         transform.actions.append(Action.zero)
-        transform.args.append(tuple())
+        transform.args.append(tuple([]))
         return transform
     if r2 != r1:
         # Justifying a single dimension is also special
@@ -90,7 +90,7 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
     for code in ["|", "_"]:
         if Action()[code](left) == right:
             transform.actions.append(Action()[code])
-            transform.args.append(tuple())
+            transform.args.append(tuple([]))
             return transform
     if (rotation := compare_rotation(left, right)).actions:
         return rotation
@@ -100,7 +100,7 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
                 transform.actions.append(Action.turn)
                 transform.args.append(tuple([ct]))
                 transform.actions.append(Action()[code])
-                transform.args.append(tuple())
+                transform.args.append(tuple([]))
                 return transform
 
     return transform
