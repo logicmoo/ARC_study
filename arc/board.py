@@ -61,12 +61,12 @@ class Board:
         Args:
             max_iter: Maximum number of iterations of decomposition.
         """
-        if characteristic:
-            self.processes = [process_map[char] for char in characteristic]
-
         inventory = inventory or Inventory()
         if not self.proc_q or init:
             self._decomp_init()
+
+        if characteristic:
+            self.processes = [process_map[char] for char in characteristic]
 
         # TODO WIP
         threshold = 4
