@@ -222,4 +222,4 @@ class Action:
 # TODO WIP
 pair_actions = [Action.adjoin, Action.align, Action.resize]
 subs = [("fp", "S"), ("ws", "AL")]
-degeneracies = [{"|", "_", "t"}]
+degeneracies = [{"|", "_", "t"}, {"", "z"}]

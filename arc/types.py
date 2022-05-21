@@ -1,5 +1,5 @@
 """Define custom types used throughout the codebase."""
-from typing import Any, Literal, TypeAlias, TypedDict
+from typing import Any, TypeAlias, TypedDict
 
 import numpy as np
 
@@ -30,14 +30,3 @@ PointDict: TypeAlias = dict[Position, int]
 
 
 ObjectPath: TypeAlias = tuple[int, ...]
-Hook: TypeAlias = tuple[ObjectPath, str]
-
-StructureKey: TypeAlias = (
-    Literal["row"]
-    | Literal["col"]
-    | Literal["color"]
-    | Literal["children"]
-    | Literal["generator"]
-)
-StructureVal: TypeAlias = int | tuple[str, ...]
-StructureDef: TypeAlias = dict[StructureKey, list["StructureDef"] | StructureVal]

@@ -1,61 +1,8 @@
-import collections
 from typing import TYPE_CHECKING
 
-from arc.definitions import Constants as cst
-from arc.types import ObjectPath, Hook, StructureDef
 
 if TYPE_CHECKING:
     from arc.object import Object
-
-
-def compare_structure(
-    objs: list["Object"], path: ObjectPath
-) -> tuple[StructureDef, list[Hook]]:
-    """Return the specification for the common elements among Objects."""
-    struc: StructureDef = {}
-    hooks: list[Hook] = []
-    for prop, default in [
-        ("row", cst.DEFAULT_ROW),
-        ("col", cst.DEFAULT_COL),
-        ("color", cst.DEFAULT_COLOR),
-    ]:
-        cts = collections.Counter([getattr(obj, prop) for obj in objs])
-        if len(cts) == 1:
-            if (val := next(iter(cts))) != default:
-                struc[prop] = val
-        else:
-            hooks.append((path, prop))
-
-    cts = collections.Counter(
-        [getattr(obj.generator, "codes", tuple()) for obj in objs]
-    )
-    # TODO We need to check for more than just the exact generator
-    if len(cts) == 1 and (val := next(iter(cts))) != tuple():
-        struc["generator"] = next(iter(cts))
-
-    child_args: list[StructureDef] = []
-    child_hooks: list[Hook] = []
-    dot_ct = 0
-    child_match: bool = True
-    for idx, kid_group in enumerate(zip(*[obj.children for obj in objs])):
-        # TODO This could require multiple schemas of child-checking
-        # as there could be a common child that's not at a constant layer
-        # or constant depth.
-        structure, kid_hooks = compare_structure(list(kid_group), path=path + (idx,))
-        child_args.append(structure)
-        child_hooks.extend(kid_hooks)
-        if not all([kid == kid_group[0] for kid in kid_group[1:]]):  # type: ignore
-            child_match = False
-        if any([kid.category == "Dot" for kid in kid_group]):
-            dot_ct += 1
-    # Only include dot children if there's a limited number, or they all match
-    if child_args:
-        if dot_ct <= 5 or child_match:
-            struc["children"] = child_args
-            hooks.extend(child_hooks)
-        else:
-            hooks.append((path, "children"))
-    return struc, hooks
 
 
 def chebyshev_vector(left: "Object", right: "Object") -> tuple[int, int]:

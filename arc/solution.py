@@ -5,9 +5,14 @@ import numpy as np
 
 from arc.actions import Action, pair_actions, degeneracies, subs
 from arc.board import Inventory
-from arc.comparisons import compare_rotation
-from arc.object_relations import compare_structure
-from arc.generator import ActionType
+from arc.comparisons import (
+    ObjectComparison,
+    compare_orientation,
+    compare_position,
+    compare_rotation,
+)
+from arc.template import Template
+from arc.generator import ActionType, Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
 from arc.object_delta import ObjectDelta, ObjectPath
@@ -228,13 +233,14 @@ class Solution:
         self.characteristic: str = ""
         self.nodes: list[SolutionNode] = []
         self.transform_map: dict[str, list[str]] = defaultdict(list)
-        self.structure: dict[str, Any] = {}
+        self.level_attention: int | None = None
+        self.template: Template = Template({}, {})
 
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
         for node in self.nodes:
             msg.append(str(node))
-        msg.append(str(self.structure))
+        msg.append(str(self.template))
         return "\n".join(msg)
 
     def bundle(self, cases: list[Scene]) -> None:
@@ -260,22 +266,43 @@ class Solution:
                         for key in overlap - {target}
                         for delta in self.bundled[key]
                     ]
+
+                    # TODO WIP Figure out this mapping in the Actions overhaul
+                    comparisons: list[ObjectComparison] = []
+                    if target == "t":
+                        comparisons = [compare_rotation]
+                    elif target in ["_", "|"]:
+                        comparisons = [compare_orientation]
+                    elif target in ["", "z"]:
+                        comparisons = [compare_position]
+
                     for delta in deltas:
-                        # TODO WIP Just try rotational substitution manually
                         new_delta = ObjectDelta(
-                            delta.left, delta.right, comparisons=[compare_rotation]
+                            delta.left,
+                            delta.right,
+                            comparisons=comparisons,
+                            path=delta.path,
                         )
+
+                        # TODO HACK Need a better way to control the transform
+                        # assocated with the delta. Consider the "z" vs "" case
+                        if target == "z":
+                            new_delta.transform = Transform([Action.zero])
+
                         if not new_delta.null:
                             results[target].append(new_delta)
                         else:
-                            results[target] = []
+                            results.pop(target, [])
                             break
+                # If there exists a valid linking using a single action, we almost
+                # always want to use it.
                 if results:
-                    best = sorted(results.items(), key=lambda x: len(x[1]))[0]
-                    log.debug(f"Choosing smallest mapping: {best}")
-                    for key in overlap - {best[0]}:
+                    # The 'best' bundling involves the target with fewest changed items
+                    target, deltas = sorted(results.items(), key=lambda x: len(x[1]))[0]
+                    log.debug(f"Choosing smallest map change: {deltas} -> {target}")
+                    for key in overlap - {target}:
                         self.bundled.pop(key)
-                    self.bundled[best[0]].extend(best[1])
+                    self.bundled[target].extend(deltas)
 
         self.transform_map: dict[str, list[str]] = defaultdict(list)
         for key in self.bundled:
@@ -306,17 +333,23 @@ class Solution:
 
         log.debug(f"Transform mapping: {self.transform_map}")
 
-    def create_structure(self, cases: list[Scene]):
+    def define_template(self, cases: list[Scene]):
         """Determine any common elements in the output Grids.
 
         This also provides a basic frame on which to build the test case outputs."""
         objs = [scene.output.rep for scene in cases]
-        self.structure, hooks = compare_structure(objs, tuple())
-        log.info(hooks)
+        self.template = Template.from_outputs(objs, tuple([]))
+        log.info(f"Template: {self.template}")
 
     def create_nodes(self, cases: list[Scene]) -> None:
         self.nodes = []
-        inputs = [Inventory(case.input.rep).all for case in cases]
+        # TODO WIP
+        if self.level_attention is not None:
+            inputs = [
+                Inventory(case.input.rep).depth[self.level_attention] for case in cases
+            ]
+        else:
+            inputs = [Inventory(case.input.rep).all for case in cases]
 
         for codes, base_chars in self.transform_map.items():
             # The path node is a list of lists of ObjectDeltas related to the transform
@@ -350,15 +383,25 @@ class Solution:
                         break
 
     def generate(self, test_scene: Scene) -> Object:
+        """Create the test output."""
+        log.info(f"Generating test scene: {test_scene.idx}")
         if self.characteristic:
+            log.info(f"  Decomposing with characteristic: {self.characteristic}")
             test_scene.input.decompose(characteristic=self.characteristic)
         else:
-            test_scene.decompose()
+            log.info(f"  Decomposing without characteristic")
+            test_scene.input.decompose()
 
-        input = Inventory(test_scene.input.rep).all
+        # TODO WIP
+        if self.level_attention is not None:
+            log.info(f"  Using level attention: {self.level_attention}")
+            input = Inventory(test_scene.input.rep).depth[self.level_attention]
+        else:
+            log.info(f"  No level attention")
+            input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
-        output: Object = Object.from_structure(**self.structure)
+        output: Object = self.template.generate()
         # NOTE: Just depth-1 solution graphs for now
         for node in sorted(self.nodes, key=lambda x: x.path):
             objects = node.apply(input)
