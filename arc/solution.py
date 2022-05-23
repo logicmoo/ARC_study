@@ -234,7 +234,7 @@ class Solution:
         self.nodes: list[SolutionNode] = []
         self.transform_map: dict[str, list[str]] = defaultdict(list)
         self.level_attention: int | None = None
-        self.template: Template = Template({}, {})
+        self.template: Template = Template()
 
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
@@ -401,7 +401,7 @@ class Solution:
             input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
-        output: Object = self.template.generate()
+        output: Object = self.template.generate({})
         # NOTE: Just depth-1 solution graphs for now
         for node in sorted(self.nodes, key=lambda x: x.path):
             objects = node.apply(input)

@@ -29,7 +29,7 @@ if __name__ == "__main__":
         tasks_to_run = all_solved
 
     _arc = ARC(idxs=tasks_to_run)
-    _arc.set_log({"Task": 30, "Scene": 30})
+    _arc.set_log({"Task": 30, "Scene": 30, "Template": 40})
     _arc.solve_tasks(quiet=True)
     for task_idx in tasks_to_run:
         assert "Solved" in _arc[task_idx].traits

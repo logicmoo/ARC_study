@@ -1,57 +1,74 @@
 import collections
-import copy
-from typing import TypeAlias, TypedDict
+from copy import deepcopy
+from typing import Literal, TypeAlias, TypedDict
+from arc.actions import Action
 
 from arc.definitions import Constants as cst
 from arc.object import Object
-from arc.generator import Generator
+from arc.generator import Generator, Transform
 from arc.util import logger
+from arc.util.common import all_equal
 
 log = logger.fancy_logger("Template", level=30)
 
 ObjectPath: TypeAlias = tuple[int, ...]
-Variables: TypeAlias = dict[ObjectPath, list[str]]
+GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
+PropertyPath: TypeAlias = str | GeneratorPath
+Unknown: TypeAlias = Literal["?"]
+Variables: TypeAlias = dict[ObjectPath, list[PropertyPath]]
+
+Environment: TypeAlias = dict[tuple[ObjectPath, PropertyPath], int]
+MatchInventory: TypeAlias = dict[ObjectPath, Object]
 
 
 class CommonProperties(TypedDict, total=False):
-    row: int
-    col: int
-    color: int
-    generator: list[str]
+    row: int | Unknown
+    col: int | Unknown
+    color: int | Unknown
 
 
-class StructureDef(TypedDict, total=False):
-    row: int
-    col: int
-    color: int
-    generator: list[str]
+class StructureDef(TypedDict):
+    props: CommonProperties
+    generator: tuple[str, ...]
     children: list["StructureDef"]
 
 
 class Template:
     """Represent the output specification of the Task."""
 
-    def __init__(self, structure: StructureDef, variables: Variables) -> None:
-        self.structure: StructureDef = structure
-        self.variables: Variables = variables
+    def __init__(
+        self, structure: StructureDef | None = None, variables: Variables | None = None
+    ) -> None:
+        self.structure: StructureDef = structure or Template._init_structure()
+        self.variables: Variables = variables or {}
 
     def __repr__(self) -> str:
         return "\n".join(self._display_node(tuple([])))
 
+    @staticmethod
+    def _init_structure() -> StructureDef:
+        return {
+            "props": {},
+            "generator": tuple([]),
+            "children": [],
+        }
+
     def _display_node(self, path: ObjectPath) -> list[str]:
         depth = len(path)
         indent = "  " * depth
-        node = self.get_node(path)
-        args = [f"{arg} = {val}" for arg, val in node.items() if arg != "children"]
-
+        node = self.get_node(path, self.structure)
+        args = [f"{arg} = {val}" for arg, val in node["props"].items()]
+        if gen := node["generator"]:
+            args.append(f"generator = {gen}")
         line = f"{indent}({', '.join(args)})"
         display: list[str] = [line]
-        for idx in range(len(node.get("children", []))):
+        for idx in range(len(node["children"])):
             display.extend(self._display_node(path + (idx,)))
         return display
 
-    def get_node(self, path: ObjectPath) -> StructureDef:
-        node: StructureDef = self.structure
+    @staticmethod
+    def get_node(path: ObjectPath, root: StructureDef) -> StructureDef:
+        node: StructureDef = root
         if not path:
             return node
         for child_idx in path:
@@ -67,25 +84,43 @@ class Template:
         structure, variables = Template.recursive_compare(objs, path)
         return cls(structure, variables)
 
-    def generate(self) -> Object:
+    def generate(self, env: Environment) -> Object:
         """Create an Object representing the template."""
-        return self._generate(copy.deepcopy(self.structure))
 
-    def _generate(self, structure: StructureDef) -> "Object":
-        children = [
-            self._generate(child_struc) for child_struc in structure.pop("children", [])
+        # Use the environment to fill in any variables.
+        structure = deepcopy(self.structure)
+        for (obj_path, prop_path), val in env.items():
+            node = self.get_node(obj_path, structure)
+            if isinstance(prop_path, str):
+                node[prop_path] = val
+            else:
+                idx = prop_path[0]
+                gen = node["generator"]
+                code = gen[idx]
+                if len(prop_path) == 1:
+                    # Swap the copies arg (last char) out for the value
+                    code = code[:-1] + str(val)
+                node["generator"] = gen[:idx] + (code,) + gen[idx:]
+
+        return self._generate(structure)
+
+    @classmethod
+    def _generate(cls, structure: StructureDef) -> Object:
+        children: list[Object] = [
+            cls._generate(child_struc) for child_struc in structure["children"]
         ]
-        generator = None
-        if gen_codes := structure.pop("generator", None):
-            # TODO Fix the typing for codes output and input
-            generator = Generator.from_codes(gen_codes)  # type: ignore
-        return Object(children=children, generator=generator, **structure)  # type: ignore
+        if "?" in "".join(structure["generator"]):
+            generator = None
+        else:
+            generator = Generator.from_codes(structure["generator"])
+        props = {key: val for key, val in structure["props"].items() if val != "?"}
+        return Object(children=children, generator=generator, **props)
 
     @staticmethod
     def recursive_compare(
         objs: list["Object"], path: ObjectPath
     ) -> tuple[StructureDef, Variables]:
-        structure: StructureDef = {}
+        structure = Template._init_structure()
         variables: Variables = collections.defaultdict(list)
 
         # Get the info present at this level
@@ -107,7 +142,7 @@ class Template:
             )
             child_structures.append(kid_structure)
             child_variables.update(kid_variables)
-            if not all([kid == kid_group[0] for kid in kid_group[1:]]):  # type: ignore
+            if not all_equal(kid_group):
                 child_match = False
             if any([kid.category == "Dot" for kid in kid_group]):
                 dot_ct += 1
@@ -123,9 +158,13 @@ class Template:
         return structure, variables
 
     @staticmethod
-    def compare_properties(objs: list["Object"]) -> tuple[CommonProperties, list[str]]:
-        common_props: CommonProperties = {}
-        vars: list[str] = []
+    def compare_properties(
+        objs: list["Object"],
+    ) -> tuple[StructureDef, list[PropertyPath]]:
+        struc = Template._init_structure()
+        vars: list[PropertyPath] = []
+
+        # Row, Column, and Color are handled simply
         for prop, default in [
             ("row", cst.DEFAULT_ROW),
             ("col", cst.DEFAULT_COL),
@@ -134,14 +173,59 @@ class Template:
             cts = collections.Counter([getattr(obj, prop) for obj in objs])
             if len(cts) == 1:
                 if (val := next(iter(cts))) != default:
-                    common_props[prop] = val
+                    struc["props"][prop] = val
             else:
+                struc["props"][prop] = "?"
                 vars.append(prop)
 
-        cts = collections.Counter(
-            [getattr(obj.generator, "codes", tuple([])) for obj in objs]
-        )
-        # TODO We need to check for more than just the exact generator
-        if len(cts) == 1 and (val := next(iter(cts))) != tuple():
-            common_props["generator"] = next(iter(cts))
-        return common_props, vars
+        ## The Generator requires a few levels of handling
+        gen_repr: tuple[str, ...] = tuple([])
+
+        # First, compare length of the Transforms for each object. If there is a
+        # mismatch, we should determine the most likely scenario
+        if not all_equal([len(obj.generator) for obj in objs]):
+            log.warning(f"Mismatch in number of generator transforms: {objs}")
+            return struc, vars
+
+        if not objs[0].generator:
+            return struc, vars
+
+        trans_repr: list[str] = []
+
+        # Get the list of nth transforms across generators
+        transforms: list[list[Transform]] = [obj.generator.transforms for obj in objs]
+        for t_idx, trans_cut in enumerate(zip(*transforms)):
+            if not all_equal([len(trans) for trans in trans_cut]):
+                # TODO Implement
+                log.warning(f"Mismatch in length of transform actions: {trans_cut}")
+                return struc, vars
+
+            common_actions: str = ""
+            # TODO Only support arg-less actions for now, for simplicity
+            for a_idx, actions in enumerate(
+                zip(*[trans.actions for trans in trans_cut])
+            ):
+                if not all_equal(actions):
+                    vars.append(f"{(t_idx, a_idx)}")
+                    common_actions += "?"
+                else:
+                    common_actions += Action().rev_map[actions[0].__name__]
+
+            trans_repr.append(common_actions)
+
+        common_copies: list[str] = []
+        for c_idx, copies_cut in enumerate(
+            zip(*[obj.generator.copies for obj in objs])
+        ):
+            if not all_equal(copies_cut):
+                vars.append(f"{(c_idx)}")
+                common_copies.append("?")
+            else:
+                common_copies.append(str(copies_cut[0]))
+
+        for trans, copies in zip(trans_repr, common_copies):
+            gen_repr += (f"{trans}*{copies}",)
+
+        struc["generator"] = gen_repr
+
+        return struc, vars
