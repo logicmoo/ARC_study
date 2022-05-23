@@ -139,12 +139,12 @@ class MakeBase(Process):
             color = object.c_rank[0][0]
 
         # Create a Generator based on the grid size
-        codes: list[str] = []
+        codes: tuple[str, ...] = tuple([])
         rows, cols = object.grid.shape
         if cols > 1:
-            codes.append(f"C*{cols - 1}")
+            codes += (f"C*{cols - 1}",)
         if rows > 1:
-            codes.append(f"R*{rows - 1}")
+            codes += (f"R*{rows - 1}",)
         generator = Generator.from_codes(codes) if codes else None
 
         # For a single color present, this simplifies to a single line/rect
@@ -230,11 +230,11 @@ class Tiling(Process):
         if object.shape[0] % row_stride or object.shape[1] % col_stride:
             bound = object.shape
         log.debug(f"Tiling with {row_stride}x{col_stride} cell, bound: {bound}")
-        codes: list[str] = []
+        codes: tuple[str, ...] = tuple([])
         if r_ct > 1:
-            codes.append(f"R*{r_ct-1}")
+            codes += (f"R*{r_ct-1}",)
         if c_ct > 1:
-            codes.append(f"C*{c_ct-1}")
+            codes += (f"C*{c_ct-1}",)
         gen = Generator.from_codes(codes, bound=bound)
         log.debug(f"Generator: {gen}")
         # TODO For now, assume unit cells are not worth sub-analyzing
@@ -293,17 +293,17 @@ class Reflection(Process):
                 if base_color != cst.NULL_COLOR:
                     cell_pts.append((i, j, base_color))
 
-        codes: list[str] = []
+        codes: tuple[str, ...] = tuple([])
         if axes[0]:
             if odd_vertical:
-                codes.append(f"v*1")
+                codes += ("v*1",)
             else:
-                codes.append(f"V*1")
+                codes += ("V*1",)
         if axes[1]:
             if odd_horizontal:
-                codes.append(f"h*1")
+                codes += ("h*1",)
             else:
-                codes.append(f"H*1")
+                codes += ("H*1",)
         gen = Generator.from_codes(codes)
         # TODO Should we assume unit cells are not worth sub-analyzing?
         # e.g. should we set leaf=True in the args below
@@ -354,8 +354,8 @@ class Rotation(Process):
                 if base_color != cst.NULL_COLOR:
                     cell_pts.append((i, j, base_color))
 
-        codes: list[str] = []
-        codes.extend(["O*3"])
+        codes: tuple[str, ...] = tuple([])
+        codes += ("O*3",)
         gen = Generator.from_codes(codes)
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")

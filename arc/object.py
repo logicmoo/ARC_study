@@ -48,18 +48,18 @@ class Object:
         leaf: bool = False,
         process: str = "",
     ):
-        self.row = row
-        self.col = col
-        self.color = color
-        self.children = children or []
-        self.generator = generator
+        self.row: int = row
+        self.col: int = col
+        self.color: int = color
+        self.children: list["Object"] = children or []
+        self.generator: Generator = generator or Generator([])
 
         # Utility attributes
-        self.name = name
+        self.name: str = name
 
         # Attributes used during decomposition
-        self.leaf = leaf
-        self.process = process
+        self.leaf: bool = leaf
+        self.process: str = process
 
         # Attributes used during matching
         self.depth: int | None = None

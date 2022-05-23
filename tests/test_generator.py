@@ -16,24 +16,24 @@ def test_transform():
 
 
 def test_codes():
-    gen = Generator.from_codes(["zR1M2,3*9", "j1z"])
+    gen = Generator.from_codes(("zR1M2,3*9", "j1z"))
     assert gen.char == "MRjz"
 
 
 def test_line():
-    gen = Generator.from_codes(["C*9"])
+    gen = Generator.from_codes(("C*9",))
     line = Object(color=2, generator=gen)
     true_grid = gridify([[2]], (1, 10))
     assert grid_equal(line.grid, true_grid)
 
 
 def test_rectangle():
-    gen = Generator.from_codes(["C*2", "R*2"])
+    gen = Generator.from_codes(("C*2", "R*2"))
     square1 = Object(color=1, generator=gen)
     true_grid = gridify([[1, 1, 1], [1, 1, 1], [1, 1, 1]])
     assert grid_equal(square1.grid, true_grid)
 
-    rev_gen = Generator.from_codes(["R*2", "C*2"])
+    rev_gen = Generator.from_codes(("R*2", "C*2"))
     square2 = Object(color=1, generator=rev_gen)
     assert square1 == square2
 
@@ -41,13 +41,13 @@ def test_rectangle():
 def test_chessboard():
     tile_data = [[1, 0], [0, 1]]
     tile2x2 = Object.from_grid(tile_data)
-    gen = Generator.from_codes(["R*3", "C*3"])
+    gen = Generator.from_codes(("R*3", "C*3"))
     cb = Object(children=[tile2x2], generator=gen)
     assert grid_equal(cb.grid, gridify(tile_data, (4, 4)))
 
 
 def test_3x_generator():
-    checked = Generator.from_codes(["w1s1*1", "w2*1", "s2*1"])
+    checked = Generator.from_codes(("w1s1*1", "w2*1", "s2*1"))
     obj = Object(color=1, generator=checked)
     true_grid = gridify([[1, cst.NULL_COLOR], [cst.NULL_COLOR, 1]], (2, 2))
     assert obj.category == "Compound"
@@ -55,9 +55,9 @@ def test_3x_generator():
 
 
 def test_deep_generators():
-    rect1_gen = Generator.from_codes(["R*2", "C*1"])
-    rect2_gen = Generator.from_codes(["R*1", "C*2"])
-    sq_gen = Generator.from_codes(["R*2", "C*2"])
+    rect1_gen = Generator.from_codes(("R*2", "C*1"))
+    rect2_gen = Generator.from_codes(("R*1", "C*2"))
+    sq_gen = Generator.from_codes(("R*2", "C*2"))
     children = [
         Object(0, 0, 1, generator=rect2_gen),
         Object(2, 0, 2, generator=rect1_gen),

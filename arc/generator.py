@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any, Callable, TypeAlias
 
 from arc.actions import Action
 from arc.types import Position
-from arc.util import strutil
+from arc.util import common
 
 
 if TYPE_CHECKING:
@@ -48,8 +48,14 @@ class Transform:
         if len(self.args) < len(self.actions):
             self.args.extend([tuple([])] * (len(self.actions) - len(self.args)))
 
+    def __bool__(self) -> bool:
+        return len(self.actions) > 0
+
+    def __len__(self) -> int:
+        return len(self.actions)
+
     def __str__(self) -> str:
-        if not self.actions:
+        if not self:
             return "ID()"
 
         output = ", ".join(
@@ -149,6 +155,12 @@ class Generator:
         self.copies = copies or [0] * len(self.transforms)
         self.bound = bound
 
+    def __bool__(self) -> bool:
+        return len(self.transforms) > 0
+
+    def __len__(self) -> int:
+        return len(self.transforms)
+
     def __str__(self) -> str:
         msg: list[str] = []
         for trans, copies in zip(self.transforms, self.copies):
@@ -169,7 +181,7 @@ class Generator:
         return tuple(codes)
 
     @classmethod
-    def from_codes(cls, codes: list[str], bound: tuple[int, int] | None = None):
+    def from_codes(cls, codes: tuple[str, ...], bound: tuple[int, int] | None = None):
         transforms: list[Transform] = []
         arg_copies: list[int] = []
         for code in codes:
@@ -186,7 +198,7 @@ class Generator:
         chars = ""
         for transform in self.transforms:
             chars += transform.char
-        return strutil.get_characteristic(chars)
+        return common.get_characteristic(chars)
 
     @property
     def dim(self) -> int:

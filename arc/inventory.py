@@ -31,8 +31,7 @@ class Inventory:
     def create_inventory(self, obj: Object, depth: int = 0) -> dict[str, list[Object]]:
         """Recursively find all objects, index them by their generator."""
         inventory: dict[str, list[Object]] = collections.defaultdict(list)
-        obj_char = "" if obj.generator is None else obj.generator.char
-        inventory[obj_char].append(obj)
+        inventory[obj.generator.char].append(obj)
         self.depth[depth].append(obj)
         obj.depth = depth
         for kid in obj.children:
@@ -66,8 +65,7 @@ class Inventory:
         # as there (currently) is no presumption of dynamic generators--we assume
         # that if the output contains objects with generators, their characteristics
         # are constant across cases.
-        obj_char = "" if obj.generator is None else obj.generator.char
-        candidates = self.inventory.get(obj_char, [])
+        candidates = self.inventory.get(obj.generator.char, [])
         threshold = 8
 
         if not candidates:

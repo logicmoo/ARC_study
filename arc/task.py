@@ -7,7 +7,7 @@ from arc.scene import Scene
 from arc.solution import Solution
 from arc.types import TaskData
 from arc.util import logger
-from arc.util import strutil
+from arc.util import common
 
 log = logger.fancy_logger("Task", level=20)
 
@@ -108,7 +108,7 @@ class Task:
         """Match the characteristics of the decompositions across scenes."""
         # Identify candidate characteristics
         candidates: list[str] = [
-            strutil.get_characteristic(board.current) for board in boards
+            common.get_characteristic(board.current) for board in boards
         ]
         log.info(f"Candidate characteristics: {candidates}")
 
@@ -127,7 +127,7 @@ class Task:
                 # Try strict characteristic matching first
                 for key, object in board.tree.items():
                     if (
-                        strutil.get_characteristic(key) == characteristic
+                        common.get_characteristic(key) == characteristic
                         and object.props < best_score
                     ):
                         best_scene_rep = key
