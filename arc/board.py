@@ -1,9 +1,10 @@
+from functools import cached_property
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
 from arc.processes import Process, default_processes, process_map
 from arc.types import BoardData
-from arc.util import logger
+from arc.util import logger, common
 
 log = logger.fancy_logger("Board", level=30)
 
@@ -48,6 +49,18 @@ class Board:
 
         del self.proc_q
         self.proc_q: list[str] = [""]
+
+    @cached_property
+    def characteristic_map(self) -> dict[str, str]:
+        """Find the best representation for each characteristic."""
+        result: dict[str, str] = {}
+        for key, rep in self.tree.items():
+            char = common.get_characteristic(key)
+            if char not in result:
+                result[char] = key
+            elif rep.props < self.tree[result[char]].props:
+                result[char] = key
+        return result
 
     def decompose(
         self,
