@@ -6,6 +6,22 @@ we can divide and conquer the problem.
 
 from arc.task import Task
 
+# TODO Task 30 needs Align action touched up
+solved_tasks = {8, 16, 39, 188, 194, 309}
+
+# Large tilings tend to take a while, keep them separate
+large_tiling = {17, 61, 287, 305}
+
+# Tasks from the DreamCoder work, symmetry-based
+dc_solved = {83, 87, 106, 140, 142, 150, 152, 155, 179, 380}
+
+# Tasks from the Minimum Description Length work
+# These tend to be more static in structure across cases
+mdl_solved = {10, 31, 36, 53, 263, 276, 374}
+
+fast_solved = solved_tasks | dc_solved | mdl_solved
+all_solved = fast_solved | large_tiling
+
 
 class TaskTraits:
     methods: list[str] = ["color_ct", "const_size", "size", "tiled", "from_paper"]
