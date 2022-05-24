@@ -229,12 +229,20 @@ class Solution:
     is then fed into 1+ nodes organized in 1+ layers.
     """
 
-    def __init__(self) -> None:
-        self.characteristic: str = ""
-        self.nodes: list[SolutionNode] = []
+    def __init__(
+        self,
+        characteristic: str = "",
+        attention: int | None = None,
+        template: Template | None = None,
+    ) -> None:
+        self.characteristic: str = characteristic
+        self.level_attention: int | None = attention
+        self.template: Template = template or Template()
+
+        # Created during 'bundle'
         self.transform_map: dict[str, list[str]] = defaultdict(list)
-        self.level_attention: int | None = None
-        self.template: Template = Template()
+        # Create during 'create_nodes'
+        self.nodes: list[SolutionNode] = []
 
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
@@ -333,15 +341,7 @@ class Solution:
 
         log.debug(f"Transform mapping: {self.transform_map}")
 
-    def define_template(self, cases: list[Scene]):
-        """Determine any common elements in the output Grids.
-
-        This also provides a basic frame on which to build the test case outputs."""
-        objs = [scene.output.rep for scene in cases]
-        self.template = Template.from_outputs(objs, tuple([]))
-        log.info(f"Template: {self.template}")
-
-    def create_nodes(self, cases: list[Scene]) -> None:
+    def create_nodes(self, cases: list[Scene]) -> bool:
         self.nodes = []
         # TODO WIP
         if self.level_attention is not None:
@@ -352,8 +352,7 @@ class Solution:
             inputs = [Inventory(case.input.rep).all for case in cases]
 
         for codes, base_chars in self.transform_map.items():
-            # The path node is a list of lists of ObjectDeltas related to the transform
-            # link_node = [case.path.get(key, []) for case in cases for key in base_chars]
+            # The link node is a list of lists of ObjectDeltas related to the transform
             link_node: list[list[ObjectDelta]] = []
             for case in cases:
                 case_node = [
@@ -363,15 +362,13 @@ class Solution:
                     if delta.tag == case.idx
                 ]
                 link_node.append(case_node)
-            # link_node = [self.bundled.get(key, []) for case in cases for key in base_chars]
             link_node = list(filter(None, link_node))
 
+            final_nodes: list[SolutionNode] = []
             if len(codes) <= 1:
                 action = Action()[codes]
                 raw_nodes = SolutionNode.from_action(inputs, link_node, action)
-                nodes = filter(None, raw_nodes)
-                if nodes:
-                    self.nodes.extend(nodes)
+                final_nodes.extend(filter(None, raw_nodes))
             else:
                 for char in codes:
                     log.info(f"Attempting Solution node for char '{char}'")
@@ -379,8 +376,17 @@ class Solution:
                     raw_nodes = SolutionNode.from_action(inputs, link_node, action)
                     nodes = filter(None, raw_nodes)
                     if nodes:
-                        self.nodes.extend(nodes)
+                        final_nodes.extend(nodes)
                         break
+
+            if final_nodes:
+                self.nodes.extend(final_nodes)
+            # We should create at least one SolutionNode per transform key,
+            # otherwise we'll be missing pieces from the output.
+            # TODO This should be based on gaps in the Template.
+            else:
+                return False
+        return True
 
     def generate(self, test_scene: Scene) -> Object:
         """Create the test output."""
@@ -401,6 +407,8 @@ class Solution:
             input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
+        # TODO Add the environment information, which supplies values to the
+        # missing properties by path
         output: Object = self.template.generate({})
         # NOTE: Just depth-1 solution graphs for now
         for node in sorted(self.nodes, key=lambda x: x.path):
@@ -410,24 +418,14 @@ class Solution:
             log.debug(f"Appending the following Objects at {node.path}:")
             for obj in objects:
                 log.debug(obj)
-            # An empty target means there's a single, root object
-            if not node.path:
+
+            # TODO This exception is troublesome, and we should move this generation
+            # code into the Template.
+            if node.path == tuple([]):
                 return objects[0]
-            # TODO Move this structure location code to its own functions
-            loc = output
-            for child_idx in node.path[:-1]:
-                try:
-                    loc = loc[child_idx]
-                except:
-                    log.warning(
-                        f"Can't access path {node.path[:-1]}, trying last child"
-                    )
-                    try:
-                        loc = loc[-1]
-                    except:
-                        log.warning(
-                            "Failed adding to output. Common structure likely incorrect"
-                        )
-            loc.children.extend(objects)
+
+            target = output.get_path(node.path[:-1])
+            if target:
+                target.children.extend(objects)
 
         return output

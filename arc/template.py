@@ -6,16 +6,16 @@ from arc.actions import Action
 from arc.definitions import Constants as cst
 from arc.object import Object
 from arc.generator import Generator, Transform
+from arc.types import ObjectPath
 from arc.util import logger
 from arc.util.common import all_equal
 
 log = logger.fancy_logger("Template", level=30)
 
-ObjectPath: TypeAlias = tuple[int, ...]
 GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
 PropertyPath: TypeAlias = str | GeneratorPath
 Unknown: TypeAlias = Literal["?"]
-Variables: TypeAlias = dict[ObjectPath, list[PropertyPath]]
+Variables: TypeAlias = dict[ObjectPath, set[PropertyPath]]
 
 Environment: TypeAlias = dict[tuple[ObjectPath, PropertyPath], int]
 MatchInventory: TypeAlias = dict[ObjectPath, Object]
@@ -45,6 +45,42 @@ class Template:
     def __repr__(self) -> str:
         return "\n".join(self._display_node(tuple([])))
 
+    def __bool__(self) -> bool:
+        return True
+        # return self.holes == -1
+
+    @classmethod
+    def from_outputs(
+        cls, objs: list[Object], path: ObjectPath = tuple([])
+    ) -> "Template":
+        """Return the specification for the common elements among Objects."""
+        structure, variables = Template.recursive_compare(objs, path)
+        return cls(structure, variables)
+
+    @property
+    def props(self) -> int:
+        """Measure of the Template complexity, based on Variables.
+
+        The goal of a good Template representation is to minimize how
+        many variables require insertion to generate the output.
+        """
+        return sum(len(var) for var in self.variables.values())
+
+    @property
+    def holes(self) -> int:
+        """How many container objects are missing.
+
+        These should be plugged by valid scene matches.
+        """
+        # The, odd, null case is when the root object has children but no structure
+        # is identified
+        if tuple([]) in self.variables and self.variables[tuple([])] == {"children"}:
+            return -1
+        child_vars = {
+            key: val for key, val in self.variables.items() if "children" in val
+        }
+        return len(child_vars)
+
     @staticmethod
     def _init_structure() -> StructureDef:
         return {
@@ -56,7 +92,7 @@ class Template:
     def _display_node(self, path: ObjectPath) -> list[str]:
         depth = len(path)
         indent = "  " * depth
-        node = self.get_node(path, self.structure)
+        node = self.get_path(path, self.structure)
         args = [f"{arg} = {val}" for arg, val in node["props"].items()]
         if gen := node["generator"]:
             args.append(f"generator = {gen}")
@@ -67,7 +103,7 @@ class Template:
         return display
 
     @staticmethod
-    def get_node(path: ObjectPath, root: StructureDef) -> StructureDef:
+    def get_path(path: ObjectPath, root: StructureDef) -> StructureDef:
         node: StructureDef = root
         if not path:
             return node
@@ -78,29 +114,23 @@ class Template:
                 log.warning(f"Can't access path {path}")
         return node
 
-    @classmethod
-    def from_outputs(cls, objs: list[Object], path: ObjectPath) -> "Template":
-        """Return the specification for the common elements among Objects."""
-        structure, variables = Template.recursive_compare(objs, path)
-        return cls(structure, variables)
-
     def generate(self, env: Environment) -> Object:
         """Create an Object representing the template."""
 
         # Use the environment to fill in any variables.
         structure = deepcopy(self.structure)
         for (obj_path, prop_path), val in env.items():
-            node = self.get_node(obj_path, structure)
+            obj_args = self.get_path(obj_path, structure)
             if isinstance(prop_path, str):
-                node[prop_path] = val
+                obj_args[prop_path] = val
             else:
                 idx = prop_path[0]
-                gen = node["generator"]
+                gen = obj_args["generator"]
                 code = gen[idx]
                 if len(prop_path) == 1:
                     # Swap the copies arg (last char) out for the value
                     code = code[:-1] + str(val)
-                node["generator"] = gen[:idx] + (code,) + gen[idx:]
+                obj_args["generator"] = gen[:idx] + (code,) + gen[idx:]
 
         return self._generate(structure)
 
@@ -121,16 +151,17 @@ class Template:
         objs: list["Object"], path: ObjectPath
     ) -> tuple[StructureDef, Variables]:
         structure = Template._init_structure()
-        variables: Variables = collections.defaultdict(list)
+        variables: Variables = collections.defaultdict(set)
 
         # Get the info present at this level
         common, vars = Template.compare_properties(objs)
         structure.update(common)  # type: ignore
-        variables[path] = vars
+        if vars:
+            variables[path] = vars
 
         # Look at each child via recursion
         child_structures: list[StructureDef] = []
-        child_variables: Variables = collections.defaultdict(list)
+        child_variables: Variables = collections.defaultdict(set)
         dot_ct = 0
         child_match: bool = True
         for idx, kid_group in enumerate(zip(*[obj.children for obj in objs])):
@@ -154,15 +185,15 @@ class Template:
                 variables.update(child_variables)
             # otherwise, we insert a generic variable for "children"
             else:
-                variables[path] = ["children"]
+                variables[path] = {"children"}
         return structure, variables
 
     @staticmethod
     def compare_properties(
         objs: list["Object"],
-    ) -> tuple[StructureDef, list[PropertyPath]]:
+    ) -> tuple[StructureDef, set[PropertyPath]]:
         struc = Template._init_structure()
-        vars: list[PropertyPath] = []
+        vars: set[PropertyPath] = set([])
 
         # Row, Column, and Color are handled simply
         for prop, default in [
@@ -176,7 +207,7 @@ class Template:
                     struc["props"][prop] = val
             else:
                 struc["props"][prop] = "?"
-                vars.append(prop)
+                vars.add(prop)
 
         ## The Generator requires a few levels of handling
         gen_repr: tuple[str, ...] = tuple([])
@@ -206,7 +237,7 @@ class Template:
                 zip(*[trans.actions for trans in trans_cut])
             ):
                 if not all_equal(actions):
-                    vars.append(f"{(t_idx, a_idx)}")
+                    vars.add((t_idx, a_idx))
                     common_actions += "?"
                 else:
                     common_actions += Action().rev_map[actions[0].__name__]
@@ -218,7 +249,7 @@ class Template:
             zip(*[obj.generator.copies for obj in objs])
         ):
             if not all_equal(copies_cut):
-                vars.append(f"{(c_idx)}")
+                vars.add((c_idx,))
                 common_copies.append("?")
             else:
                 common_copies.append(str(copies_cut[0]))
