@@ -2,7 +2,6 @@ from collections import defaultdict
 from typing import TypeAlias
 
 from arc.board import Board, Inventory
-from arc.contexts import SceneContext
 from arc.definitions import Constants as cst
 from arc.object import Object
 from arc.object_delta import ObjectDelta, ObjectPath
@@ -33,9 +32,6 @@ class Scene:
         self.idx = idx
         self.input = Board(data["input"], name=f"Input {idx}")
         self.output = Board(data["output"], name=f"Output {idx}")
-
-        # Context is built between input/output, and might influence a redo
-        self.context = SceneContext()
 
         # A Scene aims to create a 'transformation path' between the inputs and
         # outputs that minimizes the required parameters.
@@ -87,6 +83,7 @@ class Scene:
     def match(self):
         """Identify the minimal transformation set needed from input -> output Board."""
         # TODO Handle inventory
+        self._depth = None
         self._dist, deltas = self.recreate(self.output.rep, Inventory(self.input.rep))
 
         # Group the inputs to the match by the Generator characteristic

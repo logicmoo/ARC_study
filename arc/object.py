@@ -7,6 +7,7 @@ import uuid
 from arc.types import (
     BoardData,
     Grid,
+    ObjectPath,
     Point,
     PointDict,
     PointList,
@@ -519,3 +520,11 @@ class Object:
         if self.category == "Dot":
             return (0, 0)
         return rotational_order(self.grid)
+
+    def get_path(self, path: ObjectPath) -> "Object | None":
+        if not path:
+            return self
+        try:
+            return self.children[path[0]].get_path(path[1:])
+        except:
+            log.warning(f"Can't access path {path} in {self}")

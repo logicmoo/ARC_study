@@ -57,15 +57,19 @@ class Constants:
     # under consideration for finding a solution. We filter these out to
     # save time on larger runs.
     blacklist = {
+        54,
         74,
+        77,
         80,
         110,
         118,
         162,
         165,
         175,
+        205,
         208,
         243,
         255,
         265,
+        303,
     }

@@ -45,13 +45,14 @@ class ARC:
         N: int = cst.N_TRAIN,
         idxs: set[int] | None = None,
         folder: str = cst.FOLDER_TRAIN,
+        quiet: bool = False,
     ):
         if not idxs:
             idxs = set(range(1, N + 1))
         self.N: int = len(idxs)
         self.selection: set[int] = idxs
         self.tasks: dict[int, Task] = {}
-        self.load_tasks(idxs=idxs, folder=folder)
+        self.load_tasks(idxs=idxs, folder=folder, quiet=quiet)
 
         self.default_log_levels: dict[str, int] = self.get_log_levels()
         self.blacklist: set[int] = cst.blacklist
@@ -84,7 +85,9 @@ class ARC:
                 log.warning(f"Couldn't find a task with uid matching {partial_uid}")
                 return None
 
-    def load_tasks(self, idxs: set[int] = set(), folder: str = ".") -> None:
+    def load_tasks(
+        self, idxs: set[int] = set(), folder: str = ".", quiet: bool = False
+    ) -> None:
         """Load indicated task(s) from the ARC dataset."""
         curr_idx, boards, tests = 1, 0, 0
         for filename in sorted(glob.glob(f"{folder}/*.json")):
@@ -95,9 +98,10 @@ class ARC:
                     boards += task.n_boards
                     tests += len(task.tests)
             curr_idx += 1
-        log.info(
-            f"Loaded {len(self.tasks)} Tasks, with {boards} boards and {tests} tests."
-        )
+        if not quiet:
+            log.info(
+                f"Loaded {len(self.tasks)} Tasks, with {boards} boards and {tests} tests."
+            )
 
     def get_log_levels(self) -> dict[str, int]:
         """Get all of the defined loggers and their current level.
