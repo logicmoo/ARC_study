@@ -7,6 +7,17 @@ import time
 from typing import Any, Callable
 
 
+# This list is passed to @profile() which aggregates the cumulative runtime
+# into these functions, which represent the primary stages of task solutioning.
+PROFILE_BREAKOUT_STD: list[str] = [
+    "Task:decompose",
+    "Task:determine_template",
+    "Task:match",
+    "Solution:create_nodes",
+    "Task:test",
+]
+
+
 def profile(
     threshold: float = 0.0, names: list[str] | None = None, dump_file: str | None = None
 ) -> Callable[[Any], Any]:
@@ -36,11 +47,12 @@ def profile(
             # NOTE: PStats doesn't appear to use typing, thus the ignores
             tot_time: float = max([row[3] for row in ps.stats.values()])  # type: ignore
             stats: list[tuple[str, float]] = []
-            for k, v in ps.stats.items():  # type: ignore
-                func_name = f"{k[0]}:{k[2]}"
-                cum_frac: float = round(v[3] / tot_time, 6)  # type: ignore
+            for func_triple, data in ps.stats.items():  # type: ignore
+                filename = f"{func_triple[0].replace('.py', '').capitalize()}"  # type: ignore
+                func_name = f"{filename}:{func_triple[2]}"
+                cum_frac: float = round(data[3] / tot_time, 6)  # type: ignore
                 if cum_frac > threshold and (
-                    names is None or any([name in k for name in names])
+                    names is None or any([name in func_name for name in names])
                 ):
                     stats.append((func_name, cum_frac))
 

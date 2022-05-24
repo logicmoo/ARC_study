@@ -37,7 +37,7 @@ def decompose(_arc: ARC, time_limit: int) -> None:
     log.info(f"=== Total runtime: {runtime:.2f}s, ({errors}/{_arc.N}) errors ===")
 
 
-@profile.profile(threshold=0.00, dump_file="arc.prof")
+@profile.profile(names=profile.PROFILE_BREAKOUT_STD, dump_file="arc.prof")
 def solve(_arc: ARC, time_limit: int) -> None:
     log.info(f"Profiling full solution for {_arc.N} tasks")
     runtime: float = 0
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         "-q", "--quiet", help="Only show profiler logging", action="store_true"
     )
     parser.add_argument(
-        "-s", "--single", help="Run a single task index (uses N)", action="store_true"
+        "-s", "--single", help="Run a single task index (N = idx)", action="store_true"
     )
     parser.add_argument(
         "-t", "--time_limit", help="Maximum seconds per task", type=int, default=10
@@ -105,7 +105,13 @@ if __name__ == "__main__":
             }
         )
 
+    stats: list[tuple[str, str]] = []
     if args.decompose:
         decompose(_arc, args.time_limit)
     else:
-        solve(_arc, args.time_limit)
+        _, stats = solve(_arc, args.time_limit)
+
+    for func, val in sorted(stats, key=lambda x: x[1], reverse=True):
+        func = func.replace(".py", "").capitalize()
+        percentage = f"{100*val:.2f}%"
+        log.info(f"{percentage: >6s} - {func}")
