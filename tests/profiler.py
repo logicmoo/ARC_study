@@ -12,7 +12,7 @@ from arc.util import profile
 log = logger.fancy_logger("Profiler", level=20)
 
 
-@profile.profile(threshold=0.00, dump_file="arc.prof")
+@profile.profile(threshold=0.05, dump_file="arc.prof")
 def decompose(_arc: ARC, time_limit: int) -> None:
     log.info(f"Profiling execution on first scene from {_arc.N} tasks")
     runtime: float = 0
@@ -107,11 +107,10 @@ if __name__ == "__main__":
 
     stats: list[tuple[str, str]] = []
     if args.decompose:
-        decompose(_arc, args.time_limit)
+        _, stats = decompose(_arc, args.time_limit)
     else:
         _, stats = solve(_arc, args.time_limit)
 
     for func, val in sorted(stats, key=lambda x: x[1], reverse=True):
-        func = func.replace(".py", "").capitalize()
         percentage = f"{100*val:.2f}%"
         log.info(f"{percentage: >6s} - {func}")
