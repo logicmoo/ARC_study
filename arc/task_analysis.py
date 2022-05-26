@@ -13,7 +13,7 @@ solved_tasks = {8, 16, 39, 188, 194, 309}
 large_tiling = {17, 61, 287, 305}
 
 # Tasks from the DreamCoder work, symmetry-based
-dc_solved = {83, 87, 106, 140, 142, 150, 152, 155, 179, 380}
+dc_solved = {83, 87, 106, 140, 142, 150, 152, 155, 164, 179, 210, 249, 380}
 
 # Tasks from the Minimum Description Length work
 # These tend to be more static in structure across cases

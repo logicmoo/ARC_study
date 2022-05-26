@@ -10,7 +10,7 @@ from arc.types import ObjectPath
 from arc.util import logger
 from arc.util.common import all_equal
 
-log = logger.fancy_logger("Template", level=30)
+log = logger.fancy_logger("Template", level=20)
 
 GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
 PropertyPath: TypeAlias = str | GeneratorPath
@@ -18,7 +18,7 @@ Unknown: TypeAlias = Literal["?"]
 Variables: TypeAlias = dict[ObjectPath, set[PropertyPath]]
 
 Environment: TypeAlias = dict[tuple[ObjectPath, PropertyPath], int]
-MatchInventory: TypeAlias = dict[ObjectPath, Object]
+MatchInventory: TypeAlias = dict[ObjectPath, list[Object]]
 
 
 class CommonProperties(TypedDict, total=False):
@@ -43,7 +43,9 @@ class Template:
         self.variables: Variables = variables or {}
 
     def __repr__(self) -> str:
-        return "\n".join(self._display_node(tuple([])))
+        structure: str = "\n  ".join(self._display_node(tuple([])))
+        variables: str = "\n  ".join(map(str, self.variables.items()))
+        return f"\nFrame:\n  {structure}\nVariables:\n  {variables}"
 
     def __bool__(self) -> bool:
         return True
@@ -114,7 +116,20 @@ class Template:
                 log.warning(f"Can't access path {path}")
         return node
 
-    def generate(self, env: Environment) -> Object:
+    def match_request(self) -> set[ObjectPath]:
+        # TODO WIP
+        request: set[ObjectPath] = set([])
+        for path, properties in self.variables.items():
+            # If the children don't match, we have an unbounded gap in the structure
+            if "children" in properties:
+                request.add(path)
+            elif len(properties) > 0:
+                request.add(path)
+
+        log.info(f"Requesting matches for paths {request}")
+        return request
+
+    def generate(self, env: Environment, matches: MatchInventory) -> Object:
         """Create an Object representing the template."""
 
         # Use the environment to fill in any variables.
@@ -132,7 +147,26 @@ class Template:
                     code = code[:-1] + str(val)
                 obj_args["generator"] = gen[:idx] + (code,) + gen[idx:]
 
-        return self._generate(structure)
+        # Eliminate any paths contained in the matches
+        for path, _ in sorted(matches.items(), reverse=True):
+            if path:
+                self.get_path(path[:-1], structure)["children"].pop(path[-1])
+
+        # Create an Object based on the StructureDef
+        frame: Object = self._generate(structure)
+
+        # Lastly, add any transformed objects into the frame
+        for path, objs in sorted(matches.items()):
+            if path == tuple([]):
+                if len(objs) != 1:
+                    log.warning("Multiple Objects inserted at frame root")
+                return objs[0]
+
+            target = frame.get_path(path[:-1])
+            if target:
+                target.children.extend(objs)
+
+        return frame
 
     @classmethod
     def _generate(cls, structure: StructureDef) -> Object:

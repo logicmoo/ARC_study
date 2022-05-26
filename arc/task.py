@@ -1,11 +1,13 @@
+import collections
 from typing import Any
+
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution
-from arc.template import Template
+from arc.template import MatchInventory, Template
 from arc.types import TaskData
 from arc.util import logger
 
@@ -75,38 +77,22 @@ class Task:
     def solve(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
         self.decompose()
+        if not self.match():
+            log.warning("No valid template and matches found.")
 
-        outputs = [case.output for case in self.cases]
-        output_stats = self.rank_characteristics(outputs)
-        # Loop over the best characteristics in the output
-        # TODO Find a way to use the information in the Template to
-        # help determine likely solutions before attempting
-        for _, char in output_stats[:3]:
-            self.align_representation(outputs, char)
-            self.determine_template(char)
-            self.match()
-            self.solution = Solution(**self.context)
-            self.solution.bundle(self.cases)
-            if self.solution.create_nodes(self.cases):
-                break
+        self.solution = Solution(**self.context)
+        self.solution.bundle(self.cases)
+        self.solution.create_nodes(self.cases)
         self.test()
 
-    def determine_template(self, char: str):
+    def determine_template(self, char: str) -> Template:
         """Determine any common elements in the output Grids.
 
         This also provides a basic frame on which to build the test case outputs."""
-        outputs = [case.output for case in self.cases]
-
-        # Search the most efficient decomp characteristics for the most stable Template
-        # for _, char in output_stats:
-        #     best: int = outputs[0].rep.props  # Set an arbitrary high goal that can't be met
-        objs = [board.rep for board in outputs]
-        self.context["template"] = Template.from_outputs(objs)
-
-        # if candidate and candidate.props < best:
-        #     best = candidate.props
-        #     self.solution.template = candidate
-        log.info(f"Template: {self.context['template']}")
+        output_reps = [case.output.rep for case in self.cases]
+        template = Template.from_outputs(output_reps)
+        log.info(f"Template: {template}")
+        return template
 
     def decompose(
         self,
@@ -160,21 +146,72 @@ class Task:
             key = board.characteristic_map[char]
             board.current = key
 
-    def match(self) -> None:
+    def match(self) -> bool:
         """Match input and output objects for each case."""
         log.info(f" + Matching")
+        outputs = [case.output for case in self.cases]
+        top_chars = self.rank_characteristics(outputs)[: cst.TOP_K_CHARS]
+        log.info(f"Top characteristics: {top_chars}")
+
+        best_score: float = cst.MAX_DIST
+        best: str = ""
+        best_rep = top_chars[0][0]
+        templates: dict[str, Template] = {}
+        for rep_score, char in top_chars:
+            self.align_representation(outputs, char)
+            template = self.determine_template(char)
+            match_request = template.match_request()
+            for scene in self.cases:
+                scene.match(char, match_request)
+
+            if not self.validate(template, char):
+                continue
+
+            scene_dists = list(filter(None, [scene.dist for scene in self.cases]))
+            depths = {scene.depth for scene in self.cases}
+            depth = None
+            if len(depths) == 1:
+                depth = depths.pop()
+                self.context["attention"] = depth
+            log.info(f"Scene depth: {depth}, distances {scene_dists}")
+
+            # TODO WIP Find a reasonable tradeoff between the different metrics
+            # regarding the input to output match:
+            #  representation compactness, match distance, template variables
+            score = (rep_score / best_rep) + len(match_request) + sum(scene_dists)
+            if score < best_score:
+                best_score = score
+                best = char
+                templates[char] = template
+
+        if not best:
+            return False
+
+        log.info(f"Choosing output char: {best} at distance {best_score}")
+        self.context["template"] = templates[best]
         for scene in self.cases:
-            scene.match()
-        scene_dists = [scene.dist for scene in self.cases]
-        depths = {scene.depth for scene in self.cases}
-        depth = None
-        if len(depths) == 1:
-            depth = depths.pop()
-            self.context["attention"] = depth
-        log.info(f"Scene depth: {depth}, distances {scene_dists}")
+            scene.current = best
+        self.align_representation(outputs, best)
+        return True
 
     def generate(self, test_idx: int = 0) -> Object:
         return self.solution.generate(self.tests[test_idx])
+
+    def validate(self, template: Template, char: str) -> bool:
+        """Check if a template can generate the cases."""
+        # TODO WIP
+        for case_idx, scene in enumerate(self.cases):
+            # TODO Flatten links in scenes. Only group during solution.bundle
+            flat_links = [
+                link for group in scene.link_maps[char].values() for link in group
+            ]
+            matches: MatchInventory = collections.defaultdict(list)
+            for link in flat_links:
+                matches[link.path] = [link.right.copy()]
+            if scene.output.rep != template.generate({}, matches):
+                log.info(f"Scene {case_idx} failed validation under {char}")
+                return False
+        return True
 
     def test(self) -> bool:
         success = 0

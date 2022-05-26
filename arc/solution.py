@@ -11,7 +11,7 @@ from arc.comparisons import (
     compare_position,
     compare_rotation,
 )
-from arc.template import Template
+from arc.template import Template, MatchInventory
 from arc.generator import ActionType, Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object
@@ -42,17 +42,17 @@ class SolutionNode:
         selector: Selector,
         action: ActionType = Action.identity,
         args: tuple[ActionArg, ...] = tuple(),
-        path: ObjectPath = tuple(),
+        paths: set[ObjectPath] = set([]),
     ) -> None:
         # TODO: For now, only depth-1 Solutions, so assume no children.
         # self.children: list[SolutionNode] = []
         self.selector = selector
         self.action = action
         self.args = args
-        self.path = path
+        self.paths = paths
 
     def __repr__(self) -> str:
-        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.path}"
+        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.paths}"
 
     @classmethod
     def from_action(
@@ -69,7 +69,7 @@ class SolutionNode:
         selector = Selector(inputs, selection)
         if not selector:
             log.info("Single Selection failed, trying to split")
-            # Attempt to divide the path node into groups based on similarity
+            # Attempt to divide the link node into groups based on similarity
             bundle = subdivide_groups(link_node)
             for subnode in bundle:
                 subselection = [[delta.left for delta in group] for group in subnode]
@@ -94,7 +94,7 @@ class SolutionNode:
             # TODO This is a simple starting implementation for structuring
             # 'Target' should be developed further
             # target represents the location in the output structure for the result
-            path = min([delta.path for delta in deltas])
+            paths = {delta.path for delta in deltas}
 
             if action in pair_actions:
                 log.debug(f"Determining selector for {action.__name__}")
@@ -138,6 +138,7 @@ class SolutionNode:
 
                 if all(all_args) and len(all_args) > 1:
                     # Non-null, non-constant action arguments means we need a mapping
+                    # or a secondary object to provide the value.
                     labeler = Labeler(selection)
                     arg_mapping = cls.determine_map(deltas, labeler)
                     if not arg_mapping[0]:
@@ -146,7 +147,7 @@ class SolutionNode:
                 else:
                     args = all_args.pop()
 
-            nodes.append(cls(selector, action, args, path))
+            nodes.append(cls(selector, action, args, paths))
 
         return nodes
 
@@ -407,25 +408,13 @@ class Solution:
             input = Inventory(test_scene.input.rep).all
         log.debug(f"Test case input_group: {input}")
 
-        # TODO Add the environment information, which supplies values to the
-        # missing properties by path
-        output: Object = self.template.generate({})
         # NOTE: Just depth-1 solution graphs for now
-        for node in sorted(self.nodes, key=lambda x: x.path):
-            objects = node.apply(input)
-            if not objects:
-                continue
-            log.debug(f"Appending the following Objects at {node.path}:")
-            for obj in objects:
-                log.debug(obj)
+        matches: MatchInventory = defaultdict(list)
+        for node in sorted(self.nodes, key=lambda x: x.paths):
+            objs = node.apply(input)
+            for path, obj in zip(node.paths, objs):
+                matches[path].append(obj)
 
-            # TODO This exception is troublesome, and we should move this generation
-            # code into the Template.
-            if node.path == tuple([]):
-                return objects[0]
-
-            target = output.get_path(node.path[:-1])
-            if target:
-                target.children.extend(objects)
+        output: Object = self.template.generate({}, matches)
 
         return output

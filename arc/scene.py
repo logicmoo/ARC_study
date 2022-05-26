@@ -16,6 +16,7 @@ log = logger.fancy_logger("Scene", level=20)
 Link: TypeAlias = ObjectDelta
 LinkMap: TypeAlias = dict[str, list[Link]]
 LinkResult: TypeAlias = tuple[int, list[ObjectDelta]]
+RequestTree: TypeAlias = dict[int, "RequestTree"]
 
 
 class Scene:
@@ -35,9 +36,8 @@ class Scene:
 
         # A Scene aims to create a 'transformation path' between the inputs and
         # outputs that minimizes the required parameters.
-        self._dist: int | None = None
-        self._depth: int | None = None
-        self.link_map: LinkMap = {}
+        self.link_maps: dict[str, LinkMap] = {}
+        self.current: str = ""
 
     @property
     def props(self) -> int:
@@ -45,22 +45,26 @@ class Scene:
         return self.input.rep.props + self.output.rep.props
 
     @property
+    def link_map(self) -> LinkMap:
+        return self.link_maps.get(self.current, {})
+
+    @property
     def dist(self) -> int | None:
         """Transformational distance measured between input and output"""
-        return self._dist
+        return sum(link.dist for group in self.link_map.values() for link in group)
 
     @property
     def depth(self) -> int | None:
         """Transformational distance measured between input and output"""
-        return self._depth
+        depths = {link.left.depth for group in self.link_map.values() for link in group}
+        if len(depths) == 1:
+            return depths.pop()
+        return None
 
     def clean(self, decomp_tree_only: bool = False) -> None:
-
         if not decomp_tree_only:
-            self._dist: int | None = None
-            self._depth: int | None = None
-            del self.link_map
-            self.link_map: LinkMap = {}
+            del self.link_maps
+            self.link_maps: dict[str, LinkMap] = {}
 
         self.input.clean()
         self.output.clean()
@@ -80,26 +84,32 @@ class Scene:
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
-    def match(self):
+    def paths_to_tree(self, request: set[ObjectPath]) -> RequestTree:
+        tree: RequestTree = {}
+        for path in request:
+            curr = tree
+            for idx in path:
+                if idx not in curr:
+                    curr[idx] = {}
+                curr = curr[idx]
+        return tree
+
+    def match(self, decomp_char: str, match_request: set[ObjectPath]) -> None:
         """Identify the minimal transformation set needed from input -> output Board."""
-        # TODO Handle inventory
-        self._depth = None
-        self._dist, deltas = self.recreate(self.output.rep, Inventory(self.input.rep))
+        request_tree: RequestTree = self.paths_to_tree(match_request)
+        _, links = self.recreate(
+            self.output.rep, Inventory(self.input.rep), request_tree
+        )
 
-        # Group the inputs to the match by the Generator characteristic
-        self.link_map = defaultdict(list)
-        depths: set[int] = set([])
-        for delta in deltas:
-            self.link_map[delta.transform.char].append(delta)
-            if delta.left.depth is not None:
-                depths.add(delta.left.depth)
-
-        log.info(f"Depths during match: {depths}")
-        if len(depths) == 1:
-            self._depth = depths.pop()
+        link_map: LinkMap = defaultdict(list)
+        for delta in links:
+            # Group the inputs to the match by the Generator characteristic
+            link_map[delta.transform.char].append(delta)
+        self.link_maps[decomp_char] = link_map
+        self.current = decomp_char
 
         log.info(f"Scene {self.idx} links | distance ({self.dist}):")
-        for char, deltas in self.link_map.items():
+        for char, deltas in link_map.items():
             log.info(f"  Transform Characteristic: {char or 'None'}")
             for delta in deltas:
                 obj1, obj2, trans = delta.left, delta.right, delta.transform
@@ -107,18 +117,23 @@ class Scene:
 
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
-        self, obj: Object, inventory: Inventory, path: ObjectPath = tuple()
+        self,
+        obj: Object,
+        inventory: Inventory,
+        request_tree: RequestTree,
+        path: ObjectPath = tuple([]),
     ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
+        log.debug(f"Finding scene match at path: {path}")
         result: LinkResult = (cst.MAX_DIST, [])
         delta = inventory.find_scene_match(obj)
         if delta:
-            # TODO Find a more holistic way to track "Object paths"
             delta.path = path
             # TODO We add the scene index to the deltas to avoid heavy structuring later on
             # (i.e. avoid dicts of lists of lists)
             delta.tag = self.idx
             result = (delta.dist, [delta])
+            log.debug(f"Found node match: {result}")
 
         total_dist = 0
         all_deltas: list[ObjectDelta] = []
@@ -127,11 +142,19 @@ class Scene:
             # It currently can't be used as an object on it's own because self.points is empty.
             if kid.category == "Cutout":
                 continue
-            kid_dist, kid_deltas = self.recreate(kid, inventory, path + (idx,))
+            # Skip any children for which we don't need a match
+            if idx not in request_tree:
+                continue
+            kid_dist, kid_deltas = self.recreate(
+                kid, inventory, request_tree[idx], path + (idx,)
+            )
             log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist + cst.CHILD_DIST
             all_deltas.extend(kid_deltas)
         if all_deltas and total_dist < result[0]:
+            log.debug(f"Choosing children with distance: {total_dist}")
+            for delta in all_deltas:
+                log.debug(f"  {delta}")
             return (total_dist, all_deltas)
         else:
             return result
