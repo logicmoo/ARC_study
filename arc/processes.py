@@ -202,8 +202,6 @@ class Tiling(Process):
     def test(self, object: Object) -> bool:
         if not self.cell_test(object, 4, 3):
             return False
-        # TODO: Consider whether the 1x1 order situation can replace
-        # using MakeBase for rect-decomp
         R, row_level = object.order_trans_row
         C, col_level = object.order_trans_col
         if (R, C) == object.shape:
@@ -312,7 +310,6 @@ class Reflection(Process):
         # TODO Should we assume unit cells are not worth sub-analyzing?
         # e.g. should we set leaf=True in the args below
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")
-        # TODO Embed this check into Object somehow?
         candidate = Object(
             *object.loc,
             color=cell.color,

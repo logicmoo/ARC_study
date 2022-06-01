@@ -81,15 +81,13 @@ class Board:
         if characteristic:
             self.processes = [process_map[char] for char in characteristic]
 
-        # TODO WIP
-        threshold = 4
         log.info(f"  Begin decomposition")
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
             candidates = self._decomposition(obj, inventory)
             for code, obj in candidates:
-                if obj.props > threshold * self.rep.props:
+                if obj.props > cst.PRUNE_PROPS_COEFF * self.rep.props:
                     continue
                 new_key = key + code
                 flat_obj = obj.flatten()
@@ -114,17 +112,11 @@ class Board:
 
     def prune_queue(self) -> None:
         """Clean out any low-priority branches from decomposition."""
-        # TODO WIP, move these to constants eventually.
-        safe_gen = 3
-        skip_gen = 2
-        threshold_factor = 4
-
-        # cousin_base = self.current[:-2]
-        threshold = threshold_factor * self.rep.props
+        threshold = cst.PRUNE_PROPS_COEFF * self.rep.props
         to_prune: list[int] = []
         for idx, key in enumerate(self.proc_q):
-            baseline = self.tree[key[:-skip_gen]].props
-            if len(key) <= safe_gen:
+            baseline = self.tree[key[: -cst.PRUNE_SKIP_GEN]].props
+            if len(key) <= cst.PRUNE_SAFE_GEN:
                 continue
             # Prune if the overall compactness isn't competitive
             if self.tree[key].props > threshold:
@@ -144,16 +136,12 @@ class Board:
         if len(obj.children) == 0:
             return []
         # Search for the first object that's not decomposed and apply decomposition
-        # TODO Need to redo occlusion
         elif not obj.leaf and (match := inventory.find_decomposition_match(obj)):
             log.info(f"Match at distance: {match.dist} to {match.left}")
-            # TODO: Figure out full set of operations/links we need for use
-            # of objects prescribed from context.
-            # TODO HACK this assumes color and translation allowed only
             linked = match.left.copy(match.right.anchor, leaf=True, process="Inv")
             return [("I", linked)]
         elif obj.leaf:
-            # NOTE: We run in reverse order to handle occlusion
+            # TODO Need to redo occlusion
             decompositions: list[tuple[str, Object]] = []
             for rev_idx, child in enumerate(obj.children[::-1]):
                 child_candidates = self._decomposition(child, inventory=inventory)

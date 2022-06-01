@@ -7,13 +7,13 @@ we can divide and conquer the problem.
 from arc.task import Task
 
 # TODO Task 30 needs Align action touched up
-solved_tasks = {8, 16, 39, 188, 194, 309}
+solved_tasks = {8, 16, 39, 188, 194}
 
 # Large tilings tend to take a while, keep them separate
 large_tiling = {17, 61, 287, 305}
 
 # Tasks from the DreamCoder work, symmetry-based
-dc_solved = {83, 87, 106, 116, 140, 142, 150, 152, 155, 164, 179, 210, 249, 380}
+dc_solved = {83, 87, 106, 116, 140, 142, 150, 152, 155, 164, 210, 249, 380}
 
 # Tasks from the Minimum Description Length work
 # These tend to be more static in structure across cases
@@ -21,6 +21,27 @@ mdl_solved = {10, 28, 31, 36, 53, 100, 263, 276, 373, 374}
 
 fast_solved = solved_tasks | dc_solved | mdl_solved
 all_solved = fast_solved | large_tiling
+
+# Set of tasks that engage in significant compute at present, and are not
+# under consideration for finding a solution. We filter these out to
+# save time on larger runs.
+blacklist = {
+    54,
+    74,
+    77,
+    80,
+    110,
+    118,
+    162,
+    165,
+    175,
+    205,
+    208,
+    243,
+    255,
+    265,
+    303,
+}
 
 
 class TaskTraits:

@@ -11,7 +11,7 @@ from arc.comparisons import (
     compare_position,
     compare_rotation,
 )
-from arc.template import Environment, Template, MatchInventory
+from arc.template import Template
 from arc.generator import ActionType, Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object, ObjectPath, sort_layer
@@ -26,14 +26,12 @@ ActionArg: TypeAlias = int | Selector | tuple[str, None | dict[int, int]]
 
 
 class SolutionNode:
-    """A single object operation, with Objects and Context as inputs.
+    """A single object operation
 
     The Solution nodes form a directed graph that convert the input signal
-    to the appropriate output. It involves 3 concepts:
-      - Description: Labeling all objects present in the inputs or selection.
-      - Selection: Assigning objects into groups based on their labels.
-      - Transformation: Modify selected objects in ways determined by accessory
-          information (contained in the args attribute).
+    to the appropriate output. It takes two forms:
+      - Variable: Assigning a property at a Path based on a selection.
+      - Transform: Transform selected input Objects and insert at Paths.
     """
 
     def __init__(
@@ -398,7 +396,6 @@ class Solution:
 
     def create_nodes(self, cases: list[Scene]) -> bool:
         self.nodes = []
-        # TODO WIP
         if self.level_attention is not None:
             inputs = [
                 Inventory(case.input.rep).depth[self.level_attention] for case in cases
@@ -447,44 +444,6 @@ class Solution:
             else:
                 return False
         return True
-
-    # def generate(self, test_scene: Scene) -> Object:
-    #     """Create the test output."""
-    #     log.info(f"Generating test scene: {test_scene.idx}")
-    #     if self.characteristic:
-    #         log.info(f"  Decomposing with characteristic: {self.characteristic}")
-    #         test_scene.input.decompose(characteristic=self.characteristic)
-    #     else:
-    #         log.info(f"  Decomposing without characteristic")
-    #         test_scene.input.decompose()
-
-    #     # TODO WIP
-    #     if self.level_attention is not None:
-    #         log.info(f"  Using level attention: {self.level_attention}")
-    #         input = Inventory(test_scene.input.rep).depth[self.level_attention]
-    #     else:
-    #         log.info(f"  No level attention")
-    #         input = Inventory(test_scene.input.rep).all
-    #     log.debug(f"Test case input_group: {input}")
-
-    #     # NOTE: Just depth-1 solution graphs for now
-    #     matches: MatchInventory = defaultdict(list)
-    #     env: Environment = {}
-    #     for node in sorted(self.nodes, key=lambda x: list(x.paths)[0]):
-    #         if isinstance(node, VariableNode):
-    #             if (value := node.apply(input)) is not None:
-    #                 env[list(node.paths)[0]] = value
-
-    #         elif isinstance(node, TransformNode):
-    #             objs = node.apply(input)
-    #             for path, obj in zip(node.paths, objs):
-    #                 matches[path].append(obj)
-    #         else:
-    #             log.warning(f"Unsupported SolutionNode type: {node}")
-
-    #     output: Object = self.template.generate(env, matches)
-
-    #     return output
 
     def apply_node(
         self, node: SolutionNode, input: list[Object]
@@ -537,6 +496,6 @@ class Solution:
                 self.template.apply_object(path, item)
             else:
                 self.template.apply_variable(path, item)
-        output: Object = self.template._generate(self.template.frame)
+        output: Object = self.template.generate(self.template.frame)
 
         return output

@@ -70,21 +70,6 @@ class Template:
         """
         return len(self.variables)
 
-    # @property
-    # def holes(self) -> int:
-    #     """How many container objects are missing.
-
-    #     These should be plugged by valid scene matches.
-    #     """
-    #     # The, odd, null case is when the root object has children but no structure
-    #     # is identified
-    #     if tuple([]) in self.variables and self.variables[tuple([])] == {"children"}:
-    #         return -1
-    #     child_vars = {
-    #         key: val for key, val in self.variables.items() if "children" in val
-    #     }
-    #     return len(child_vars)
-
     @staticmethod
     def _init_structure() -> StructureDef:
         return {
@@ -145,44 +130,10 @@ class Template:
             else:
                 log.warning("Need to implement Generator value insertions")
 
-    # def generate(self, env: Environment, matches: MatchInventory) -> Object:
-    #     """Create an Object representing the template."""
-
-    #     # Use the environment to fill in any variables.
-    #     structure = deepcopy(self.structure)
-    #     for obj_path, val in env.items():
-    #         obj_args = self.get_base(obj_path.base, structure)
-    #         if not isinstance(obj_path.property, str):
-    #             continue
-    #         obj_args["props"][obj_path.property] = val
-
-    #     # Eliminate any paths contained in the matches
-    #     log.info(f"Generating with {len(matches)} matches:")
-    #     for path, _ in sorted(matches.items(), reverse=True):
-    #         log.info(f"  -> {path}")
-    #         if path:
-    #             self.get_base(path.base[:-1], structure)["children"].pop(path.base[-1])
-
-    #     # Create an Object based on the StructureDef
-    #     frame: Object = self._generate(structure)
-
-    #     # Lastly, add any transformed objects into the frame
-    #     for path, objs in sorted(matches.items()):
-    #         if not path:
-    #             if len(objs) != 1:
-    #                 log.warning("Multiple Objects inserted at frame root")
-    #             return objs[0]
-
-    #         target = frame.get_path(path.base[:-1])
-    #         if target:
-    #             target.children.extend(objs)
-
-    #     return frame
-
     @classmethod
-    def _generate(cls, structure: StructureDef) -> Object:
+    def generate(cls, structure: StructureDef) -> Object:
         children: list[Object] = [
-            cls._generate(child_struc) for child_struc in structure["children"]
+            cls.generate(child_struc) for child_struc in structure["children"]
         ]
         if "?" in "".join(structure["generator"]):
             generator = None
@@ -240,15 +191,15 @@ class Template:
         struc = Template._init_structure()
         vars: set[PropertyPath] = set([])
 
-        # Basic properties
-        for prop in ["row", "col", "color", "row_bound", "col_bound"]:
+        # Basic properties. cst.DEFAULT contains each with a default value
+        for prop in cst.DEFAULT:
             cts = collections.Counter([getattr(obj, prop) for obj in objs])
             if len(cts) == 1:
                 if (val := next(iter(cts))) != cst.DEFAULT[prop]:
                     struc["props"][prop] = val
             else:
                 struc["props"][prop] = "?"
-                vars.add(prop)
+                vars.add(prop)  # type: ignore (prop is seen as generic 'str')
 
         ## The Generator requires a few levels of handling
         gen_repr: tuple[str, ...] = tuple([])

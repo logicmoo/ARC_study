@@ -28,9 +28,12 @@ class Constants:
     }
 
     # Processing
+    PRUNE_PROPS_COEFF = 4  # Max factor above the best representation allowed
+    PRUNE_SKIP_GEN = 2  # Generations to look back for prune comparison
+    PRUNE_SAFE_GEN = 3  # Generations from root to always allow before pruning
+
     MAX_DIST = 10000
     MAX_BLOBS = 10
-    CHILD_DIST = 2  # TODO: Additional measure of distance when comparing children?
     DEFAULT_MAX_ITER = 100  # Default maximum rounds of decomposition
 
     STEPS_BASE: list[tuple[int, int]] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
@@ -58,25 +61,4 @@ class Constants:
         9: "Brown",
         10: "Trans",
         11: "Cutout",
-    }
-
-    # Set of tasks that engage in significant compute at present, and are not
-    # under consideration for finding a solution. We filter these out to
-    # save time on larger runs.
-    blacklist = {
-        54,
-        74,
-        77,
-        80,
-        110,
-        118,
-        162,
-        165,
-        175,
-        205,
-        208,
-        243,
-        255,
-        265,
-        303,
     }

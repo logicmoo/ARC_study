@@ -117,7 +117,6 @@ class Transform:
         """Creates a new object based on the set of actions and arguments."""
         result = object
         for action, args in zip(self.actions, self.args):
-            # TODO WIP Inspection of Action args seems necessary soon.
             try:
                 result = action(result, *args)
             except:
@@ -149,11 +148,9 @@ class Generator:
         self,
         transforms: list[Transform],
         copies: list[int] = [],
-        bound: tuple[int, int] | None = None,
     ):
         self.transforms = transforms
         self.copies = copies or [0] * len(self.transforms)
-        self.bound = bound
 
     def __bool__(self) -> bool:
         return len(self.transforms) > 0
@@ -181,7 +178,7 @@ class Generator:
         return tuple(codes)
 
     @classmethod
-    def from_codes(cls, codes: tuple[str, ...], bound: tuple[int, int] | None = None):
+    def from_codes(cls, codes: tuple[str, ...]) -> "Generator":
         transforms: list[Transform] = []
         arg_copies: list[int] = []
         for code in codes:
@@ -190,7 +187,7 @@ class Generator:
                 copies = int(search_obj.groups()[0])
             transforms.append(Transform.from_code(code))
             arg_copies.append(copies)
-        return cls(transforms=transforms, copies=arg_copies, bound=bound)
+        return cls(transforms=transforms, copies=arg_copies)
 
     @property
     def char(self) -> str:

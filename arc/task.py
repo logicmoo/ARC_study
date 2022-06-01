@@ -204,7 +204,6 @@ class Task:
 
     def validate_links(self, template: Template, char: str) -> bool:
         """Check if a template can generate the cases."""
-        # TODO WIP
         for case_idx, scene in enumerate(self.cases):
             template.init_frame()
             for path, link in scene.link_maps[char].items():
@@ -213,12 +212,12 @@ class Task:
                 else:
                     template.apply_variable(path, link.value)
 
-            if scene.output.rep != template._generate(template.frame):
+            if scene.output.rep != template.generate(template.frame):
                 log.info(f" *** Scene {case_idx} failed validation under {char}")
                 return False
         return True
 
-    def validate_solution(self, solution: Solution) -> bool:
+    def validate_solution(self, solution: Solution) -> None:
         """Check if the solution nodes yield matching results for cases."""
         template = solution.template
         flags: list[list[bool]] = [[True] * len(self.cases)] * len(solution.nodes)
@@ -235,10 +234,8 @@ class Task:
                         template.apply_object(path, item)
 
             # If the solution is purely transformational, we are done
-            g = template._generate(template.frame)
-            if g == scene.output.rep:
+            if template.generate(template.frame) == scene.output.rep:
                 continue
-            self.temp[case_idx] = g
 
             for idx, node in enumerate(solution.nodes):
                 if isinstance(node, VariableNode):

@@ -1,6 +1,5 @@
 from collections import Counter
 from functools import cached_property
-import logging
 from typing import Any
 import uuid
 
@@ -426,15 +425,6 @@ class Object:
             output = output[:max_lines] + ["..."]
         return "\n".join(output)
 
-    # TODO Redo printing of information to be more coherent with other methods
-    def info(self, level: logger.LogLevel = "info", max_lines: int = 10) -> None:
-        """Log the Object's hierarchy, with full header info."""
-        # Quit early if we can't print the output
-        if log.level > getattr(logging, level.upper()):
-            return
-        for line in self.hier_repr().split("\n"):
-            getattr(log, level)(line)
-
     def copy(
         self, anchor: tuple[int, int, int] | None = None, **kwargs: Any
     ) -> "Object":
@@ -536,14 +526,12 @@ class Object:
 
     @cached_property
     def order_trans_row(self) -> tuple[int, float]:
-        # TODO the "default" order should be the full size of the dimension, not 1
         if self.category == "Dot":
             return (1, 1)
         return translational_order(self.grid, row_axis=True)[0]
 
     @cached_property
     def order_trans_col(self) -> tuple[int, float]:
-        # TODO the "default" order should be the full size of the dimension, not 1
         if self.category == "Dot":
             return (1, 1)
         return translational_order(self.grid, row_axis=False)[0]

@@ -179,7 +179,7 @@ class Scene:
                 kid, inventory, request_tree[idx], path + (idx,)
             )
             log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
-            total_dist += kid_dist + cst.CHILD_DIST
+            total_dist += kid_dist
             all_deltas.extend(kid_deltas)
         if all_deltas and total_dist < result[0]:
             log.debug(f"Choosing children with distance: {total_dist}")

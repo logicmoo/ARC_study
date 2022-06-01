@@ -15,7 +15,6 @@ intrinsic_properties = ["color", "category", "meta", "is_symm", "symm"]
 child_relations = ["child_count"]
 ranked_parameters = ["row", "col", "area", "size", "height", "width"]
 ranked_properties = [item + "-rank" for item in ranked_parameters]
-# TODO When to include reverse ranking?
 ranked_properties += [item + "-rev_rank" for item in ranked_parameters]
 
 all_traits = intrinsic_properties + ranked_properties
@@ -30,7 +29,6 @@ class Labeler:
             self.label_intrinsic_properties(group, intrinsic_properties)
             for param in ranked_parameters:
                 self.obj_rank(group, param=param)
-                # TODO When to include reverse ranking?
                 self.obj_rank(group, param=param, reverse=True)
 
     def label_intrinsic_properties(
