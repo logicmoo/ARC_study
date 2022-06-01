@@ -11,7 +11,7 @@ from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
-from arc.task_analysis import TaskTraits
+from arc.task_analysis import TaskTraits, all_solved
 from arc.util import logger
 from arc.util import profile
 
@@ -197,7 +197,8 @@ class ARC:
             mem_mb = profile.get_mem() / 1000
             task_seconds = time.time() - task_start
             if "Solved" in task.traits:
-                status = logger.color_text("Passed   ", "green")
+                mark: str = "*" if task.idx not in all_solved else ""
+                status = logger.color_text(f"{mark}Passed   ", "green")
                 solved = True
             elif timeout:
                 status = logger.color_text("Timeout  ", "purple")
