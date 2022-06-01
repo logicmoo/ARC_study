@@ -4,20 +4,18 @@ from typing import Literal, TypeAlias, TypedDict
 from arc.actions import Action
 
 from arc.definitions import Constants as cst
-from arc.object import Object
+from arc.object import Object, ObjectPath
 from arc.generator import Generator, Transform
-from arc.types import ObjectPath
+from arc.types import BaseObjectPath, PropertyPath
 from arc.util import logger
 from arc.util.common import all_equal
 
 log = logger.fancy_logger("Template", level=20)
 
-GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
-PropertyPath: TypeAlias = str | GeneratorPath
 Unknown: TypeAlias = Literal["?"]
-Variables: TypeAlias = dict[ObjectPath, set[PropertyPath]]
+Variables: TypeAlias = set[ObjectPath]
 
-Environment: TypeAlias = dict[tuple[ObjectPath, PropertyPath], int]
+Environment: TypeAlias = dict[ObjectPath, int]
 MatchInventory: TypeAlias = dict[ObjectPath, list[Object]]
 
 
@@ -25,6 +23,8 @@ class CommonProperties(TypedDict, total=False):
     row: int | Unknown
     col: int | Unknown
     color: int | Unknown
+    row_bound: int | Unknown
+    col_bound: int | Unknown
 
 
 class StructureDef(TypedDict):
@@ -40,23 +40,25 @@ class Template:
         self, structure: StructureDef | None = None, variables: Variables | None = None
     ) -> None:
         self.structure: StructureDef = structure or Template._init_structure()
-        self.variables: Variables = variables or {}
+        self.variables: Variables = variables or set([])
+
+        # Used during Object generation
+        self.frame: StructureDef = Template._init_structure()
 
     def __repr__(self) -> str:
         structure: str = "\n  ".join(self._display_node(tuple([])))
-        variables: str = "\n  ".join(map(str, self.variables.items()))
+        variables: str = "\n  ".join(map(str, self.variables))
         return f"\nFrame:\n  {structure}\nVariables:\n  {variables}"
 
     def __bool__(self) -> bool:
         return True
-        # return self.holes == -1
 
     @classmethod
     def from_outputs(
-        cls, objs: list[Object], path: ObjectPath = tuple([])
+        cls, objs: list[Object], base: BaseObjectPath = tuple([])
     ) -> "Template":
         """Return the specification for the common elements among Objects."""
-        structure, variables = Template.recursive_compare(objs, path)
+        structure, variables = Template.recursive_compare(objs, base)
         return cls(structure, variables)
 
     @property
@@ -66,22 +68,22 @@ class Template:
         The goal of a good Template representation is to minimize how
         many variables require insertion to generate the output.
         """
-        return sum(len(var) for var in self.variables.values())
+        return len(self.variables)
 
-    @property
-    def holes(self) -> int:
-        """How many container objects are missing.
+    # @property
+    # def holes(self) -> int:
+    #     """How many container objects are missing.
 
-        These should be plugged by valid scene matches.
-        """
-        # The, odd, null case is when the root object has children but no structure
-        # is identified
-        if tuple([]) in self.variables and self.variables[tuple([])] == {"children"}:
-            return -1
-        child_vars = {
-            key: val for key, val in self.variables.items() if "children" in val
-        }
-        return len(child_vars)
+    #     These should be plugged by valid scene matches.
+    #     """
+    #     # The, odd, null case is when the root object has children but no structure
+    #     # is identified
+    #     if tuple([]) in self.variables and self.variables[tuple([])] == {"children"}:
+    #         return -1
+    #     child_vars = {
+    #         key: val for key, val in self.variables.items() if "children" in val
+    #     }
+    #     return len(child_vars)
 
     @staticmethod
     def _init_structure() -> StructureDef:
@@ -91,10 +93,10 @@ class Template:
             "children": [],
         }
 
-    def _display_node(self, path: ObjectPath) -> list[str]:
+    def _display_node(self, path: BaseObjectPath) -> list[str]:
         depth = len(path)
         indent = "  " * depth
-        node = self.get_path(path, self.structure)
+        node = self.get_base(path, self.structure)
         args = [f"{arg} = {val}" for arg, val in node["props"].items()]
         if gen := node["generator"]:
             args.append(f"generator = {gen}")
@@ -105,68 +107,77 @@ class Template:
         return display
 
     @staticmethod
-    def get_path(path: ObjectPath, root: StructureDef) -> StructureDef:
+    def get_base(base: BaseObjectPath, root: StructureDef) -> StructureDef:
         node: StructureDef = root
-        if not path:
+        if not base:
             return node
-        for child_idx in path:
+        for child_idx in base:
             try:
-                node = node.get("children", [])[child_idx]
+                node = node["children"][child_idx]
             except:
-                log.warning(f"Can't access path {path}")
+                log.warning(f"Can't access base path {base}")
         return node
 
-    def match_request(self) -> set[ObjectPath]:
-        # TODO WIP
-        request: set[ObjectPath] = set([])
-        for path, properties in self.variables.items():
-            # If the children don't match, we have an unbounded gap in the structure
-            if "children" in properties:
-                request.add(path)
-            elif len(properties) > 0:
-                request.add(path)
+    @staticmethod
+    def get_value(path: ObjectPath, root: StructureDef) -> int | None:
+        node: StructureDef = Template.get_base(path.base, root)
+        if node and isinstance(path.property, str):
+            return node["props"].get(path.property, cst.DEFAULT[path.property])
 
-        log.info(f"Requesting matches for paths {request}")
-        return request
+    def init_frame(self) -> None:
+        self.frame: StructureDef = deepcopy(self.structure)
 
-    def generate(self, env: Environment, matches: MatchInventory) -> Object:
-        """Create an Object representing the template."""
+    def apply_object(self, path: ObjectPath, object: Object) -> None:
+        obj_def, _ = Template.recursive_compare([object], tuple([]))
+        if not path:
+            self.frame = obj_def
+            return
 
-        # Use the environment to fill in any variables.
-        structure = deepcopy(self.structure)
-        for (obj_path, prop_path), val in env.items():
-            obj_args = self.get_path(obj_path, structure)
-            if isinstance(prop_path, str):
-                obj_args[prop_path] = val
+        target = self.get_base(path.base[:-1], self.frame)
+        if target:
+            target["children"][path.base[-1]] = obj_def
+
+    def apply_variable(self, path: ObjectPath, value: int) -> None:
+        target = self.get_base(path.base, self.frame)
+        if target:
+            if isinstance(path.property, str):
+                target["props"][path.property] = value
             else:
-                idx = prop_path[0]
-                gen = obj_args["generator"]
-                code = gen[idx]
-                if len(prop_path) == 1:
-                    # Swap the copies arg (last char) out for the value
-                    code = code[:-1] + str(val)
-                obj_args["generator"] = gen[:idx] + (code,) + gen[idx:]
+                log.warning("Need to implement Generator value insertions")
 
-        # Eliminate any paths contained in the matches
-        for path, _ in sorted(matches.items(), reverse=True):
-            if path:
-                self.get_path(path[:-1], structure)["children"].pop(path[-1])
+    # def generate(self, env: Environment, matches: MatchInventory) -> Object:
+    #     """Create an Object representing the template."""
 
-        # Create an Object based on the StructureDef
-        frame: Object = self._generate(structure)
+    #     # Use the environment to fill in any variables.
+    #     structure = deepcopy(self.structure)
+    #     for obj_path, val in env.items():
+    #         obj_args = self.get_base(obj_path.base, structure)
+    #         if not isinstance(obj_path.property, str):
+    #             continue
+    #         obj_args["props"][obj_path.property] = val
 
-        # Lastly, add any transformed objects into the frame
-        for path, objs in sorted(matches.items()):
-            if path == tuple([]):
-                if len(objs) != 1:
-                    log.warning("Multiple Objects inserted at frame root")
-                return objs[0]
+    #     # Eliminate any paths contained in the matches
+    #     log.info(f"Generating with {len(matches)} matches:")
+    #     for path, _ in sorted(matches.items(), reverse=True):
+    #         log.info(f"  -> {path}")
+    #         if path:
+    #             self.get_base(path.base[:-1], structure)["children"].pop(path.base[-1])
 
-            target = frame.get_path(path[:-1])
-            if target:
-                target.children.extend(objs)
+    #     # Create an Object based on the StructureDef
+    #     frame: Object = self._generate(structure)
 
-        return frame
+    #     # Lastly, add any transformed objects into the frame
+    #     for path, objs in sorted(matches.items()):
+    #         if not path:
+    #             if len(objs) != 1:
+    #                 log.warning("Multiple Objects inserted at frame root")
+    #             return objs[0]
+
+    #         target = frame.get_path(path.base[:-1])
+    #         if target:
+    #             target.children.extend(objs)
+
+    #     return frame
 
     @classmethod
     def _generate(cls, structure: StructureDef) -> Object:
@@ -182,20 +193,20 @@ class Template:
 
     @staticmethod
     def recursive_compare(
-        objs: list["Object"], path: ObjectPath
+        objs: list["Object"], base: BaseObjectPath
     ) -> tuple[StructureDef, Variables]:
         structure = Template._init_structure()
-        variables: Variables = collections.defaultdict(set)
+        variables: Variables = set([])
 
         # Get the info present at this level
         common, vars = Template.compare_properties(objs)
-        structure.update(common)  # type: ignore
-        if vars:
-            variables[path] = vars
+        structure.update(common)
+        for var in vars:
+            variables.add(ObjectPath(base, var))
 
         # Look at each child via recursion
         child_structures: list[StructureDef] = []
-        child_variables: Variables = collections.defaultdict(set)
+        child_variables: Variables = set([])
         dot_ct = 0
         child_match: bool = True
         for idx, kid_group in enumerate(zip(*[obj.children for obj in objs])):
@@ -203,10 +214,10 @@ class Template:
             # as there could be a common child that's not at a constant layer
             # or constant depth.
             kid_structure, kid_variables = Template.recursive_compare(
-                list(kid_group), path=path + (idx,)
+                list(kid_group), base=base + (idx,)
             )
             child_structures.append(kid_structure)
-            child_variables.update(kid_variables)
+            child_variables |= kid_variables
             if not all_equal(kid_group):
                 child_match = False
             if any([kid.category == "Dot" for kid in kid_group]):
@@ -216,10 +227,10 @@ class Template:
             # If the child structures meets regularity constraints, use them
             if dot_ct <= 5 or child_match:
                 structure["children"] = child_structures
-                variables.update(child_variables)
+                variables |= child_variables
             # otherwise, we insert a generic variable for "children"
             else:
-                variables[path] = {"children"}
+                variables.add(ObjectPath(base))
         return structure, variables
 
     @staticmethod
@@ -229,15 +240,11 @@ class Template:
         struc = Template._init_structure()
         vars: set[PropertyPath] = set([])
 
-        # Row, Column, and Color are handled simply
-        for prop, default in [
-            ("row", cst.DEFAULT_ROW),
-            ("col", cst.DEFAULT_COL),
-            ("color", cst.DEFAULT_COLOR),
-        ]:
+        # Basic properties
+        for prop in ["row", "col", "color", "row_bound", "col_bound"]:
             cts = collections.Counter([getattr(obj, prop) for obj in objs])
             if len(cts) == 1:
-                if (val := next(iter(cts))) != default:
+                if (val := next(iter(cts))) != cst.DEFAULT[prop]:
                     struc["props"][prop] = val
             else:
                 struc["props"][prop] = "?"

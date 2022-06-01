@@ -1,21 +1,21 @@
-from collections import defaultdict
 from typing import TypeAlias
 
 from arc.board import Board, Inventory
 from arc.definitions import Constants as cst
-from arc.object import Object
-from arc.object_delta import ObjectDelta, ObjectPath
-from arc.types import SceneData
+from arc.object import Object, ObjectPath
+from arc.object_delta import ObjectDelta, VariableLink
+from arc.template import Variables
+from arc.types import BaseObjectPath, SceneData
 from arc.util import logger
 
 log = logger.fancy_logger("Scene", level=20)
 
-
 # We use "Link" for the usage of ObjectDelta when comparing input to output
 # where it will also have the 'path' property set
-Link: TypeAlias = ObjectDelta
-LinkMap: TypeAlias = dict[str, list[Link]]
+Link: TypeAlias = ObjectDelta | VariableLink
+LinkMap: TypeAlias = dict[ObjectPath, Link]
 LinkResult: TypeAlias = tuple[int, list[ObjectDelta]]
+
 RequestTree: TypeAlias = dict[int, "RequestTree"]
 
 
@@ -51,12 +51,12 @@ class Scene:
     @property
     def dist(self) -> int | None:
         """Transformational distance measured between input and output"""
-        return sum(link.dist for group in self.link_map.values() for link in group)
+        return sum(link.dist for link in self.link_map.values())
 
     @property
     def depth(self) -> int | None:
         """Transformational distance measured between input and output"""
-        depths = {link.left.depth for group in self.link_map.values() for link in group}
+        depths = {link.left.depth for link in self.link_map.values()}
         if len(depths) == 1:
             return depths.pop()
         return None
@@ -84,9 +84,9 @@ class Scene:
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
-    def paths_to_tree(self, request: set[ObjectPath]) -> RequestTree:
+    def paths_to_tree(self, variables: Variables) -> RequestTree:
         tree: RequestTree = {}
-        for path in request:
+        for path in variables:
             curr = tree
             for idx in path:
                 if idx not in curr:
@@ -94,26 +94,56 @@ class Scene:
                 curr = curr[idx]
         return tree
 
-    def match(self, decomp_char: str, match_request: set[ObjectPath]) -> None:
+    def link(self, decomp_char: str, variables: Variables) -> None:
+        """Identify objects + properties that can fill a variable."""
+        inputs: list[Object] = Inventory(self.input.rep).all
+        log.debug(f"Looking for variable links from {len(inputs)} objects:")
+        for obj in inputs:
+            log.debug(obj)
+
+        candidates: LinkMap = {}
+        for obj_path in variables:
+            # TODO Skip Generator links for now
+            if not isinstance(obj_path.property, str):
+                continue
+            log.debug(f"Searching for link to {obj_path}")
+            output_rep = self.output.tree[self.output.characteristic_map[decomp_char]]
+            value = output_rep.get_value(obj_path)
+            if value is None:
+                log.warning(f"Couldn't find {obj_path}")
+                continue
+
+            # TODO Just check the same property among the inputs for now
+            # E.g. if we need a 'color' input, use 'color' from an Inventory object.
+            prop = obj_path.property
+            for obj in inputs:
+                if value == getattr(obj, prop):
+                    log.debug(f"Candidate: {obj}")
+                    candidates[obj_path] = VariableLink(obj, prop, value)
+
+        self.link_maps[decomp_char].update(candidates)
+
+    def match(self, decomp_char: str, variables: Variables) -> None:
         """Identify the minimal transformation set needed from input -> output Board."""
-        request_tree: RequestTree = self.paths_to_tree(match_request)
+        request_tree: RequestTree = self.paths_to_tree(variables)
         _, links = self.recreate(
             self.output.rep, Inventory(self.input.rep), request_tree
         )
 
-        link_map: LinkMap = defaultdict(list)
+        link_map: LinkMap = {}
         for delta in links:
             # Group the inputs to the match by the Generator characteristic
-            link_map[delta.transform.char].append(delta)
+            link_map[ObjectPath(delta.path)] = delta
         self.link_maps[decomp_char] = link_map
         self.current = decomp_char
 
         log.info(f"Scene {self.idx} links | distance ({self.dist}):")
-        for char, deltas in link_map.items():
-            log.info(f"  Transform Characteristic: {char or 'None'}")
-            for delta in deltas:
-                obj1, obj2, trans = delta.left, delta.right, delta.transform
-                log.info(f"    {delta.path}, {trans} | {obj1.id} -> {obj2.id}")
+        for path, link in link_map.items():
+            if isinstance(link, ObjectDelta):
+                obj1, obj2, trans = link.left, link.right, link.transform
+                log.info(f"    {path}, {trans} | {obj1.id} -> {obj2.id}")
+            else:
+                log.info(f"    {path} | {link.left.id} -> {link.property}")
 
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
@@ -121,7 +151,7 @@ class Scene:
         obj: Object,
         inventory: Inventory,
         request_tree: RequestTree,
-        path: ObjectPath = tuple([]),
+        path: BaseObjectPath = tuple([]),
     ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
         log.debug(f"Finding scene match at path: {path}")

@@ -1,5 +1,5 @@
 from arc.generator import Generator
-from arc.object import Object
+from arc.object import Object, ObjectPath
 from arc.template import Template
 
 
@@ -16,7 +16,11 @@ def test_dot_structure() -> None:
             "color": "?",
         },
     }
-    assert template.variables == {tuple([]): {"row", "col", "color"}}
+    assert template.variables == {
+        ObjectPath(property="col"),
+        ObjectPath(property="color"),
+        ObjectPath(property="row"),
+    }
 
     dots_1 = [Object(i, 0, 1) for i in range(1, 6, 2)]
     ctr_1 = Object(children=dots_1)
@@ -46,9 +50,9 @@ def test_dot_structure() -> None:
         "props": {},
     }
     assert template.variables == {
-        (0,): {"color"},
-        (1,): {"color"},
-        (2,): {"color"},
+        ObjectPath((0,), "color"),
+        ObjectPath((1,), "color"),
+        ObjectPath((2,), "color"),
     }
 
 
@@ -62,4 +66,4 @@ def test_generator_structure() -> None:
         "generator": ("R*?",),
         "props": {"row": "?", "col": 1, "color": 1},
     }
-    assert template.variables == {tuple([]): {(0,), "row"}}
+    assert template.variables == {ObjectPath(property=(0,)), ObjectPath(property="row")}

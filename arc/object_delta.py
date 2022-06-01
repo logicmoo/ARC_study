@@ -4,11 +4,29 @@ from arc.definitions import Constants as cst
 from arc.comparisons import ObjectComparison, default_comparisons
 from arc.generator import Transform
 from arc.object import Object
-from arc.types import ObjectPath
+from arc.types import BaseObjectPath
 from arc.util import logger
 
 
 log = logger.fancy_logger("ObjectDelta", level=30)
+
+
+class VariableLink:
+    def __init__(self, left: Object, property: str, value: int) -> None:
+        self.left = left
+        self.property = property
+        self.value = value
+
+    @property
+    def dist(self) -> int:
+        return 2
+
+    @property
+    def _name(self):
+        return f"Var({self.dist}): {self.property}"
+
+    def __repr__(self) -> str:
+        return f"{self._name}: {self.left.id} -> {self.value}"
 
 
 class ObjectDelta:
@@ -24,13 +42,13 @@ class ObjectDelta:
         left: Object,
         right: Object,
         tag: int = 0,
-        path: ObjectPath = tuple(),
+        path: BaseObjectPath = tuple(),
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
         self.left: Object = left
         self.right: Object = right
         self.tag: int = tag
-        self.path: ObjectPath = path
+        self.path: BaseObjectPath = path
         self.null: bool = False
         self.transform: Transform = Transform([])
         self.comparisons = comparisons

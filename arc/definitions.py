@@ -19,9 +19,13 @@ class Constants:
     MAX_ROWS = 30
     MAX_COLS = 30
 
-    DEFAULT_ROW = 0
-    DEFAULT_COL = 0
-    DEFAULT_COLOR = NULL_COLOR
+    DEFAULT = {
+        "row": 0,
+        "col": 0,
+        "color": NULL_COLOR,
+        "row_bound": MAX_ROWS,
+        "col_bound": MAX_COLS,
+    }
 
     # Processing
     MAX_DIST = 10000

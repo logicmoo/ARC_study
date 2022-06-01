@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, TypeAlias
-from arc.object import Object
+from arc.object import Object, sort_layer
 from arc.object_delta import ObjectDelta
 
 from arc.labeler import Labeler, all_traits
@@ -159,4 +159,4 @@ class Selector:
                 if (labels[obj.uid].get(crit.trait) in crit.values) != crit.negated:
                     new_selection.append(obj)
             selection = new_selection
-        return selection
+        return sort_layer(selection)

@@ -11,15 +11,14 @@ from arc.comparisons import (
     compare_position,
     compare_rotation,
 )
-from arc.template import Template, MatchInventory
+from arc.template import Environment, Template, MatchInventory
 from arc.generator import ActionType, Transform
 from arc.labeler import Labeler, all_traits
-from arc.object import Object
-from arc.object_delta import ObjectDelta, ObjectPath
+from arc.object import Object, ObjectPath, sort_layer
+from arc.object_delta import ObjectDelta, VariableLink
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.util import logger
-from arc.util import dictutil
 
 log = logger.fancy_logger("Solution", level=30)
 
@@ -40,16 +39,70 @@ class SolutionNode:
     def __init__(
         self,
         selector: Selector,
-        action: ActionType = Action.identity,
-        args: tuple[ActionArg, ...] = tuple(),
         paths: set[ObjectPath] = set([]),
     ) -> None:
         # TODO: For now, only depth-1 Solutions, so assume no children.
         # self.children: list[SolutionNode] = []
         self.selector = selector
+        self.paths = paths
+
+    def apply(self, input: list[Object]) -> list[Object] | int | None:
+        return None
+
+
+class VariableNode(SolutionNode):
+    def __init__(
+        self, selector: Selector, property: str, paths: set[ObjectPath] = set([])
+    ) -> None:
+        super().__init__(selector, paths)
+        self.property = property
+
+    def __repr__(self) -> str:
+        return f"Select {self.selector}.{self.property} -> {self.paths}"
+
+    @classmethod
+    def from_variable(
+        cls,
+        inputs: list[list[Object]],
+        links: list[VariableLink],
+        path: ObjectPath,
+    ) -> "SolutionNode | None":
+        link_node: list[list[Object]] = [[link.left] for link in links]
+
+        if not all(len(group) == 1 for group in link_node):
+            log.warning("VariableNode can't handle multi-groups")
+            return None
+
+        selector = Selector(inputs, link_node)
+        property = links[0].property
+
+        return cls(selector, property, {path})
+
+    def apply(self, input: list[Object]) -> int | None:
+        selection = self.selector.select(input)
+        # TODO Consider making labels the source of truth for properties?
+        # labeler = Labeler([selection])
+        if len(selection) > 1:
+            log.warning("VariableNode produced more than one object")
+            return None
+        elif not selection:
+            log.warning(f"Unable to select {self.selector} from {input}")
+            return None
+
+        return getattr(selection[0], self.property)
+
+
+class TransformNode(SolutionNode):
+    def __init__(
+        self,
+        selector: Selector,
+        action: ActionType = Action.identity,
+        args: tuple[ActionArg, ...] = tuple(),
+        paths: set[ObjectPath] = set([]),
+    ) -> None:
+        super().__init__(selector, paths)
         self.action = action
         self.args = args
-        self.paths = paths
 
     def __repr__(self) -> str:
         return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.paths}"
@@ -60,7 +113,7 @@ class SolutionNode:
         inputs: list[list[Object]],
         link_node: list[list[ObjectDelta]],
         action: ActionType = Action.identity,
-    ) -> list["SolutionNode | None"]:
+    ) -> list["TransformNode | None"]:
         selectors: list[Selector] = []
 
         # Try a single selector first
@@ -84,17 +137,11 @@ class SolutionNode:
         else:
             selectors = [selector]
 
-        nodes: list[SolutionNode | None] = []
+        nodes: list[TransformNode | None] = []
         for selector, subnode in zip(selectors, bundle):
-
-            args: tuple[ActionArg, ...] = ()
-
+            args: tuple[ActionArg, ...] = tuple([])
             deltas = [delta for group in subnode for delta in group]
-
-            # TODO This is a simple starting implementation for structuring
-            # 'Target' should be developed further
-            # target represents the location in the output structure for the result
-            paths = {delta.path for delta in deltas}
+            paths = {ObjectPath(delta.path) for delta in deltas}
 
             if action in pair_actions:
                 log.debug(f"Determining selector for {action.__name__}")
@@ -247,6 +294,7 @@ class Solution:
 
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
+        msg += [f"Level attention: {self.level_attention}"]
         for node in self.nodes:
             msg.append(str(node))
         msg.append(str(self.template))
@@ -258,8 +306,13 @@ class Solution:
         This aims to approximately identify the SolutionNodes we need.
         """
         self.bundled: dict[str, list[ObjectDelta]] = defaultdict(list)
+        self.var_targets: dict[ObjectPath, list[VariableLink]] = defaultdict(list)
         for case in cases:
-            self.bundled = dictutil.merge(self.bundled, case.link_map)
+            for path, link in case.link_map.items():
+                if isinstance(link, ObjectDelta):
+                    self.bundled[link.transform.char].append(link)
+                else:
+                    self.var_targets[path].append(link)
 
         # Attempt replacing degenerate transforms to reduce unique transforms used
         # E.g. Rotate 90 and Flipping could be equivalent for some objects
@@ -320,19 +373,20 @@ class Solution:
         # TODO WIP
         # We check a few rules to know when we should attempt a higher-level transform
         for left, right in subs:
-            log.debug(f"Checking subsitution: {left} -> {right}")
+            log.debug(f"Checking substitution: {left} -> {right}")
 
             # Case 1: Double transforms ("ws", "fp") -> map to pairwise action
             if left in self.transform_map:
                 self.transform_map[right].extend(self.transform_map.pop(left))
             elif set(left) & set(self.transform_map.keys()):
                 for char in left:
-                    present = any([char in case.link_map for case in cases])
-                    complete = all([char in case.link_map for case in cases])
+                    present = char in self.bundled
+                    scene_set = set(delta.tag for delta in self.bundled[char])
+                    complete = len(scene_set) == len(cases)
                     # Case 2: Non-constant transforms across cases
                     if present and not complete:
                         self.transform_map[right].extend(self.transform_map.pop(char))
-                    # Case 3: There's overlap in the subsitution key, but no other compelling
+                    # Case 3: There's overlap in the substitution key, but no other compelling
                     # evidence, so we just add the pairwise transforms as actions to attempt
                     # if the original action fails.
                     elif present and complete:
@@ -352,6 +406,11 @@ class Solution:
         else:
             inputs = [Inventory(case.input.rep).all for case in cases]
 
+        for path, links in self.var_targets.items():
+            raw_node = VariableNode.from_variable(inputs, links, path)
+            if raw_node:
+                self.nodes.append(raw_node)
+
         for codes, base_chars in self.transform_map.items():
             # The link node is a list of lists of ObjectDeltas related to the transform
             link_node: list[list[ObjectDelta]] = []
@@ -368,13 +427,13 @@ class Solution:
             final_nodes: list[SolutionNode] = []
             if len(codes) <= 1:
                 action = Action()[codes]
-                raw_nodes = SolutionNode.from_action(inputs, link_node, action)
+                raw_nodes = TransformNode.from_action(inputs, link_node, action)
                 final_nodes.extend(filter(None, raw_nodes))
             else:
                 for char in codes:
                     log.info(f"Attempting Solution node for char '{char}'")
                     action = Action()[char]
-                    raw_nodes = SolutionNode.from_action(inputs, link_node, action)
+                    raw_nodes = TransformNode.from_action(inputs, link_node, action)
                     nodes = filter(None, raw_nodes)
                     if nodes:
                         final_nodes.extend(nodes)
@@ -389,32 +448,95 @@ class Solution:
                 return False
         return True
 
-    def generate(self, test_scene: Scene) -> Object:
-        """Create the test output."""
-        log.info(f"Generating test scene: {test_scene.idx}")
-        if self.characteristic:
-            log.info(f"  Decomposing with characteristic: {self.characteristic}")
-            test_scene.input.decompose(characteristic=self.characteristic)
-        else:
-            log.info(f"  Decomposing without characteristic")
-            test_scene.input.decompose()
+    # def generate(self, test_scene: Scene) -> Object:
+    #     """Create the test output."""
+    #     log.info(f"Generating test scene: {test_scene.idx}")
+    #     if self.characteristic:
+    #         log.info(f"  Decomposing with characteristic: {self.characteristic}")
+    #         test_scene.input.decompose(characteristic=self.characteristic)
+    #     else:
+    #         log.info(f"  Decomposing without characteristic")
+    #         test_scene.input.decompose()
 
-        # TODO WIP
+    #     # TODO WIP
+    #     if self.level_attention is not None:
+    #         log.info(f"  Using level attention: {self.level_attention}")
+    #         input = Inventory(test_scene.input.rep).depth[self.level_attention]
+    #     else:
+    #         log.info(f"  No level attention")
+    #         input = Inventory(test_scene.input.rep).all
+    #     log.debug(f"Test case input_group: {input}")
+
+    #     # NOTE: Just depth-1 solution graphs for now
+    #     matches: MatchInventory = defaultdict(list)
+    #     env: Environment = {}
+    #     for node in sorted(self.nodes, key=lambda x: list(x.paths)[0]):
+    #         if isinstance(node, VariableNode):
+    #             if (value := node.apply(input)) is not None:
+    #                 env[list(node.paths)[0]] = value
+
+    #         elif isinstance(node, TransformNode):
+    #             objs = node.apply(input)
+    #             for path, obj in zip(node.paths, objs):
+    #                 matches[path].append(obj)
+    #         else:
+    #             log.warning(f"Unsupported SolutionNode type: {node}")
+
+    #     output: Object = self.template.generate(env, matches)
+
+    #     return output
+
+    def apply_node(
+        self, node: SolutionNode, input: list[Object]
+    ) -> list[tuple[ObjectPath, Object | int]]:
+        results: list[tuple[ObjectPath, Object | int]] = []
+        if isinstance(node, VariableNode):
+            if (value := node.apply(input)) is not None:
+                path = min(node.paths)
+                results.append((path, value))
+        elif isinstance(node, TransformNode):
+            objs = sort_layer(node.apply(input))
+            for path, obj in zip(sorted(node.paths), objs):
+                results.append((path, obj))
+        else:
+            log.warning(f"Unsupported SolutionNode type: {node}")
+        return results
+
+    def inventory(self, scene: Scene) -> list[Object]:
         if self.level_attention is not None:
             log.info(f"  Using level attention: {self.level_attention}")
-            input = Inventory(test_scene.input.rep).depth[self.level_attention]
+            input = Inventory(scene.input.rep).depth[self.level_attention]
         else:
             log.info(f"  No level attention")
-            input = Inventory(test_scene.input.rep).all
-        log.debug(f"Test case input_group: {input}")
+            input = Inventory(scene.input.rep).all
+        log.debug(f"  input_group: {input}")
+        return input
+
+    def generate2(self, scene: Scene) -> Object:
+        """Create the test output."""
+        log.info(f"Generating scene: {scene.idx}")
+        if self.characteristic:
+            log.info(f"  Decomposing with characteristic: {self.characteristic}")
+            scene.input.decompose(characteristic=self.characteristic)
+        else:
+            log.info(f"  Decomposing without characteristic")
+            scene.input.decompose()
+
+        input = self.inventory(scene)
 
         # NOTE: Just depth-1 solution graphs for now
-        matches: MatchInventory = defaultdict(list)
-        for node in sorted(self.nodes, key=lambda x: x.paths):
-            objs = node.apply(input)
-            for path, obj in zip(node.paths, objs):
-                matches[path].append(obj)
+        self.template.init_frame()
+        outputs: list[tuple[ObjectPath, Object | int]] = []
+        for node in self.nodes:
+            if result := self.apply_node(node, input):
+                outputs.extend(result)
 
-        output: Object = self.template.generate({}, matches)
+        for path, item in sorted(outputs):
+            log.info(f"Inserting {item} at {path}")
+            if isinstance(item, Object):
+                self.template.apply_object(path, item)
+            else:
+                self.template.apply_variable(path, item)
+        output: Object = self.template._generate(self.template.frame)
 
         return output

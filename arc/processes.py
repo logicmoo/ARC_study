@@ -226,16 +226,18 @@ class Tiling(Process):
 
         r_ct = np.ceil(object.shape[0] / row_stride)
         c_ct = np.ceil(object.shape[1] / col_stride)
-        bound = None
+        row_bound, col_bound = (cst.MAX_ROWS, cst.MAX_COLS)
         if object.shape[0] % row_stride or object.shape[1] % col_stride:
-            bound = object.shape
-        log.debug(f"Tiling with {row_stride}x{col_stride} cell, bound: {bound}")
+            row_bound, col_bound = object.shape
+        log.debug(
+            f"Tiling with {row_stride}x{col_stride} cell, bound: {row_bound, col_bound}"
+        )
         codes: tuple[str, ...] = tuple([])
         if r_ct > 1:
             codes += (f"R*{r_ct-1}",)
         if c_ct > 1:
             codes += (f"C*{c_ct-1}",)
-        gen = Generator.from_codes(codes, bound=bound)
+        gen = Generator.from_codes(codes)
         log.debug(f"Generator: {gen}")
         # TODO For now, assume unit cells are not worth sub-analyzing
         cell = Object.from_points(
@@ -247,6 +249,8 @@ class Tiling(Process):
             *object.loc,
             generator=gen,
             children=[cell],
+            row_bound=row_bound,
+            col_bound=col_bound,
             leaf=True,
             process="Tile",
         )
@@ -308,8 +312,14 @@ class Reflection(Process):
         # TODO Should we assume unit cells are not worth sub-analyzing?
         # e.g. should we set leaf=True in the args below
         cell = Object.from_points(cell_pts, leaf=True, process="Cell")
+        # TODO Embed this check into Object somehow?
         candidate = Object(
-            *object.loc, generator=gen, children=[cell], leaf=True, process="Refl"
+            *object.loc,
+            color=cell.color,
+            generator=gen,
+            children=[cell],
+            leaf=True,
+            process="Refl",
         )
         return candidate
 

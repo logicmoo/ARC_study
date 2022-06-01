@@ -34,6 +34,11 @@ class Inventory:
         inventory[obj.generator.char].append(obj)
         self.depth[depth].append(obj)
         obj.depth = depth
+
+        # If an object is a single-color blob, we shouldn't need to pick out children
+        if obj.meta == "Blob" and len(obj.c_rank) == 1 and not obj.generator:
+            return inventory
+
         for kid in obj.children:
             # TODO Handle Cutout in a better way?
             # It currently can't be used as an object on it's own because self.points is empty.

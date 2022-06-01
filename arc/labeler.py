@@ -10,10 +10,10 @@ log = logger.fancy_logger("Description", level=30)
 # and choosing amongst possible uniquely identifying trait sets,
 # intrinsic properties are valued first, over ranked, and "color"
 # would be used over "category".
-intrinsic_properties = ["color", "row", "category", "meta", "is_symm", "symm"]
+intrinsic_properties = ["color", "category", "meta", "is_symm", "symm"]
 # TODO Include properties based on children
 child_relations = ["child_count"]
-ranked_parameters = ["size", "height", "width"]
+ranked_parameters = ["row", "col", "area", "size", "height", "width"]
 ranked_properties = [item + "-rank" for item in ranked_parameters]
 # TODO When to include reverse ranking?
 ranked_properties += [item + "-rev_rank" for item in ranked_parameters]

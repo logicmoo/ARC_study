@@ -1,5 +1,5 @@
 """Define custom types used throughout the codebase."""
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, Literal, TypeAlias, TypedDict
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class TaskData(TypedDict):
     test: list[SceneData]
 
 
-Grid: TypeAlias = np.ndarray[Any, np.dtype[np.int64]]
+Grid: TypeAlias = np.ndarray[Any, np.dtype[np.int64]]  # type: ignore
 
 
 Position: TypeAlias = tuple[int, int]
@@ -28,5 +28,8 @@ PointList: TypeAlias = list[Point]
 PointSet: TypeAlias = set[Point]
 PointDict: TypeAlias = dict[Position, int]
 
+Property: TypeAlias = Literal["row", "col", "color", "row_bound", "col_bound"]
 
-ObjectPath: TypeAlias = tuple[int, ...]
+BaseObjectPath: TypeAlias = tuple[int, ...]
+GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
+PropertyPath: TypeAlias = Property | GeneratorPath

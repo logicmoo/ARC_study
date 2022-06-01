@@ -1,13 +1,13 @@
-import collections
 from typing import Any
 
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
+from arc.object_delta import ObjectDelta
 from arc.scene import Scene
-from arc.solution import Solution
-from arc.template import MatchInventory, Template
+from arc.solution import Solution, TransformNode, VariableNode
+from arc.template import Template
 from arc.types import TaskData
 from arc.util import logger
 
@@ -37,6 +37,7 @@ class Task:
 
         # Utility
         self.traits: set[str] = set([])
+        self.temp = {}
 
         # Used for solutioning
         self.context: dict[str, Any] = {}
@@ -79,10 +80,12 @@ class Task:
         self.decompose()
         if not self.match():
             log.warning("No valid template and matches found.")
+            return
 
         self.solution = Solution(**self.context)
         self.solution.bundle(self.cases)
         self.solution.create_nodes(self.cases)
+        self.validate_solution(self.solution)
         self.test()
 
     def determine_template(self, char: str) -> Template:
@@ -141,7 +144,7 @@ class Task:
     def align_representation(self, boards: list[Board], char: str) -> None:
         """Match the characteristics of the decompositions across scenes."""
         # Set the new representation
-        log.info(f" === Choosing representation characteristic: {char}")
+        log.info(f"Aligning representation on characteristic: {char}")
         for board in boards:
             key = board.characteristic_map[char]
             board.current = key
@@ -154,17 +157,17 @@ class Task:
         log.info(f"Top characteristics: {top_chars}")
 
         best_score: float = cst.MAX_DIST
-        best: str = ""
+        best: str | None = None
         best_rep = top_chars[0][0]
         templates: dict[str, Template] = {}
         for rep_score, char in top_chars:
             self.align_representation(outputs, char)
             template = self.determine_template(char)
-            match_request = template.match_request()
             for scene in self.cases:
-                scene.match(char, match_request)
+                scene.match(char, template.variables)
+                scene.link(char, template.variables)
 
-            if not self.validate(template, char):
+            if not self.validate_links(template, char):
                 continue
 
             scene_dists = list(filter(None, [scene.dist for scene in self.cases]))
@@ -172,46 +175,95 @@ class Task:
             depth = None
             if len(depths) == 1:
                 depth = depths.pop()
-                self.context["attention"] = depth
             log.info(f"Scene depth: {depth}, distances {scene_dists}")
 
             # TODO WIP Find a reasonable tradeoff between the different metrics
             # regarding the input to output match:
             #  representation compactness, match distance, template variables
-            score = (rep_score / best_rep) + len(match_request) + sum(scene_dists)
+            score = (rep_score / best_rep) + template.props + sum(scene_dists)
             if score < best_score:
                 best_score = score
                 best = char
                 templates[char] = template
 
-        if not best:
+        if best is None:
             return False
 
-        log.info(f"Choosing output char: {best} at distance {best_score}")
-        self.context["template"] = templates[best]
+        log.info(f" === Choosing output char: {best} at distance {best_score}")
         for scene in self.cases:
             scene.current = best
+        self.context["template"] = templates[best]
+        depths = {scene.depth for scene in self.cases}
+        if len(depths) == 1:
+            self.context["attention"] = depth = depths.pop()
         self.align_representation(outputs, best)
         return True
 
     def generate(self, test_idx: int = 0) -> Object:
-        return self.solution.generate(self.tests[test_idx])
+        return self.solution.generate2(self.tests[test_idx])
 
-    def validate(self, template: Template, char: str) -> bool:
+    def validate_links(self, template: Template, char: str) -> bool:
         """Check if a template can generate the cases."""
         # TODO WIP
         for case_idx, scene in enumerate(self.cases):
-            # TODO Flatten links in scenes. Only group during solution.bundle
-            flat_links = [
-                link for group in scene.link_maps[char].values() for link in group
-            ]
-            matches: MatchInventory = collections.defaultdict(list)
-            for link in flat_links:
-                matches[link.path] = [link.right.copy()]
-            if scene.output.rep != template.generate({}, matches):
-                log.info(f"Scene {case_idx} failed validation under {char}")
+            template.init_frame()
+            for path, link in scene.link_maps[char].items():
+                if isinstance(link, ObjectDelta):
+                    template.apply_object(path, link.right.copy())
+                else:
+                    template.apply_variable(path, link.value)
+
+            if scene.output.rep != template._generate(template.frame):
+                log.info(f" *** Scene {case_idx} failed validation under {char}")
                 return False
         return True
+
+    def validate_solution(self, solution: Solution) -> bool:
+        """Check if the solution nodes yield matching results for cases."""
+        template = solution.template
+        flags: list[list[bool]] = [[True] * len(self.cases)] * len(solution.nodes)
+        for case_idx, scene in enumerate(self.cases):
+            log.info(f"Validating scene {case_idx}")
+            input = solution.inventory(scene)
+            template.init_frame()
+            for idx, node in enumerate(solution.nodes):
+                if isinstance(node, TransformNode):
+                    flags[idx] = [False]
+                    for path, item in solution.apply_node(node, input):
+                        if isinstance(item, int):
+                            continue
+                        template.apply_object(path, item)
+
+            # If the solution is purely transformational, we are done
+            g = template._generate(template.frame)
+            if g == scene.output.rep:
+                continue
+            self.temp[case_idx] = g
+
+            for idx, node in enumerate(solution.nodes):
+                if isinstance(node, VariableNode):
+                    path = list(node.paths)[0]
+                    frame_val = Template.get_value(path, template.frame)
+                    scene_val = scene.output.rep.get_value(path)
+                    variable_val = node.apply(input)
+                    log.debug(
+                        f"{path} in Scene: {scene_val}, Frame: {frame_val}, Var: {variable_val}"
+                    )
+                    if frame_val == scene_val:
+                        pass
+                    elif variable_val == scene_val:
+                        log.info(f"  Variable Needed {node}")
+                        flags[idx][case_idx] = False
+                    else:
+                        log.info(f"  Unchecked val: {path}")
+
+        to_remove: list[int] = []
+        for idx, truth in enumerate(flags):
+            if all(truth):
+                to_remove.append(idx)
+
+        for idx in to_remove[::-1]:
+            solution.nodes.pop(idx)
 
     def test(self) -> bool:
         success = 0

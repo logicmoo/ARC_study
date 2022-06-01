@@ -5,14 +5,15 @@ from typing import Any
 import uuid
 
 from arc.types import (
+    BaseObjectPath,
     BoardData,
     Grid,
-    ObjectPath,
     Point,
     PointDict,
     PointList,
     Position,
     PositionList,
+    PropertyPath,
 )
 from arc.util import logger
 from arc.grid_methods import (
@@ -35,6 +36,46 @@ class EmptyObject(Exception):
     pass
 
 
+class ObjectPath:
+    """Accessor for any parameter of an Object."""
+
+    def __init__(
+        self, base: BaseObjectPath = tuple([]), property: PropertyPath | None = None
+    ) -> None:
+        self.base = base
+        self.property = property
+
+    def __eq__(self, other: "ObjectPath") -> bool:
+        return self.base == other.base and self.property == other.property
+
+    def __lt__(self, other: "ObjectPath") -> bool:
+        if self.base < other.base:
+            return True
+        elif self.base > other.base:
+            return False
+        else:
+            return str(self.property) < str(other.property)
+
+    def __bool__(self) -> bool:
+        if self.base == tuple([]) and self.property is None:
+            return False
+        else:
+            return True
+
+    def __hash__(self) -> int:
+        return hash(self.__repr__())
+
+    def __iter__(self):
+        return self.base.__iter__()
+
+    def __repr__(self) -> str:
+        prop_str = f".{self.property}" if self.property else ""
+        return f"{self.base}{prop_str}"
+
+    def depth(self) -> int:
+        return len(self.base)
+
+
 class Object:
     """Hierarchical representation of an image."""
 
@@ -45,6 +86,8 @@ class Object:
         color: int = cst.NULL_COLOR,
         children: list["Object"] | None = None,
         generator: Generator | None = None,
+        row_bound: int = cst.MAX_ROWS,
+        col_bound: int = cst.MAX_COLS,
         name: str = "",
         leaf: bool = False,
         process: str = "",
@@ -54,6 +97,8 @@ class Object:
         self.color: int = color
         self.children: list["Object"] = children or []
         self.generator: Generator = generator or Generator([])
+        self.row_bound: int = row_bound
+        self.col_bound: int = col_bound
 
         # Utility attributes
         self.name: str = name
@@ -154,28 +199,24 @@ class Object:
         if self.category == "Dot":
             return {(0, 0): self.color}
 
-        if self.generator:
-            if not self.generator.bound:
-                return self.materialized.points
-
-            bounded_pts: PointDict = {}
-            row_b, col_b = self.generator.bound
-            for loc, color in self.materialized.points.items():
-                if loc[0] < row_b and loc[1] < col_b:
-                    bounded_pts[loc] = int(color)
-            return bounded_pts
-
         pts: PointDict = {}
-        # NOTE The order of children determines layering, bottom first
-        for child in self.children:
-            for loc, val in child.points.items():
-                new_loc = (child.row + loc[0], child.col + loc[1])
-                if val == cst.NEGATIVE_COLOR:
-                    pts.pop(new_loc, None)
-                elif val != cst.NULL_COLOR:
-                    pts[new_loc] = int(val)
-                else:
-                    pts[new_loc] = self.color
+        if self.generator:
+            pts.update(self.materialized.points)
+        else:
+            # NOTE The order of children determines layering, bottom first
+            for child in self.children:
+                for loc, val in child.points.items():
+                    new_loc = (child.row + loc[0], child.col + loc[1])
+                    if val == cst.NEGATIVE_COLOR:
+                        pts.pop(new_loc, None)
+                    elif val != cst.NULL_COLOR:
+                        pts[new_loc] = int(val)
+                    else:
+                        pts[new_loc] = self.color
+
+        for loc in list(pts.keys()):
+            if loc[0] >= self.row_bound or loc[1] >= self.col_bound:
+                pts.pop(loc)
         return pts
 
     @cached_property
@@ -404,6 +445,8 @@ class Object:
         new_args = {
             "children": [kid.copy() for kid in self.children],
             "generator": self.generator,
+            "row_bound": self.row_bound,
+            "col_bound": self.col_bound,
             "name": self.name,
             "leaf": self.leaf,
             "process": self.process,
@@ -521,10 +564,23 @@ class Object:
             return (0, 0)
         return rotational_order(self.grid)
 
-    def get_path(self, path: ObjectPath) -> "Object | None":
-        if not path:
-            return self
-        try:
-            return self.children[path[0]].get_path(path[1:])
-        except:
-            log.warning(f"Can't access path {path} in {self}")
+    def get_path(self, path: BaseObjectPath) -> "Object | None":
+        result = self
+        for child_idx in path:
+            try:
+                result = result.children[child_idx]
+            except:
+                log.warning(f"Can't access path {path} in {self}")
+                return None
+        return result
+
+    def get_value(self, path: ObjectPath) -> int | None:
+        target = self.get_path(path.base)
+        if target and isinstance(path.property, str):
+            return getattr(target, path.property)
+
+        return None
+
+
+def sort_layer(objects: list[Object]) -> list[Object]:
+    return list(sorted(objects, key=lambda x: (-x.size, x.row, x.col)))
