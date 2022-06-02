@@ -11,7 +11,7 @@ from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
-from arc.task_analysis import TaskTraits, all_solved
+from arc.task_analysis import TaskTraits, all_solved, blacklist
 from arc.util import logger
 from arc.util import profile
 
@@ -55,7 +55,7 @@ class ARC:
         self.load_tasks(idxs=idxs, folder=folder, quiet=quiet)
 
         self.default_log_levels: dict[str, int] = self.get_log_levels()
-        self.blacklist: set[int] = cst.blacklist
+        self.blacklist: set[int] = blacklist
         self.stats: dict[str, int] = Counter()
 
     @staticmethod
