@@ -12,7 +12,8 @@ def solver(task_idx: int):
     with st.expander(f"Visual overview of Task {task_idx}", expanded=True):
         st.image(cached_plot(task_idx))
 
-    _arc[task_idx].decompose()
+    _arc[task_idx].solve()
+
     # Decomposition
     with st.expander(f"Decomposition of Scene {scene_idx}", expanded=True):
         left, right = st.columns(2)
@@ -22,11 +23,9 @@ def solver(task_idx: int):
             st.image(cached_plot((task_idx, int(scene_idx), "output"), "Tree"))
 
     # linking
-    _arc[task_idx].link()
     with st.expander(f"Linking between the Scene's input and output", expanded=True):
         st.image(cached_plot((task_idx, int(scene_idx))))
 
     # Solution
-    _arc[task_idx].infer()
     with st.expander(f"The Solution determined from all cases:", expanded=True):
         st.write(_arc[task_idx].solution)

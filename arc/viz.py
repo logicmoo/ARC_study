@@ -6,6 +6,7 @@ from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 
 from arc.definitions import Constants as cst
+from arc.link import ObjectDelta
 from arc.object import Object
 from arc.board import Board
 from arc.scene import Scene
@@ -106,9 +107,9 @@ def scene_layout(scene: Scene) -> Layout:
 
 def match_layout(scene: Scene) -> Layout:
     layout: Layout = []
-    for delta_list in scene.link_map.values():
-        for delta in delta_list:
-            inp, out, trans = delta.right, delta.left, delta.transform
+    for link in scene.link_map.values():
+        if isinstance(link, ObjectDelta):
+            inp, out, trans = link.left, link.right, link.transform
             left: PlotDef = {"grid": inp.grid, "name": inp.category}
             name = ", ".join([action.__name__ for action in trans.actions])
             right: PlotDef = {"grid": out.grid, "name": name}

@@ -209,7 +209,7 @@ class Task:
             if not self.validate_links(template, char):
                 continue
 
-            scene_dists = list(filter(None, [scene.dist for scene in self.cases]))
+            scene_dists = [scene.dist for scene in self.cases if scene.dist is not None]
             depths = {scene.depth for scene in self.cases}
             depth = None
             if len(depths) == 1:
@@ -219,11 +219,13 @@ class Task:
             # TODO WIP Find a reasonable tradeoff between the different metrics
             # regarding the input to output match:
             #  representation compactness, match distance, template variables
-            score = (rep_score / best_rep) + template.props + sum(scene_dists)
+            score = (rep_score / best_rep) + sum(scene_dists)
             if score < best_score:
                 best_score = score
                 best = char
-                log.info(f" > Output characteristic: {best} at distance {best_score}")
+                log.info(
+                    f" > Output characteristic: {best} at distance {best_score:.2f}"
+                )
 
         return best
 
@@ -242,7 +244,7 @@ class Task:
                     template.apply_variable(path, link.value)
 
             if scene.output.rep != template.generate(template.frame):
-                log.info(f" *** Scene {case_idx} failed validation under {char}")
+                log.info(f" x Scene {case_idx} failed validation under {char}")
                 return False
         return True
 
@@ -287,9 +289,12 @@ class Task:
         for idx, truth in enumerate(flags):
             if all(truth):
                 to_remove.append(idx)
+                log.info(f"Unneeded SolutionNode: {solution.nodes[idx]}")
 
         for idx in to_remove[::-1]:
             solution.nodes.pop(idx)
+
+        log.info(f" + Candidate Solution:\n{self.solution}", extra={"max_lines": 50})
 
     def test(self) -> bool:
         """Test all test cases for correctness."""

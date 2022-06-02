@@ -8,4 +8,4 @@ class Settings:
     cache_ttl: int = 3600  # Seconds until st.cache expiration
     log_level: int = 30
     grid_width: int = 10
-    grid_height: int = 4
+    grid_height: int = 40

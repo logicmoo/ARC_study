@@ -6,7 +6,7 @@ from arc.app.solver import solver
 from arc.app.settings import Settings
 
 
-def run_ui(start_mode: str = "Dev", n: int = 100) -> None:
+def run_ui(start_mode: str = "Dev", n: int = Settings.N) -> None:
     """Central UI logic governing components to display."""
     init_session()
     mode_selector(start_mode, n)
