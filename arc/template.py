@@ -15,9 +15,6 @@ log = logger.fancy_logger("Template", level=20)
 Unknown: TypeAlias = Literal["?"]
 Variables: TypeAlias = set[ObjectPath]
 
-Environment: TypeAlias = dict[ObjectPath, int]
-MatchInventory: TypeAlias = dict[ObjectPath, list[Object]]
-
 
 class CommonProperties(TypedDict, total=False):
     row: int | Unknown

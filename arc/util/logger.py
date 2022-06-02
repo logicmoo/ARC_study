@@ -100,7 +100,8 @@ class FancyFormatter(logging.Formatter):
         else:
             pretty = str(pretty)
         total_lines = pretty.count("\n")
-        if total_lines > curr_conf["max_lines"]:
+        max_lines = record_dict.get("max_lines") or curr_conf["max_lines"]
+        if total_lines > max_lines:
             lines = pretty.splitlines()
             # TODO Abstract away the lines left after truncation (e.g. the 2's and 4)
             trunc = total_lines - 6

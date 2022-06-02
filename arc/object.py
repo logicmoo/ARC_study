@@ -106,7 +106,7 @@ class Object:
         self.leaf: bool = leaf
         self.process: str = process
 
-        # Attributes used during matching
+        # Attributes used during linking
         self.depth: int | None = None
 
     ## Constructors
@@ -409,6 +409,10 @@ class Object:
         """Detailed info on object and its children"""
         indent = "  " * tab
         output = [indent + self.__repr__()]
+
+        if self.generator:
+            output.append(f"{indent}  Generator{self.generator}")
+
         dot_kids = 0
         for child in self.children:
             if child.category == "Dot":
@@ -418,8 +422,6 @@ class Object:
         if dot_kids >= max_dots:
             output.append(f"{indent}  ...{dot_kids} Dots total")
 
-        if self.generator:
-            output.append(f"{indent}  Gen{self.generator}")
         # Limit output to 'max_lines' by truncating remainder
         if len(output) > max_lines and "..." not in output:
             output = output[:max_lines] + ["..."]

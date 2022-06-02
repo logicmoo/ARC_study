@@ -14,7 +14,7 @@ log = logger.fancy_logger("Scene", level=20)
 # where it will also have the 'path' property set
 Link: TypeAlias = ObjectDelta | VariableLink
 LinkMap: TypeAlias = dict[ObjectPath, Link]
-LinkResult: TypeAlias = tuple[int, list[ObjectDelta]]
+LinkResult: TypeAlias = tuple[int, LinkMap]
 LinkTree: TypeAlias = dict[int, "LinkTree"]
 
 
@@ -106,13 +106,31 @@ class Scene:
         return tree
 
     def link(self, decomp_char: str, variables: Variables) -> None:
+        """Identify the minimal transformation set needed from input -> output Board."""
+        # Begin by checking for transformable Objects
+        link_tree: LinkTree = self.paths_to_tree(variables)
+        _, link_map = self.recreate(
+            self.output.rep, Inventory(self.input.rep), link_tree
+        )
+
+        # Then determine links due to variables insertion
+        link_map.update(self.variable_link(decomp_char, variables))
+
+        self.link_maps[decomp_char] = link_map
+        self.current = decomp_char
+
+        log.info(f"Scene {self.idx} links | distance ({self.dist}):")
+        for _, link in link_map.items():
+            log.info(f"    {link}")
+
+    def variable_link(self, decomp_char: str, variables: Variables) -> LinkMap:
         """Identify objects + properties that can fill a variable."""
         inputs: list[Object] = Inventory(self.input.rep).all
         log.debug(f"Looking for variable links from {len(inputs)} objects:")
         for obj in inputs:
             log.debug(obj)
 
-        candidates: LinkMap = {}
+        link_map: LinkMap = {}
         for obj_path in variables:
             # TODO Skip Generator links for now
             if not isinstance(obj_path.property, str):
@@ -131,27 +149,11 @@ class Scene:
             for obj in inputs:
                 if value == getattr(obj, prop):
                     log.debug(f"Candidate: {obj}")
-                    candidates[obj_path] = VariableLink(
+                    link_map[obj_path] = VariableLink(
                         obj, target, obj_path.base, prop, value
                     )
 
-        self.link_maps[decomp_char].update(candidates)
-
-    def match(self, decomp_char: str, variables: Variables) -> None:
-        """Identify the minimal transformation set needed from input -> output Board."""
-        link_tree: LinkTree = self.paths_to_tree(variables)
-        _, links = self.recreate(self.output.rep, Inventory(self.input.rep), link_tree)
-
-        link_map: LinkMap = {}
-        for delta in links:
-            # Group the inputs to the match by the Generator characteristic
-            link_map[ObjectPath(delta.base)] = delta
-        self.link_maps[decomp_char] = link_map
-        self.current = decomp_char
-
-        log.info(f"Scene {self.idx} links | distance ({self.dist}):")
-        for _, link in link_map.items():
-            log.info(f"    {link}")
+        return link_map
 
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
@@ -163,18 +165,18 @@ class Scene:
     ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
         log.debug(f"Finding scene match at path: {base}")
-        result: LinkResult = (cst.MAX_DIST, [])
+        result: LinkResult = (cst.MAX_DIST, {})
         delta = inventory.find_scene_match(obj)
         if delta:
             delta.base = base
             # TODO We add the scene index to the deltas to avoid heavy structuring later on
             # (i.e. avoid dicts of lists of lists)
             delta.tag = self.idx
-            result = (delta.dist, [delta])
+            result = (delta.dist, {ObjectPath(base): delta})
             log.debug(f"Found node match: {result}")
 
         total_dist = 0
-        all_deltas: list[ObjectDelta] = []
+        link_map: LinkMap = {}
         for idx, kid in enumerate(obj.children):
             # TODO Handle Cutout in a better way?
             # It currently can't be used as an object on it's own because self.points is empty.
@@ -183,16 +185,16 @@ class Scene:
             # Skip any children for which we don't need a match
             if idx not in link_tree:
                 continue
-            kid_dist, kid_deltas = self.recreate(
+            kid_dist, kid_map = self.recreate(
                 kid, inventory, link_tree[idx], base + (idx,)
             )
-            log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
+            log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_map}")
             total_dist += kid_dist
-            all_deltas.extend(kid_deltas)
-        if all_deltas and total_dist < result[0]:
+            link_map.update(kid_map)
+        if link_map and total_dist < result[0]:
             log.debug(f"Choosing children with distance: {total_dist}")
-            for delta in all_deltas:
-                log.debug(f"  {delta}")
-            return (total_dist, all_deltas)
+            for link in link_map.values():
+                log.debug(f"  {link}")
+            return (total_dist, link_map)
         else:
             return result

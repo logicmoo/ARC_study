@@ -78,8 +78,6 @@ class VariableNode(SolutionNode):
 
     def apply(self, input: list[Object]) -> int | None:
         selection = self.selector.select(input)
-        # TODO Consider making labels the source of truth for properties?
-        # labeler = Labeler([selection])
         if len(selection) > 1:
             log.warning("VariableNode produced more than one object")
             return None
@@ -471,7 +469,7 @@ class Solution:
         log.debug(f"  input_group: {input}")
         return input
 
-    def generate2(self, scene: Scene) -> Object:
+    def generate(self, scene: Scene) -> Object:
         """Create the test output."""
         log.info(f"Generating scene: {scene.idx}")
         if self.characteristic:

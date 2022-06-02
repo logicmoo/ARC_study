@@ -1,5 +1,3 @@
-from typing import Any
-
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
@@ -24,7 +22,6 @@ class Task:
         cases: All 'training' scenes for the task.
         tests: All 'test' scenes for the task.
         solution: The process to transform the input to the output.
-        context: Additional information that might come from Task-level study.
         traits: Single-word descriptors of the Task. Used for analytics, grouping.
     """
 
@@ -35,13 +32,14 @@ class Task:
         self.cases: list[Scene] = []
         self.tests: list[Scene] = []
 
+        # A solve run will create a Solution instance
+        self.solution: Solution = Solution()
+
         # Utility
         self.traits: set[str] = set([])
+        self.template_map: dict[str, Template] = {}
         self.validation: dict[str, Object] = {}
-
-        # Used for solutioning
-        self.context: dict[str, Any] = {}
-        self.solution: Solution = Solution()
+        self.fail: str = ""
 
         # Load scenes, cases ("train" data) and tests
         for scene_idx, scene_data in enumerate(task_data["train"]):
@@ -51,10 +49,12 @@ class Task:
             self.tests.append(Scene(idx=scene_idx, data=scene_data))
 
     def __getitem__(self, arg: int | str) -> Scene:
+        """Retrieve a Scene by index.  (Convenience method)"""
         match arg:  # pragma: no cover
             case int(idx):
                 return self.cases[idx]
             case str(test_code):
+                # Use 'T1' to access a test (or any leading char...)
                 try:
                     return self.tests[int(test_code[1:])]
                 except KeyError:
@@ -83,16 +83,43 @@ class Task:
 
     def solve(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
-        self.decompose()
-        if not self.match():
-            log.warning("No valid template and matches found.")
+        if (input_char := self.decompose()) is None:
+            log.warning("Solution failed during decomposition.")
+            self.fail = "Decomposition"
             return
 
-        self.solution = Solution(**self.context)
+        if (output_char := self.link()) is None:
+            log.warning("No valid template and matches found.")
+            self.fail = "Link"
+            return
+
+        self.init_solution(input_char, output_char)
         self.solution.bundle(self.cases)
         self.solution.create_nodes(self.cases)
         self.validate_solution(self.solution)
         self.test()
+
+    def init_solution(self, input_char: str, output_char: str) -> None:
+        """Initialize a Solution instance from the characteristic info."""
+        template = self.template_map[output_char]
+        log.debug(f"Template chosen: {template}")
+        for scene in self.cases:
+            scene.current = output_char
+
+        outputs = [case.output for case in self.cases]
+        self.align_boards(outputs, output_char)
+
+        # Determine attention from depth
+        depth: int | None = None
+        depths = {scene.depth for scene in self.cases}
+        if len(depths) == 1:
+            depth = depths.pop()
+
+        self.solution = Solution(
+            characteristic=input_char,
+            attention=depth,
+            template=template,
+        )
 
     def determine_template(self, char: str) -> Template:
         """Determine any common elements in the output Grids.
@@ -100,39 +127,43 @@ class Task:
         This also provides a basic frame on which to build the test case outputs."""
         output_reps = [case.output.rep for case in self.cases]
         template = Template.from_outputs(output_reps)
-        log.info(f"Template: {template}")
+        log.debug(f"Template: {template}")
+        # log.debug(f"Template: {template}", extra={"max_lines": 20})
         return template
 
     def decompose(
         self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         init: bool = False,
-    ) -> None:
+    ) -> str | None:
         """Apply decomposition across all cases, learning context and iterating."""
-        log.info(" + Decomposition")
+        log.info(" --- Decomposition")
         inputs = [case.input for case in self.cases]
         outputs = [case.output for case in self.cases]
 
-        for idx, board in enumerate(inputs):
-            board.decompose(max_iter=max_iter, init=init)
-            log.info(f"Scene {idx} input rep | props {board.rep.props}:")
-            log.info(board.rep)
+        for idx, input in enumerate(inputs):
+            input.decompose(max_iter=max_iter, init=init)
+            log.info(f"Scene {idx} input rep | props {input.rep.props}: {input.rep}")
+            log.debug(f"\n{input}")
 
         # Choose the best-performing input characteristic
         # This helps the output decomposition by providing a more uniform
         # Inventory across the cases
-        input_stats = self.rank_characteristics(inputs)
-        if input_stats:
-            self.context["characteristic"] = input_stats[0][1]
-            self.align_representation(inputs, input_stats[0][1])
+        best: str | None = None
+        if input_stats := self.rank_characteristics(inputs):
+            best = input_stats[0][1]
+            self.align_boards(inputs, best)
 
-        for idx, (inp, out) in enumerate(zip(inputs, outputs)):
-            inventory = Inventory(inp.rep)
-            out.decompose(max_iter=max_iter, inventory=inventory, init=init)
-            log.info(f"Scene {idx} input rep | props {out.rep.props}:")
-            log.info(out.rep)
+        for idx, (input, output) in enumerate(zip(inputs, outputs)):
+            inventory = Inventory(input.rep)
+            output.decompose(max_iter=max_iter, inventory=inventory, init=init)
+            log.info(f"Scene {idx} input rep | props {output.rep.props}: {output.rep}")
+            log.debug(f"\n{output}")
+
+        return best
 
     def rank_characteristics(self, boards: list[Board]) -> list[tuple[int, str]]:
+        """Sort the characteristics used in representations by total properties."""
         char_stats: list[tuple[int, str]] = []
 
         common_chars: set[str] = set(boards[0].characteristic_map.keys())
@@ -140,37 +171,39 @@ class Task:
             common_chars &= board.characteristic_map.keys()
 
         for char in common_chars:
-            score = 0
-            for board in boards:
-                score += board.tree[board.characteristic_map[char]].props
+            score = sum(
+                board.tree[board.characteristic_map[char]].props for board in boards
+            )
             char_stats.append((score, char))
 
         return sorted(char_stats)
 
-    def align_representation(self, boards: list[Board], char: str) -> None:
+    def align_boards(self, boards: list[Board], char: str) -> None:
         """Match the characteristics of the decompositions across scenes."""
         # Set the new representation
-        log.info(f"Aligning representation on characteristic: {char}")
+        log.info(f" * Aligning representation on characteristic: {char}")
         for board in boards:
             key = board.characteristic_map[char]
             board.current = key
 
-    def match(self) -> bool:
-        """Match input and output objects for each case."""
-        log.info(f" + Matching")
+    def link(self) -> str | None:
+        """Link input and output objects for each case.
+
+        This identifies likely connections between the input and output boards.
+        """
+        log.info(f" --- Linking")
         outputs = [case.output for case in self.cases]
         top_chars = self.rank_characteristics(outputs)[: cst.TOP_K_CHARS]
         log.info(f"Top characteristics: {top_chars}")
 
-        best_score: float = cst.MAX_DIST
         best: str | None = None
+        best_score: float = cst.MAX_DIST
         best_rep = top_chars[0][0]
-        templates: dict[str, Template] = {}
         for rep_score, char in top_chars:
-            self.align_representation(outputs, char)
+            self.align_boards(outputs, char)
             template = self.determine_template(char)
+            self.template_map[char] = template
             for scene in self.cases:
-                scene.match(char, template.variables)
                 scene.link(char, template.variables)
 
             if not self.validate_links(template, char):
@@ -190,23 +223,13 @@ class Task:
             if score < best_score:
                 best_score = score
                 best = char
-                templates[char] = template
+                log.info(f" > Output characteristic: {best} at distance {best_score}")
 
-        if best is None:
-            return False
-
-        log.info(f" === Choosing output char: {best} at distance {best_score}")
-        for scene in self.cases:
-            scene.current = best
-        self.context["template"] = templates[best]
-        depths = {scene.depth for scene in self.cases}
-        if len(depths) == 1:
-            self.context["attention"] = depth = depths.pop()
-        self.align_representation(outputs, best)
-        return True
+        return best
 
     def generate(self, test_idx: int = 0) -> Object:
-        return self.solution.generate2(self.tests[test_idx])
+        """Generate a test output by index, using the current Solution."""
+        return self.solution.generate(self.tests[test_idx])
 
     def validate_links(self, template: Template, char: str) -> bool:
         """Check if a template can generate the cases."""
@@ -269,6 +292,7 @@ class Task:
             solution.nodes.pop(idx)
 
     def test(self) -> bool:
+        """Test all test cases for correctness."""
         success = 0
         log.info("Testing:")
         for test_idx, scene in enumerate(self.tests):

@@ -21,9 +21,9 @@ def solver(task_idx: int):
         with right:
             st.image(cached_plot((task_idx, int(scene_idx), "output"), "Tree"))
 
-    # Matching
-    _arc[task_idx].match()
-    with st.expander(f"Matching between the Scene's input and output", expanded=True):
+    # linking
+    _arc[task_idx].link()
+    with st.expander(f"Linking between the Scene's input and output", expanded=True):
         st.image(cached_plot((task_idx, int(scene_idx))))
 
     # Solution
