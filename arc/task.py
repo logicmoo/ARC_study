@@ -4,7 +4,7 @@ from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
-from arc.object_delta import ObjectDelta
+from arc.link import ObjectDelta
 from arc.scene import Scene
 from arc.solution import Solution, TransformNode, VariableNode
 from arc.template import Template
@@ -37,7 +37,7 @@ class Task:
 
         # Utility
         self.traits: set[str] = set([])
-        self.temp = {}
+        self.validation: dict[str, Object] = {}
 
         # Used for solutioning
         self.context: dict[str, Any] = {}
@@ -72,6 +72,12 @@ class Task:
         log.info(self.raw["train"][0]["input"], extra={"fmt": "bare"})
 
     def clean(self, decomp_tree_only: bool = False) -> None:
+        """Remove extra material used during solutioning.
+
+        Once a Solution is created, this method can be called to remove items like
+        the unused nodes of the decomposition tree, freeing memory. This can help
+        ensure a full run on ARC doesn't hit system memory constraints.
+        """
         for scene in self.cases + self.tests:
             scene.clean(decomp_tree_only=decomp_tree_only)
 

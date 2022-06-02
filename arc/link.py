@@ -1,4 +1,4 @@
-from typing import Any
+from abc import ABC, abstractmethod
 
 from arc.definitions import Constants as cst
 from arc.comparisons import ObjectComparison, default_comparisons
@@ -8,12 +8,46 @@ from arc.types import BaseObjectPath
 from arc.util import logger
 
 
-log = logger.fancy_logger("ObjectDelta", level=30)
+log = logger.fancy_logger("Link", level=30)
 
 
-class VariableLink:
-    def __init__(self, left: Object, property: str, value: int) -> None:
+class Link(ABC):
+    def __init__(self, left: Object, right: Object, base: BaseObjectPath) -> None:
         self.left = left
+        self.right = right
+        self.base = base
+
+    @property
+    @abstractmethod
+    def dist(self) -> int:
+        """Returns the 'transformation distance' metric between objects.
+
+        This will depend on the type of link.
+        """
+        return 0
+
+    def __lt__(self, other: "Link") -> bool:
+        return self.dist < other.dist
+
+    @property
+    @abstractmethod
+    def _header(self) -> str:
+        return ""
+
+    def __repr__(self) -> str:
+        return f"{self._header} | {self.left.id} -> {self.right.id} @ {self.base}"
+
+
+class VariableLink(Link):
+    def __init__(
+        self,
+        left: Object,
+        right: Object,
+        base: BaseObjectPath,
+        property: str,
+        value: int,
+    ) -> None:
+        super().__init__(left, right, base)
         self.property = property
         self.value = value
 
@@ -22,14 +56,11 @@ class VariableLink:
         return 2
 
     @property
-    def _name(self):
+    def _header(self):
         return f"Var({self.dist}): {self.property}"
 
-    def __repr__(self) -> str:
-        return f"{self._name}: {self.left.id} -> {self.value}"
 
-
-class ObjectDelta:
+class ObjectDelta(Link):
     """Determine the 'difference' between two objects.
 
     This class analyzes how many transformations and properties it requires to
@@ -41,20 +72,20 @@ class ObjectDelta:
         self,
         left: Object,
         right: Object,
+        base: BaseObjectPath = tuple(),
         tag: int = 0,
-        path: BaseObjectPath = tuple(),
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
-        self.left: Object = left
-        self.right: Object = right
+        super().__init__(left, right, base)
         self.tag: int = tag
-        self.path: BaseObjectPath = path
         self.null: bool = False
         self.transform: Transform = Transform([])
         self.comparisons = comparisons
         if left == right:
             return
 
+        # TODO We should make a separate class/method to perform these comparisons, which
+        # yields instances of Links.
         log.debug("Comparing:")
         log.debug(f"  {left}")
         log.debug(f"  {right}")
@@ -85,20 +116,5 @@ class ObjectDelta:
         return self.transform.props
 
     @property
-    def actions(self) -> set[Any]:
-        """Returns the set of Actions used in the transformation"""
-        return set([act for act in self.transform.actions])
-
-    @property
-    def _name(self):
+    def _header(self):
         return f"Delta({self.dist}): {self.transform}"
-
-    def __repr__(self) -> str:
-        return f"{self._name}: {self.left.id} -> {self.right.id}"
-
-    def __lt__(self, other: "ObjectDelta") -> bool:
-        return self.dist < other.dist
-
-    def diff(self, other: "ObjectDelta") -> int:
-        """Returns a similarity measure between ObjectDeltas."""
-        return len(self.actions & other.actions)

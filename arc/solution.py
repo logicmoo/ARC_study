@@ -15,7 +15,7 @@ from arc.template import Template
 from arc.generator import ActionType, Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object, ObjectPath, sort_layer
-from arc.object_delta import ObjectDelta, VariableLink
+from arc.link import ObjectDelta, VariableLink
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.util import logger
@@ -139,7 +139,7 @@ class TransformNode(SolutionNode):
         for selector, subnode in zip(selectors, bundle):
             args: tuple[ActionArg, ...] = tuple([])
             deltas = [delta for group in subnode for delta in group]
-            paths = {ObjectPath(delta.path) for delta in deltas}
+            paths = {ObjectPath(delta.base) for delta in deltas}
 
             if action in pair_actions:
                 log.debug(f"Determining selector for {action.__name__}")
@@ -299,7 +299,7 @@ class Solution:
         return "\n".join(msg)
 
     def bundle(self, cases: list[Scene]) -> None:
-        """Bundle object transforms together from the Scene paths.
+        """Bundle object transforms together from the Scene link maps.
 
         This aims to approximately identify the SolutionNodes we need.
         """
@@ -340,8 +340,8 @@ class Solution:
                         new_delta = ObjectDelta(
                             delta.left,
                             delta.right,
+                            base=delta.base,
                             comparisons=comparisons,
-                            path=delta.path,
                         )
 
                         # TODO HACK Need a better way to control the transform

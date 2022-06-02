@@ -4,7 +4,7 @@ from arc.task import Task
 from arc.scene import Scene
 from arc.board import Board
 
-from arc.object_delta import ObjectDelta
+from arc.link import ObjectDelta
 from arc.object import Object, ObjectPath
 
 from arc.actions import Action

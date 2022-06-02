@@ -3,7 +3,7 @@ from typing import TypeAlias
 from arc.board import Board, Inventory
 from arc.definitions import Constants as cst
 from arc.object import Object, ObjectPath
-from arc.object_delta import ObjectDelta, VariableLink
+from arc.link import ObjectDelta, VariableLink
 from arc.template import Variables
 from arc.types import BaseObjectPath, SceneData
 from arc.util import logger
@@ -15,8 +15,7 @@ log = logger.fancy_logger("Scene", level=20)
 Link: TypeAlias = ObjectDelta | VariableLink
 LinkMap: TypeAlias = dict[ObjectPath, Link]
 LinkResult: TypeAlias = tuple[int, list[ObjectDelta]]
-
-RequestTree: TypeAlias = dict[int, "RequestTree"]
+LinkTree: TypeAlias = dict[int, "LinkTree"]
 
 
 class Scene:
@@ -62,9 +61,15 @@ class Scene:
         return None
 
     def clean(self, decomp_tree_only: bool = False) -> None:
+        """Remove temporary material used during linking.
+
+        Take out the extra link maps that were explored, but not used for the
+        end result.
+        """
         if not decomp_tree_only:
+            current = self.link_maps[self.current]
             del self.link_maps
-            self.link_maps: dict[str, LinkMap] = {}
+            self.link_maps: dict[str, LinkMap] = {self.current: current}
 
         self.input.clean()
         self.output.clean()
@@ -84,8 +89,14 @@ class Scene:
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
-    def paths_to_tree(self, variables: Variables) -> RequestTree:
-        tree: RequestTree = {}
+    def paths_to_tree(self, variables: Variables) -> LinkTree:
+        """Create a prefix tree for the Variable paths.
+
+        Each variable has a BaseObjectPath (e.g. (0, 3, 1)) that points to an Object
+        in the hierarchy. One can create a prefix tree from these where a node exists
+        if any variable has a path that includes that value at that position.
+        """
+        tree: LinkTree = {}
         for path in variables:
             curr = tree
             for idx in path:
@@ -108,8 +119,9 @@ class Scene:
                 continue
             log.debug(f"Searching for link to {obj_path}")
             output_rep = self.output.tree[self.output.characteristic_map[decomp_char]]
+            target = self.output.rep.get_path(obj_path.base)
             value = output_rep.get_value(obj_path)
-            if value is None:
+            if target is None or value is None:
                 log.warning(f"Couldn't find {obj_path}")
                 continue
 
@@ -119,46 +131,42 @@ class Scene:
             for obj in inputs:
                 if value == getattr(obj, prop):
                     log.debug(f"Candidate: {obj}")
-                    candidates[obj_path] = VariableLink(obj, prop, value)
+                    candidates[obj_path] = VariableLink(
+                        obj, target, obj_path.base, prop, value
+                    )
 
         self.link_maps[decomp_char].update(candidates)
 
     def match(self, decomp_char: str, variables: Variables) -> None:
         """Identify the minimal transformation set needed from input -> output Board."""
-        request_tree: RequestTree = self.paths_to_tree(variables)
-        _, links = self.recreate(
-            self.output.rep, Inventory(self.input.rep), request_tree
-        )
+        link_tree: LinkTree = self.paths_to_tree(variables)
+        _, links = self.recreate(self.output.rep, Inventory(self.input.rep), link_tree)
 
         link_map: LinkMap = {}
         for delta in links:
             # Group the inputs to the match by the Generator characteristic
-            link_map[ObjectPath(delta.path)] = delta
+            link_map[ObjectPath(delta.base)] = delta
         self.link_maps[decomp_char] = link_map
         self.current = decomp_char
 
         log.info(f"Scene {self.idx} links | distance ({self.dist}):")
-        for path, link in link_map.items():
-            if isinstance(link, ObjectDelta):
-                obj1, obj2, trans = link.left, link.right, link.transform
-                log.info(f"    {path}, {trans} | {obj1.id} -> {obj2.id}")
-            else:
-                log.info(f"    {path} | {link.left.id} -> {link.property}")
+        for _, link in link_map.items():
+            log.info(f"    {link}")
 
     # @logger.log_call(log, ignore_idxs={0, 2})
     def recreate(
         self,
         obj: Object,
         inventory: Inventory,
-        request_tree: RequestTree,
-        path: BaseObjectPath = tuple([]),
+        link_tree: LinkTree,
+        base: BaseObjectPath = tuple([]),
     ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
-        log.debug(f"Finding scene match at path: {path}")
+        log.debug(f"Finding scene match at path: {base}")
         result: LinkResult = (cst.MAX_DIST, [])
         delta = inventory.find_scene_match(obj)
         if delta:
-            delta.path = path
+            delta.base = base
             # TODO We add the scene index to the deltas to avoid heavy structuring later on
             # (i.e. avoid dicts of lists of lists)
             delta.tag = self.idx
@@ -173,10 +181,10 @@ class Scene:
             if kid.category == "Cutout":
                 continue
             # Skip any children for which we don't need a match
-            if idx not in request_tree:
+            if idx not in link_tree:
                 continue
             kid_dist, kid_deltas = self.recreate(
-                kid, inventory, request_tree[idx], path + (idx,)
+                kid, inventory, link_tree[idx], base + (idx,)
             )
             log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_deltas}")
             total_dist += kid_dist

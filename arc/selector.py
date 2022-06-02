@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, TypeAlias
 from arc.object import Object, sort_layer
-from arc.object_delta import ObjectDelta
+from arc.link import ObjectDelta
 
 from arc.labeler import Labeler, all_traits
 from arc.util import logger

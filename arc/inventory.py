@@ -2,7 +2,7 @@ import collections
 from functools import cached_property
 
 from arc.object import Object
-from arc.object_delta import ObjectDelta
+from arc.link import ObjectDelta
 from arc.comparisons import (
     ObjectComparison,
     default_comparisons,
