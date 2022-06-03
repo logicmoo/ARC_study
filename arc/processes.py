@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
 import collections
-import sys
-import traceback
 
 import numpy as np
 
@@ -11,6 +9,7 @@ from arc.util import logger
 from arc.grid_methods import eval_mesh, point_filter
 from arc.definitions import Constants as cst
 from arc.object import Object
+from arc.util.common import process_exception
 
 log = logger.fancy_logger("Processes", level=30)
 
@@ -96,14 +95,10 @@ class Process(ABC):
                     return None
             else:
                 return None
-        except Exception as exc:
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            exc_name = getattr(exc_type, "__name__", "")
-            tb = traceback.extract_tb(exc_tb)
-            exc_type = f"{type(exc).__name__}"
-            error = (exc_name, str(exc_value), tb)
-            log.error(f"{exc_name} exception during {self.__class__.__name__}")
-            log.error(logger.pretty_traceback(*error))
+        except Exception as _:
+            exception = process_exception()
+            log.error(f"{exception[0]} exception during {self.__class__.__name__}")
+            log.error(logger.pretty_traceback(*exception))
             return None
 
     @abstractmethod

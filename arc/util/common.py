@@ -1,4 +1,7 @@
 import itertools
+import sys
+import traceback
+from traceback import FrameSummary
 from typing import Any, Iterable
 
 
@@ -12,3 +15,10 @@ def all_equal(iterable: Iterable[Any]):
 def get_characteristic(input: str) -> str:
     """Return the unique, sorted characters in the string."""
     return "".join(sorted(set(input)))
+
+
+def process_exception() -> tuple[str, str, list[FrameSummary]]:
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    exc_name = getattr(exc_type, "__name__", "")
+    tb = traceback.extract_tb(exc_tb)
+    return (exc_name, str(exc_value), tb)

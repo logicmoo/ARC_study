@@ -6,7 +6,7 @@ import time
 
 from arc.arc import ARC
 from arc.definitions import Constants as cst
-from arc.task_analysis import all_solved, fast_solved, blocklist
+from arc.task_analysis import all_solved, all_eval_solved, fast_solved, blocklist
 from arc.util import logger
 
 log = logger.fancy_logger("Script", level=20)
@@ -52,10 +52,13 @@ if __name__ == "__main__":
     tasks_to_run = all_solved
     if args.evaluation:
         folder = cst.FOLDER_EVAL
-        tasks_to_run = {i for i in range(1, 401)}
+        tasks_to_run = all_eval_solved
 
     if args.fast:
-        tasks_to_run = fast_solved
+        if args.evaluation:
+            log.warning("Cannot use 'fast' with evaluation dataset")
+        else:
+            tasks_to_run = fast_solved
     elif args.all:
         tasks_to_run = {i for i in range(1, 401)}
 

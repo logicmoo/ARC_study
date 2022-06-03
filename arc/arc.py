@@ -2,7 +2,6 @@ import glob
 import json
 import logging
 import pickle
-import sys
 import time
 import traceback
 from pathlib import Path
@@ -11,9 +10,10 @@ from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
-from arc.task_analysis import TaskTraits, all_solved, blocklist
+from arc.task_analysis import TaskTraits, all_solved, all_eval_solved, blocklist
 from arc.util import logger
 from arc.util import profile
+from arc.util.common import process_exception
 
 log = logger.fancy_logger("ARC", level=20)
 
@@ -57,6 +57,9 @@ class ARC:
         self.default_log_levels: dict[str, int] = self.get_log_levels()
         self.blocklist: set[int] = blocklist
         self.stats: dict[str, int] = Counter()
+
+        # Utility
+        self.eval: bool = folder == cst.FOLDER_EVAL
 
     @staticmethod
     def load(pid: str | int) -> "ARC":
@@ -183,21 +186,18 @@ class ARC:
             timeout = True
             if not quiet:
                 log.error(f"Timeout during solve of Task {idx}")
-        except Exception as exc:
-            exc_type, exc_value, exc_tb = sys.exc_info()
-            exc_name = getattr(exc_type, "__name__", "")
-            tb = traceback.extract_tb(exc_tb)
-            exc_type = f"{type(exc).__name__}"
-            error = (exc_name, str(exc_value), tb)
+        except Exception as _:
+            exception = process_exception()
             if not quiet:
-                log.error(f"{exc_name} during solve of Task {idx}")
-                log.error(logger.pretty_traceback(*error))
+                log.error(f"{exception[0]} during solve of Task {idx}")
+                log.error(logger.pretty_traceback(*exception))
         finally:
             task.clean(decomp_tree_only=True)
             mem_mb = profile.get_mem() / 1000
             task_seconds = time.time() - task_start
             if "Solved" in task.traits:
-                mark: str = "*" if task.idx not in all_solved else ""
+                solved_set = all_eval_solved if self.eval else all_solved
+                mark: str = "*" if task.idx not in solved_set else ""
                 status = logger.color_text(f"{mark}Passed   ", "green")
                 solved = True
             elif timeout:
