@@ -7,7 +7,15 @@ from arc.definitions import Constants as cst
 
 log = logger.fancy_logger("GridMethods", level=30)
 
-from arc.types import Grid, Point, PointDict, PointList, Position, PositionList
+from arc.types import (
+    Grid,
+    Point,
+    PointDict,
+    PointList,
+    Position,
+    PositionList,
+    PositionSet,
+)
 
 
 def gridify(data: Grid | list[list[int]], tile: tuple[int, int] = (1, 1)) -> Grid:
@@ -41,6 +49,16 @@ def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
     for pt in points:
         result.append((pt[0] - minrow, pt[1] - mincol, pt[2]))
     return (minrow, mincol), result, monochrome
+
+
+def shift_locs(locs: PositionSet, ref_loc: Position) -> PositionList:
+    """Subtract a vector from a list of positions."""
+    new_locs: PositionList = []
+    for loc in locs:
+        new_loc = (loc[0] - ref_loc[0], loc[1] - ref_loc[1])
+        if new_loc[0] > 0 and new_loc[1] > 0:
+            new_locs.append(new_loc)
+    return new_locs
 
 
 def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:

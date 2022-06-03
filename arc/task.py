@@ -128,7 +128,6 @@ class Task:
         output_reps = [case.output.rep for case in self.cases]
         template = Template.from_outputs(output_reps)
         log.debug(f"Template: {template}")
-        # log.debug(f"Template: {template}", extra={"max_lines": 20})
         return template
 
     def decompose(
@@ -144,7 +143,7 @@ class Task:
         for idx, input in enumerate(inputs):
             input.decompose(max_iter=max_iter, init=init)
             log.info(f"Scene {idx} input rep | props {input.rep.props}: {input.rep}")
-            log.debug(f"\n{input}")
+            input.rep.debug()
 
         # Choose the best-performing input characteristic
         # This helps the output decomposition by providing a more uniform
@@ -158,7 +157,7 @@ class Task:
             inventory = Inventory(input.rep)
             output.decompose(max_iter=max_iter, inventory=inventory, init=init)
             log.info(f"Scene {idx} input rep | props {output.rep.props}: {output.rep}")
-            log.debug(f"\n{output}")
+            output.rep.debug()
 
         return best
 

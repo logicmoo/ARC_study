@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 import collections
+import sys
+import traceback
 
 import numpy as np
 
 from arc.generator import Generator
-from arc.types import Point, PointList
+from arc.types import Point, PointList, PositionSet
 from arc.util import logger
 from arc.grid_methods import eval_mesh, point_filter
 from arc.definitions import Constants as cst
@@ -35,7 +37,9 @@ class Process(ABC):
             return False
         return True
 
-    def repair(self, input: Object, output: Object) -> Object | None:
+    def repair(
+        self, input: Object, output: Object, occlusion: PositionSet
+    ) -> Object | None:
         """Repair any inconsistencies between input and output."""
         if input == output:
             return output
@@ -49,10 +53,13 @@ class Process(ABC):
             log.debug("  Missing output points during patch")
             log.debug(missing_locs)
             return None
-        elif extra_locs := output.points.keys() - input.points.keys():
-            cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
-            log.debug(f"  Cutting {len(cut_points)} points as patch")
-            return self.add_patch(output, cut_points, "Cut")
+        elif extra_locs := output.points.keys() - input.points.keys() - occlusion:
+            # TODO Don't use cutouts for now
+            log.debug(f"  (not implemented) {len(extra_locs)} extra points")
+            return None
+            # cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
+            # log.debug(f"  Cutting {len(cut_points)} points as patch")
+            # return self.add_patch(output, cut_points, "Cut")
         else:
             # At this point, the silhouetes match, so there is just color
             # disagreement from the input and output.
@@ -60,6 +67,11 @@ class Process(ABC):
             for loc, color in input.points.items():
                 if output.points[loc] != color:
                     recolor_pts.append((*loc, color))
+
+            # If the disagreement is occluded, we will end up with no recolor_pts.
+            if not recolor_pts:
+                return output
+
             log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
             return self.add_patch(output, recolor_pts, "Reco")
 
@@ -72,11 +84,11 @@ class Process(ABC):
         container = Object(*output.anchor, children=[out, patch], **kwargs)
         return container
 
-    def run(self, object: Object) -> Object | None:
+    def run(self, object: Object, occlusion: PositionSet = set([])) -> Object | None:
         self.info(object)
         try:
             if candidate := self.apply(object):
-                if repaired := self.repair(object, candidate):
+                if repaired := self.repair(object, candidate, occlusion):
                     self.success(candidate)
                     return repaired
                 else:
@@ -85,8 +97,13 @@ class Process(ABC):
             else:
                 return None
         except Exception as exc:
-            log.warning(f"Exception during {self.__class__.__name__}")
-            log.warning(exc)
+            exc_type, exc_value, exc_tb = sys.exc_info()
+            exc_name = getattr(exc_type, "__name__", "")
+            tb = traceback.extract_tb(exc_tb)
+            exc_type = f"{type(exc).__name__}"
+            error = (exc_name, str(exc_value), tb)
+            log.error(f"{exc_name} exception during {self.__class__.__name__}")
+            log.error(logger.pretty_traceback(*error))
             return None
 
     @abstractmethod
@@ -150,8 +167,7 @@ class MakeBase(Process):
         # For a single color present, this simplifies to a single line/rect
         if len(object.c_rank) == 1:
             return Object(
-                *object.loc,
-                color,
+                *object.anchor,
                 generator=generator,
                 leaf=True,
                 process=f"{self.code}{color}",
@@ -159,9 +175,7 @@ class MakeBase(Process):
 
         # Split off the base color from the "front matter"
         _, front_points = point_filter(object.points, color)
-        background = Object(
-            *object.loc, color, generator=generator, leaf=True, process="Base"
-        )
+        background = Object(color=color, generator=generator, leaf=True, process="Base")
         front = Object.from_points(front_points, process="Base")
         return Object(
             *object.anchor,
@@ -221,6 +235,10 @@ class Tiling(Process):
 
         # Identify each point that's part of the unit cell
         cell_pts = eval_mesh(object.grid, row_stride, col_stride)
+        if not cell_pts:
+            log.debug(f"Empty cell pts generated from following object")
+            object.debug()
+            return None
 
         r_ct = np.ceil(object.shape[0] / row_stride)
         c_ct = np.ceil(object.shape[1] / col_stride)
@@ -295,6 +313,10 @@ class Reflection(Process):
                 if base_color != cst.NULL_COLOR:
                     cell_pts.append((i, j, base_color))
 
+        if not cell_pts:
+            log.debug(f"Empty cell pts generated from following object")
+            object.debug()
+            return None
         codes: tuple[str, ...] = tuple([])
         if axes[0]:
             if odd_vertical:
@@ -360,6 +382,11 @@ class Rotation(Process):
                 # pass
                 if base_color != cst.NULL_COLOR:
                     cell_pts.append((i, j, base_color))
+
+        if not cell_pts:
+            log.debug(f"Empty cell pts generated from following object")
+            object.debug()
+            return None
 
         codes: tuple[str, ...] = tuple([])
         codes += ("O*3",)

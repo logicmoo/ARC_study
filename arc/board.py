@@ -1,9 +1,10 @@
 from functools import cached_property
 from arc.definitions import Constants as cst
+from arc.grid_methods import shift_locs
 from arc.inventory import Inventory
 from arc.object import Object
 from arc.processes import Process, default_processes, process_map
-from arc.types import BoardData
+from arc.types import BoardData, PositionSet
 from arc.util import logger, common
 
 log = logger.fancy_logger("Board", level=30)
@@ -85,7 +86,7 @@ class Board:
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
-            candidates = self._decomposition(obj, inventory)
+            candidates = self._decomposition(obj, inventory, set([]))
             for code, obj in candidates:
                 if obj.props > cst.PRUNE_PROPS_COEFF * self.rep.props:
                     continue
@@ -129,7 +130,7 @@ class Board:
             self.proc_q.pop(idx)
 
     def _decomposition(
-        self, obj: Object, inventory: "Inventory"
+        self, obj: Object, inventory: "Inventory", occlusion: PositionSet
     ) -> list[tuple[str, Object]]:
         """Attempts to find a more canonical or condensed way to represent the object"""
         # No children means nothing to simplify
@@ -137,14 +138,21 @@ class Board:
             return []
         # Search for the first object that's not decomposed and apply decomposition
         elif not obj.leaf and (match := inventory.find_decomposition_match(obj)):
+            # TODO How to incorporate occlusion here?
             log.info(f"Match at distance: {match.dist} to {match.left}")
-            linked = match.left.copy(match.right.anchor, leaf=True, process="Inv")
+            linked = match.transform.apply(match.left)
+            linked.leaf = True
+            linked.process = "Inv"
             return [("I", linked)]
         elif obj.leaf:
             # TODO Need to redo occlusion
             decompositions: list[tuple[str, Object]] = []
+            cumulative_occlusion: PositionSet = set([])
             for rev_idx, child in enumerate(obj.children[::-1]):
-                child_candidates = self._decomposition(child, inventory=inventory)
+                relative_occlusion = set(shift_locs(cumulative_occlusion, child.loc))
+                child_candidates = self._decomposition(
+                    child, inventory=inventory, occlusion=relative_occlusion
+                )
                 if child_candidates:
                     # Each new decomposition needs to replace any parents
                     for code, new_child in child_candidates:
@@ -152,17 +160,21 @@ class Board:
                         new_obj.children[-(1 + rev_idx)] = new_child
                         decompositions.append((code, new_obj))
                     break
+                cumulative_occlusion.update(child.locs_abs)
             return decompositions
 
-        candidates = self.generate_candidates(obj)
+        log.debug(f"Decomposing {obj} with occ: {occlusion}")
+        candidates = self.generate_candidates(obj, occlusion)
         log.debug(f"Generated {len(candidates)} candidates")
         return candidates
 
-    def generate_candidates(self, obj: Object) -> list[tuple[str, Object]]:
+    def generate_candidates(
+        self, obj: Object, occlusion: PositionSet
+    ) -> list[tuple[str, Object]]:
         candidates: list[tuple[str, Object]] = []
         for process in self.processes:
             if process.test(obj):
-                candidate = process.run(obj)
+                candidate = process.run(obj, occlusion)
                 if candidate:
                     candidates.append((process.code, candidate))
             else:

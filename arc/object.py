@@ -156,6 +156,7 @@ class Object:
             "process": process,
         }
         if len(points) == 0:
+            log.warning("Empty from_points() constructor")
             raise EmptyObject
         elif len(points) == 1:
             return cls(*points[0], **kwargs)
@@ -220,8 +221,13 @@ class Object:
 
     @cached_property
     def locs(self) -> PositionList:
-        """Contains list of coordinates relative to the object's anchor location"""
+        """The list of coordinates relative to the object's anchor location"""
         return sorted(list(self.points.keys()))
+
+    @cached_property
+    def locs_abs(self) -> PositionList:
+        """The list of coordinates in the parent's frame of reference."""
+        return [(loc[0] + self.row, loc[1] + self.col) for loc in self.locs]
 
     @cached_property
     def grid(self) -> Grid:
@@ -299,8 +305,8 @@ class Object:
         if self.category == "Dot":
             return (1, 1)
         if not self.points:
-            log.warning("No points in object:")
-            return (0, 0)
+            log.warning("No points in object")
+            raise EmptyObject
         maxrow = max([pos[0] for pos in self.points])
         maxcol = max([pos[1] for pos in self.points])
         return (maxrow + 1, maxcol + 1)
@@ -346,7 +352,7 @@ class Object:
 
     ## Comparisons
     def __eq__(self, other: "Object") -> bool:
-        return self.loc == other.loc and self.points == other.points
+        return self.loc == other.loc and self.sim(other)
 
     def sim(self, other: "Object") -> bool:
         """Tests if objects are same up to translation"""
@@ -418,7 +424,9 @@ class Object:
             if child.category == "Dot":
                 dot_kids += 1
             if dot_kids < max_dots:
-                output.append(f"{child.hier_repr(tab=tab+1)}")
+                output.append(
+                    f"{child.hier_repr(tab=tab+1, max_lines=max_lines, max_dots=max_dots)}"
+                )
         if dot_kids >= max_dots:
             output.append(f"{indent}  ...{dot_kids} Dots total")
 
@@ -426,6 +434,12 @@ class Object:
         if len(output) > max_lines and "..." not in output:
             output = output[:max_lines] + ["..."]
         return "\n".join(output)
+
+    def debug(self) -> None:
+        """Print full hierarchy, gated behind a check to avoid CPU cost."""
+        if log.level > 10:
+            return
+        log.debug(f"\n{self.hier_repr(max_lines=100, max_dots=100)}")
 
     def copy(
         self, anchor: tuple[int, int, int] | None = None, **kwargs: Any
@@ -477,7 +491,6 @@ class Object:
             if len(flat_kid.children) == 1 or (
                 flat_kid.category == "Container" and flat_kid.color == cst.NULL_COLOR
             ):
-                log.debug(f"Flattening {flat_kid}")
                 uplevel: list[Object] = []
                 for gkid in flat_kid.children:
                     row, col = gkid.row + kid.row, gkid.col + kid.col
