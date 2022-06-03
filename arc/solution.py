@@ -20,7 +20,7 @@ from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.util import logger
 
-log = logger.fancy_logger("Solution", level=30)
+log = logger.fancy_logger("Solution", level=20)
 
 ActionArg: TypeAlias = int | Selector | tuple[str, None | dict[int, int]]
 
@@ -364,7 +364,10 @@ class Solution:
 
         self.transform_map: dict[str, list[str]] = defaultdict(list)
         for key in self.bundled:
-            self.transform_map[key] = [key]
+            if len(key) > 2:
+                log.info(f"Ignore transform with 3+ codes: {key}")
+            else:
+                self.transform_map[key] = [key]
 
         # TODO WIP
         # We check a few rules to know when we should attempt a higher-level transform
@@ -390,7 +393,7 @@ class Solution:
                             self.transform_map.pop(char)
                         )
 
-        log.debug(f"Transform mapping: {self.transform_map}")
+        log.info(f"Transform mapping: {self.transform_map}")
 
     def create_nodes(self, cases: list[Scene]) -> bool:
         self.nodes = []
@@ -429,12 +432,15 @@ class Solution:
                     log.info(f"Attempting Solution node for char '{char}'")
                     action = Action()[char]
                     raw_nodes = TransformNode.from_action(inputs, link_node, action)
-                    nodes = filter(None, raw_nodes)
+                    nodes = list(filter(None, raw_nodes))
                     if nodes:
                         final_nodes.extend(nodes)
                         break
 
             if final_nodes:
+                log.info("Added TransformNodes:")
+                for node in final_nodes:
+                    log.info(node)
                 self.nodes.extend(final_nodes)
             # We should create at least one SolutionNode per transform key,
             # otherwise we'll be missing pieces from the output.

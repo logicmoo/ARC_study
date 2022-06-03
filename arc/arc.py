@@ -11,7 +11,7 @@ from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
-from arc.task_analysis import TaskTraits, all_solved, blacklist
+from arc.task_analysis import TaskTraits, all_solved, blocklist
 from arc.util import logger
 from arc.util import profile
 
@@ -55,7 +55,7 @@ class ARC:
         self.load_tasks(idxs=idxs, folder=folder, quiet=quiet)
 
         self.default_log_levels: dict[str, int] = self.get_log_levels()
-        self.blacklist: set[int] = blacklist
+        self.blocklist: set[int] = blocklist
         self.stats: dict[str, int] = Counter()
 
     @staticmethod
@@ -160,9 +160,9 @@ class ARC:
         for idx in self.selection:
             if selector.issubset(self.tasks[idx].traits):
                 selection.add(idx)
-        remove = selection & self.blacklist
+        remove = selection & self.blocklist
         if remove:
-            log.info(f"Removing {len(remove)} tasks based on blacklist")
+            log.info(f"Removing {len(remove)} tasks based on blocklist")
             selection -= remove
         log.info(f"Selected {len(selection)} based on Selector: {selector}")
         return selection

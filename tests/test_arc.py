@@ -21,7 +21,7 @@ def test_pickling() -> None:
 def test_selection() -> None:
     arc = ARC(N=5)
     arc.scan()
-    arc.blacklist = {4}
+    arc.blocklist = {4}
 
     arc.select(selection={1, 3, 5})
     assert arc.selection == {1, 3, 5}

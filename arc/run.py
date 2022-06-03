@@ -6,7 +6,7 @@ import time
 
 from arc.arc import ARC
 from arc.definitions import Constants as cst
-from arc.task_analysis import all_solved, fast_solved, blacklist
+from arc.task_analysis import all_solved, fast_solved, blocklist
 from arc.util import logger
 
 log = logger.fancy_logger("Script", level=20)
@@ -24,13 +24,20 @@ def solve_task(folder: str, idxs: Queue[int], results: Queue[bool]) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the fastest solved tasks (~6s)")
-    parser.add_argument("-a", "--all", help="Run all tasks (~20s)", action="store_true")
-    parser.add_argument(
-        "-e", "--evaluation", help="Run evaluation tasks", action="store_true"
+    parser = argparse.ArgumentParser(
+        description="Run ARC Tasks--by default, only those known to be solved."
     )
     parser.add_argument(
-        "-f", "--fast", help="Run only fast solved tasks (~20s)", action="store_true"
+        "-a", "--all", help="Run all train tasks (~90s on 6 cores)", action="store_true"
+    )
+    parser.add_argument(
+        "-e", "--evaluation", help="Run all evaluation tasks", action="store_true"
+    )
+    parser.add_argument(
+        "-f",
+        "--fast",
+        help="Run only fast solved tasks (~8s on 1 core)",
+        action="store_true",
     )
     parser.add_argument(
         "-p",
@@ -53,7 +60,11 @@ if __name__ == "__main__":
         tasks_to_run = {i for i in range(1, 401)}
 
     if not args.evaluation:
-        tasks_to_run -= blacklist
+        initial = len(tasks_to_run)
+        tasks_to_run -= blocklist
+        n_blocked = initial - len(tasks_to_run)
+        if n_blocked > 0:
+            log.info(f"Removing {n_blocked} tasks from blocklist")
 
     n = len(tasks_to_run)
     idxs: Queue[int] = mp.Queue()
