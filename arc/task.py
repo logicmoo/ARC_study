@@ -96,7 +96,7 @@ class Task:
         self.init_solution(input_char, output_char)
         self.solution.bundle(self.cases)
         self.solution.create_nodes(self.cases)
-        self.validate_solution(self.solution)
+        self.validate_nodes(self.solution)
         self.test()
 
     def init_solution(self, input_char: str, output_char: str) -> None:
@@ -247,8 +247,25 @@ class Task:
                 return False
         return True
 
-    def validate_solution(self, solution: Solution) -> None:
+    def validate_nodes(self, solution: Solution) -> None:
         """Check if the solution nodes yield matching results for cases."""
+
+        to_remove: set[int] = set([])
+        log.info("Validating nodes against test scene inputs")
+        # First, test if nodes function on test inputs.
+        for test_scene in self.tests:
+            # TODO Re-engineer timing of test decomposition
+            test_scene.input.decompose(characteristic=solution.characteristic)
+            input = solution.inventory(test_scene)
+            for idx, node in enumerate(solution.nodes):
+                if solution.apply_node(node, input) is None:
+                    log.info(f"Removing invalid node {node}")
+                    to_remove.add(idx)
+
+        for idx in sorted(to_remove, reverse=True):
+            solution.nodes.pop(idx)
+
+        log.info("Validating nodes against case outputs")
         template = solution.template
         flags: list[list[bool]] = [[True] * len(self.cases)] * len(solution.nodes)
         for case_idx, scene in enumerate(self.cases):
@@ -258,10 +275,11 @@ class Task:
             for idx, node in enumerate(solution.nodes):
                 if isinstance(node, TransformNode):
                     flags[idx] = [False]
-                    for path, item in solution.apply_node(node, input):
-                        if isinstance(item, int):
-                            continue
-                        template.apply_object(path, item)
+                    if (generated := solution.apply_node(node, input)) is not None:
+                        for path, item in generated:
+                            if isinstance(item, int):
+                                continue
+                            template.apply_object(path, item)
 
             # If the solution is purely transformational, we are done
             if template.generate(template.frame) == scene.output.rep:
@@ -284,13 +302,13 @@ class Task:
                     else:
                         log.info(f"  Unchecked val: {path}")
 
-        to_remove: list[int] = []
+        to_remove: set[int] = set([])
         for idx, truth in enumerate(flags):
             if all(truth):
-                to_remove.append(idx)
+                to_remove.add(idx)
                 log.info(f"Unneeded SolutionNode: {solution.nodes[idx]}")
 
-        for idx in to_remove[::-1]:
+        for idx in sorted(to_remove, reverse=True):
             solution.nodes.pop(idx)
 
         log.info(f" + Candidate Solution:\n{self.solution}", extra={"max_lines": 50})

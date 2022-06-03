@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, TypeAlias
+from typing import TypeAlias
 
 import numpy as np
 
@@ -114,7 +114,7 @@ class TransformNode(SolutionNode):
 
         # Try a single selector first
         selection = [[delta.left for delta in group] for group in link_node]
-        bundle: Any = [link_node]
+        bundle: list[list[list[ObjectDelta]]] = [link_node]
         selector = Selector(inputs, selection)
         if not selector:
             log.info("Single Selection failed, trying to split")
@@ -227,7 +227,7 @@ class TransformNode(SolutionNode):
                     result = (trait, trial_map)
         return result
 
-    def apply(self, input: list[Object]) -> list[Object]:
+    def apply(self, input: list[Object]) -> list[Object] | None:
         selection = self.selector.select(input)
         result: list[Object] = []
         labeler = Labeler([selection])
@@ -256,7 +256,12 @@ class TransformNode(SolutionNode):
                             f"Transforming using {self.action}({trait} mapping {mapping})"
                         )
                         trait_value = labeler.labels[obj.uid].get(trait)
-                        args.append(mapping.get(trait_value, trait_value))  # type: ignore
+                        try:
+                            # Seems like structural pattern matching confuses type checking
+                            args.append(mapping[trait_value])  # type: ignore
+                        except KeyError as _:
+                            log.info(f"Mapping {mapping} doesn't contain {trait_value}")
+                            return None
                     case _:
                         log.warning(f"Unhandled action arg: {arg}")
 
@@ -451,16 +456,20 @@ class Solution:
 
     def apply_node(
         self, node: SolutionNode, input: list[Object]
-    ) -> list[tuple[ObjectPath, Object | int]]:
+    ) -> list[tuple[ObjectPath, Object | int]] | None:
         results: list[tuple[ObjectPath, Object | int]] = []
         if isinstance(node, VariableNode):
             if (value := node.apply(input)) is not None:
                 path = min(node.paths)
                 results.append((path, value))
+            else:
+                return None
         elif isinstance(node, TransformNode):
-            objs = sort_layer(node.apply(input))
-            for path, obj in zip(sorted(node.paths), objs):
-                results.append((path, obj))
+            if (objs := node.apply(input)) is not None:
+                for path, obj in zip(sorted(node.paths), sort_layer(objs)):
+                    results.append((path, obj))
+            else:
+                return None
         else:
             log.warning(f"Unsupported SolutionNode type: {node}")
         return results

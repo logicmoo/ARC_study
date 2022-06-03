@@ -82,6 +82,8 @@ class Template:
         args = [f"{arg} = {val}" for arg, val in node["props"].items()]
         if gen := node["generator"]:
             args.append(f"generator = {gen}")
+        if ObjectPath(path) in self.variables:
+            args.append("children = ?")
         line = f"{indent}({', '.join(args)})"
         display: list[str] = [line]
         for idx in range(len(node["children"])):
@@ -176,7 +178,7 @@ class Template:
             if dot_ct <= 5 or child_match:
                 structure["children"] = child_structures
                 variables |= child_variables
-            # otherwise, we insert a generic variable for "children"
+            # otherwise, we insert a BaseObjectPath only for "children"
             else:
                 variables.add(ObjectPath(base))
         return structure, variables
