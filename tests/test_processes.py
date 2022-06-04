@@ -1,6 +1,6 @@
 from arc.grid_methods import grid_equal, gridify
 from arc.object import Object
-from arc.processes import Reflection, Rotation
+from arc.processes import Processes
 
 
 def test_reflection_even():
@@ -12,7 +12,7 @@ def test_reflection_even():
     ]
 
     object = Object.from_grid(input_grid)
-    result = Reflection().run(object)
+    result = Processes.Reflection().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert result is not None
     assert grid_equal(result.children[0].grid, true_grid)
@@ -27,7 +27,7 @@ def test_reflection_odd():
     ]
 
     object = Object.from_grid(input_grid)
-    result = Reflection().run(object)
+    result = Processes.Reflection().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert result is not None
     assert grid_equal(result.children[0].grid, true_grid)
@@ -43,7 +43,7 @@ def test_rotation():
     ]
 
     object = Object.from_grid(input_grid)
-    result = Rotation().run(object)
+    result = Processes.Rotation().run(object)
     true_grid = gridify([[1, 2], [3, 4]])
     assert result is not None
     assert grid_equal(result.children[0].grid, true_grid)

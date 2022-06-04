@@ -3,7 +3,7 @@ from arc.definitions import Constants as cst
 from arc.grid_methods import shift_locs
 from arc.inventory import Inventory
 from arc.object import Object
-from arc.processes import Process, default_processes, process_map
+from arc.processes import Process, Processes
 from arc.types import BoardData, PositionSet
 from arc.util import logger, common
 
@@ -33,7 +33,7 @@ class Board:
         """Initialize all decomposition-related attributes."""
         self.tree: dict[str, Object] = {"": self.raw}
         self.current: str = ""
-        self.processes: list[Process] = default_processes
+        self.processes: list[type[Process]] = list(Processes.map.values())
         self.proc_q: list[str] = [""]
 
     def __repr__(self) -> str:
@@ -80,7 +80,7 @@ class Board:
             self._decomp_init()
 
         if characteristic:
-            self.processes = [process_map[char] for char in characteristic]
+            self.processes = [Processes.map[char] for char in characteristic]
 
         log.info(f"  Begin decomposition")
         for ct in range(1, max_iter + 1):
@@ -172,7 +172,8 @@ class Board:
         self, obj: Object, occlusion: PositionSet
     ) -> list[tuple[str, Object]]:
         candidates: list[tuple[str, Object]] = []
-        for process in self.processes:
+        for process_class in self.processes:
+            process = process_class()
             if process.test(obj):
                 candidate = process.run(obj, occlusion)
                 if candidate:

@@ -266,13 +266,6 @@ class Compounds:
                 return Actions.Tile.act(turned, -1, 0)
 
 
-# A list of pairs of action sets, where the first actions might be
-# substituted by the second action as a 2-object function
-# TODO WIP
-# pair_actions = [Adjoin, Align, Resize]
-# subs = [("fp", "S"), ("ws", "AL")]
-# degeneracies = [{"|", "_", "t"}]
-
 action_map: dict[str, type[Action]] = {
     "": Actions.Identity,
     "c": Actions.Paint,  # color
