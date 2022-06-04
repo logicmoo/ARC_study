@@ -57,13 +57,13 @@ def test_dot_structure() -> None:
 
 
 def test_generator_structure() -> None:
-    line_1 = Object(1, 1, 1, generator=Generator.from_codes(("R*5",)))
-    line_2 = Object(2, 1, 1, generator=Generator.from_codes(("R*6",)))
+    line_1 = Object(1, 1, 1, generator=Generator.from_codes(("V*5",)))
+    line_2 = Object(2, 1, 1, generator=Generator.from_codes(("V*6",)))
 
     template = Template.from_outputs([line_1, line_2])
     assert template.structure == {
         "children": [],
-        "generator": ("R*?",),
+        "generator": ("V*?",),
         "props": {"row": "?", "col": 1, "color": 1},
     }
     assert template.variables == {ObjectPath(property=(0,)), ObjectPath(property="row")}

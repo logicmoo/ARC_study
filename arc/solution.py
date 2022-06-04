@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from arc.actions import Action, pair_actions, degeneracies, subs
+from arc.actions import Actions, Action, pair_actions, degeneracies, subs
 from arc.board import Inventory
 from arc.comparisons import (
     ObjectComparison,
@@ -12,7 +12,7 @@ from arc.comparisons import (
     compare_rotation,
 )
 from arc.template import Template
-from arc.generator import ActionType, Transform
+from arc.generator import Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object, ObjectPath, sort_layer
 from arc.link import ObjectDelta, VariableLink
@@ -92,7 +92,7 @@ class TransformNode(SolutionNode):
     def __init__(
         self,
         selector: Selector,
-        action: ActionType = Action.identity,
+        action: type[Action] = Actions.Identity,
         args: tuple[ActionArg, ...] = tuple(),
         paths: set[ObjectPath] = set([]),
     ) -> None:
@@ -108,7 +108,7 @@ class TransformNode(SolutionNode):
         cls,
         inputs: list[list[Object]],
         link_node: list[list[ObjectDelta]],
-        action: ActionType = Action.identity,
+        action: type[Action] = Actions.Identity,
     ) -> list["TransformNode | None"]:
         selectors: list[Selector] = []
 
@@ -149,7 +149,7 @@ class TransformNode(SolutionNode):
                             # matched up with its children
                             if obj in delta.left.children:
                                 continue
-                            if action(delta.left, obj) == delta.right:
+                            if action.act(delta.left, obj) == delta.right:
                                 log.debug(f"Choosing secondary: {obj}")
                                 secondaries.append(obj)
                                 break
@@ -158,7 +158,7 @@ class TransformNode(SolutionNode):
                     return [None]
                 args = (Selector(inputs, [secondaries]),)
                 log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
-            elif action == Action.identity:
+            elif action == Actions.Identity:
                 # Identity actions won't have args, so skip the next block
                 pass
             else:
@@ -265,7 +265,7 @@ class TransformNode(SolutionNode):
                     case _:
                         log.warning(f"Unhandled action arg: {arg}")
 
-            result.append(self.action(obj, *args))
+            result.append(self.action.act(obj, *args))
         return result
 
 
@@ -350,7 +350,7 @@ class Solution:
                         # TODO HACK Need a better way to control the transform
                         # assocated with the delta. Consider the "z" vs "" case
                         if target == "z":
-                            new_delta.transform = Transform([Action.zero])
+                            new_delta.transform = Transform([Actions.Zero])
 
                         if not new_delta.null:
                             results[target].append(new_delta)
@@ -429,13 +429,13 @@ class Solution:
 
             final_nodes: list[SolutionNode] = []
             if len(codes) <= 1:
-                action = Action()[codes]
+                action = Actions.map[codes]
                 raw_nodes = TransformNode.from_action(inputs, link_node, action)
                 final_nodes.extend(filter(None, raw_nodes))
             else:
                 for char in codes:
                     log.info(f"Attempting Solution node for char '{char}'")
-                    action = Action()[char]
+                    action = Actions.map[char]
                     raw_nodes = TransformNode.from_action(inputs, link_node, action)
                     nodes = list(filter(None, raw_nodes))
                     if nodes:

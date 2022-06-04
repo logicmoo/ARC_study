@@ -1,7 +1,6 @@
 import collections
 from copy import deepcopy
 from typing import Literal, TypeAlias, TypedDict
-from arc.actions import Action
 
 from arc.definitions import Constants as cst
 from arc.object import Object, ObjectPath
@@ -231,7 +230,7 @@ class Template:
                     vars.add((t_idx, a_idx))
                     common_actions += "?"
                 else:
-                    common_actions += Action().rev_map[actions[0].__name__]
+                    common_actions += actions[0].code
 
             trans_repr.append(common_actions)
 

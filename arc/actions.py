@@ -1,225 +1,311 @@
+from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 import numpy as np
 
 from arc.object_relations import chebyshev_vector
+from arc.types import Args
 
 if TYPE_CHECKING:
     from arc.types import Grid
     from arc.object import Object
 
 
-class Action:
-    action_map = {
-        "": "identity",
-        "c": "recolor",
-        "w": "vertical",
-        "s": "horizontal",
-        "f": "r_scale",  # 'flatten'
-        "p": "c_scale",  # 'pinch'
-        "M": "mtile",
-        "R": "rtile",
-        "C": "ctile",
-        "S": "resize",
-        "A": "adjoin",
-        "L": "align",
-        "t": "turn",
-        "r": "flip",
-        "|": "flip_h",
-        "_": "flip_v",
-        "V": "flip_tile_even_v",
-        "H": "flip_tile_even_h",
-        "v": "flip_tile_odd_v",
-        "h": "flip_tile_odd_h",
-        "O": "r90_tile_even",
-        "U": "r180_tile_even",
-        "j": "justify",
-        "z": "zero",
-    }
-
-    def __init__(self) -> None:
-        self.rev_map = {val: key for key, val in self.action_map.items()}
+class Action(ABC):
+    code: str = ""
+    dimension: str = ""
+    n_args: int = 0
 
     @classmethod
-    def __getitem__(cls, code: str):
-        return getattr(cls, cls.action_map[code])
-
-    ## TRANSLATION
-    # Simple translations building on a 'move' method
-    @classmethod
-    def identity(cls, object: "Object") -> "Object":
-        """Return a copy of the object."""
+    @abstractmethod
+    def act(cls, object: "Object") -> "Object":
+        """Return a copy of the object with any logic applied."""
         return object.copy()
 
     @classmethod
-    def move(cls, object: "Object", dr: int, dc: int) -> "Object":
-        """Return a new Object/Shape with transformed coordinates"""
-        a_row, a_col, color = object.anchor
-        return object.copy((a_row + dr, a_col + dc, color))
+    @abstractmethod
+    def inv(cls, left: "Object", right: "Object") -> Args | None:
+        """Detect if this action helps relate two objects."""
+        return None
+
+
+class Actions:
+    map: dict[str, type[Action]] = {}
 
     @classmethod
-    def vertical(cls, object: "Object", value: int) -> "Object":
-        return cls.move(object, value, 0)
+    def __getitem__(cls, code: str) -> type[Action]:
+        return cls.map[code]
 
-    @classmethod
-    def horizontal(cls, object: "Object", value: int) -> "Object":
-        return cls.move(object, 0, value)
-
-    # Translations built on moving past the edge of the object
-    @classmethod
-    def mtile(cls, object: "Object", nr: int, nc: int) -> "Object":
-        dr, dc = object.shape
-        return cls.move(object, nr * dr, nc * dc)
-
-    @classmethod
-    def rtile(cls, object: "Object") -> "Object":
-        return cls.mtile(object, 1, 0)
-
-    @classmethod
-    def ctile(cls, object: "Object") -> "Object":
-        return cls.mtile(object, 0, 1)
-
-    # Translations using zeros
-    @classmethod
-    def zero(cls, object: "Object") -> "Object":
-        """Set row and column to zero"""
-        return object.copy((0, 0, object.color))
-
-    @classmethod
-    def justify(cls, object: "Object", axis: int) -> "Object":
-        """Set one of row or column to zero"""
-        loc = list(object.loc)
-        loc[axis] = 0
-        return object.copy((*loc, object.color))
-
-    ## DEFORMATIONS
-    # Linear transform along an axis
-    @classmethod
-    def scale(cls, object: "Object", code: str, value: int) -> "Object":
-        """Change the value associated with a generator"""
-        if not object.generator:
+    class Identity(Action):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
             return object.copy()
-        copies = object.generator.copies.copy()
-        for idx, trans in enumerate(object.generator.transforms):
-            if trans.char == code:
-                copies[idx] = value
-        return object.copy(generator=object.generator.copy(copies=copies))
 
-    @classmethod
-    def r_scale(cls, object: "Object", value: int) -> "Object":
-        return cls.scale(object, "R", value)
+        @classmethod
+        def inv(cls, left: "Object", right: "Object") -> Args | None:
+            return tuple([])
 
-    @classmethod
-    def c_scale(cls, object: "Object", value: int) -> "Object":
-        return cls.scale(object, "C", value)
+    ## Color
+
+    class Paint(Action):
+        @classmethod
+        def act(cls, object: "Object", color: int) -> "Object":
+            return object.copy(anchor=(*object.loc, color))
+
+        @classmethod
+        def inv(cls, left: "Object", right: "Object") -> Args | None:
+            c1 = set([item[0] for item in left.c_rank])
+            c2 = set([item[0] for item in right.c_rank])
+            if c1 != c2 and len(c1) == 1 and len(c2) == 1:
+                return (list(c2)[0],)
+
+    ## Location
+
+    class Translate(Action):
+        @classmethod
+        def act(cls, object: "Object", dr: int, dc: int) -> "Object":
+            """Return a new Object/Shape with transformed coordinates"""
+            a_row, a_col, color = object.anchor
+            return object.copy((a_row + dr, a_col + dc, color))
+
+        @classmethod
+        def inv(cls, left: "Object", right: "Object") -> Args | None:
+            return (right.row - left.row, right.col - left.col)
+
+    class Vertical(Translate):
+        @classmethod
+        def act(cls, object: "Object", dr: int) -> "Object":
+            return super().act(object, dr, 0)
+
+    class Horizontal(Translate):
+        @classmethod
+        def act(cls, object: "Object", dc: int) -> "Object":
+            return super().act(object, 0, dc)
+
+    class Tile(Translate):
+        """Translate based on the object's shape."""
+
+        @classmethod
+        def act(cls, object: "Object", nr: int, nc: int) -> "Object":
+            dr, dc = object.shape
+            return super().act(object, nr * dr, nc * dc)
+
+    class VTile(Tile):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return super().act(object, 1, 0)
+
+    class HTile(Tile):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return super().act(object, 0, 1)
+
+    class Justify(Translate):
+        """Set one of row or column to zero."""
+
+        @classmethod
+        def act(cls, object: "Object", axis: int) -> "Object":
+            if axis == 0:
+                return super().act(object, -object.row, 0)
+            else:
+                return super().act(object, 0, -object.col)
+
+    class Zero(Justify):
+        """Set row and column to zero."""
+
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return object.copy((0, 0, object.color))
+
+    ## Generator
+    class Scale(Action):
+        @classmethod
+        def act(cls, object: "Object", code: str, value: int) -> "Object":
+            """Change the value associated with a generator"""
+            if not object.generator:
+                return object.copy()
+            copies = object.generator.copies.copy()
+            for idx, trans in enumerate(object.generator.transforms):
+                if trans.char == code:
+                    copies[idx] = value
+            return object.copy(generator=object.generator.copy(copies=copies))
+
+        @classmethod
+        def inv(cls, left: "Object", right: "Object") -> Args | None:
+            if len(left.c_rank) == 1 and len(right.c_rank) == 1:
+                # A monochrome, matching silhouette means no internal positioning differences
+                if left.sil(right):
+                    return tuple([])
+
+            # There could exist one or more generators to create the other object
+            args = tuple([])
+            for axis in [0, 1]:
+                if left.shape[axis] != right.shape[axis]:
+                    ct = right.shape[axis] - 1
+                    args += (ct,)
+            return args
+
+    class VScale(Scale):
+        @classmethod
+        def act(cls, object: "Object", value: int) -> "Object":
+            return super().act(object, "V", value)
+
+    class HScale(Scale):
+        @classmethod
+        def act(cls, object: "Object", value: int) -> "Object":
+            return super().act(object, "H", value)
 
     ## ROTATIONS AND REFLECTIONS
-    @classmethod
-    def turn(cls, object: "Object", num: int) -> "Object":
-        turned = object.grid
-        for _ in range(num):
-            turned: Grid = np.rot90(turned)  # type: ignore
-        return object.__class__.from_grid(grid=turned, anchor=object.anchor)
+    class Turn(Action):
+        @classmethod
+        def act(cls, object: "Object", num: int) -> "Object":
+            turned = object.grid
+            for _ in range(num):
+                turned: Grid = np.rot90(turned)  # type: ignore
+            return object.__class__.from_grid(grid=turned, anchor=object.anchor)
 
-    @classmethod
-    def r90_tile_even(cls, object: "Object", row: int, col: int) -> "Object":
-        # TODO This currently takes two args that are a reference row, col.
-        # This position represents the axis of rotation (into the 2D plane)
-        # It gets populated via the Generator "default args", which is a bit
-        # of a hacked solution, perhaps.
-        turned = cls.turn(object, 1)
-        if row > object.row:
-            return cls.rtile(turned)
-        elif col > object.col:
-            return cls.ctile(turned)
-        else:
-            return cls.mtile(turned, -1, 0)
+    class Flip(Action):
+        @classmethod
+        def act(cls, object: "Object", axis: int) -> "Object":
+            """Flip the object via the specified axis."""
+            grid: Grid = np.flip(object.grid, axis)  # type: ignore
+            return object.__class__.from_grid(grid=grid, anchor=object.anchor)
 
-    @classmethod
-    def r180_tile_even(cls, object: "Object") -> "Object":
-        turned = cls.turn(object, 2)
-        return cls.ctile(cls.rtile(turned))
+    class VFlip(Flip):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return super().act(object, 0)
 
-    @classmethod
-    def flip(cls, object: "Object", axis: int) -> "Object":
-        """Flip the object via the specified axis."""
-        grid: Grid = np.flip(object.grid, axis)  # type: ignore
-        return object.__class__.from_grid(grid=grid, anchor=object.anchor)
-
-    @classmethod
-    def flip_v(cls, object: "Object") -> "Object":
-        return cls.flip(object, 0)
-
-    @classmethod
-    def flip_h(cls, object: "Object") -> "Object":
-        return cls.flip(object, 1)
-
-    @classmethod
-    def flip_tile_even_v(cls, object: "Object") -> "Object":
-        return cls.vertical(cls.flip(object, 0), object.shape[0])
-
-    @classmethod
-    def flip_tile_even_h(cls, object: "Object") -> "Object":
-        return cls.horizontal(cls.flip(object, 1), object.shape[1])
-
-    @classmethod
-    def flip_tile_odd_v(cls, object: "Object") -> "Object":
-        return cls.vertical(cls.flip(object, 0), object.shape[0] - 1)
-
-    @classmethod
-    def flip_tile_odd_h(cls, object: "Object") -> "Object":
-        return cls.horizontal(cls.flip(object, 1), object.shape[1] - 1)
-
-    ## COLOR
-    @classmethod
-    def recolor(cls, object: "Object", color: int) -> "Object":
-        return object.copy(anchor=(*object.loc, color))
+    class HFlip(Flip):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return super().act(object, 1)
 
     ## 2-OBJECT ACTIONS
     # These actions leverage another object as the source of information
     # on how to transform the primary object.
-    @classmethod
-    def resize(cls, object: "Object", secondary: "Object") -> "Object":
-        """Alter the primary object so its shape matches the secondary."""
-        result = object.copy()
-        if object.shape[0] != secondary.shape[0]:
-            result = cls.r_scale(result, secondary.shape[0] - 1)
-        if object.shape[1] != secondary.shape[1]:
-            result = cls.c_scale(result, secondary.shape[1] - 1)
-        return result
+    class Resize(Scale):
+        @classmethod
+        def act(cls, object: "Object", secondary: "Object") -> "Object":
+            """Alter the primary object so its shape matches the secondary."""
+            result = object.copy()
+            if object.shape[0] != secondary.shape[0]:
+                result = super().act(result, "V", secondary.shape[0] - 1)
+            if object.shape[1] != secondary.shape[1]:
+                result = super().act(result, "H", secondary.shape[1] - 1)
+            return result
 
-    @classmethod
-    def adjoin(cls, object: "Object", secondary: "Object") -> "Object":
-        """Move the primary in one direction towards the secondary.
+    class Adjoin(Translate):
+        @classmethod
+        def act(cls, object: "Object", secondary: "Object") -> "Object":
+            """Translate the primary in one direction towards the secondary.
 
-        The primary will not intersect the secondary.
-        """
-        # Find the direction of smallest Chebyshev distance
-        result = object.copy()
-        ch_vector = chebyshev_vector(object, secondary)
-        if ch_vector[0]:
-            result = Action().vertical(result, ch_vector[0])
-        elif ch_vector[1]:
-            result = Action().horizontal(result, ch_vector[1])
-        return result
+            The primary will not intersect the secondary.
+            """
+            # Find the direction of smallest Chebyshev distance
+            result = object.copy()
+            ch_vector = chebyshev_vector(object, secondary)
+            if ch_vector[0]:
+                result = super().act(result, ch_vector[0], 0)
+            elif ch_vector[1]:
+                result = super().act(result, 0, ch_vector[1])
+            return result
 
-    @classmethod
-    def align(cls, object: "Object", secondary: "Object") -> "Object":
-        """Move the primary the smallest amount to align on an axis with secondary."""
-        result = object.copy()
-        ch_vector = chebyshev_vector(object, secondary)
-        if ch_vector[0]:
-            sign = -1 if ch_vector[0] < 0 else 1
-            result = Action().vertical(result, ch_vector[0] + sign * object.shape[0])
-        elif ch_vector[1]:
-            sign = -1 if ch_vector[1] < 0 else 1
-            result = Action().horizontal(result, ch_vector[1] + sign * object.shape[1])
-        return result
+    class Align(Translate):
+        @classmethod
+        def act(cls, object: "Object", secondary: "Object") -> "Object":
+            """Translate the primary the smallest amount to align on an axis with secondary."""
+            result = object.copy()
+            ch_vector = chebyshev_vector(object, secondary)
+            if ch_vector[0]:
+                sign = -1 if ch_vector[0] < 0 else 1
+                result = super().act(result, ch_vector[0] + sign * object.shape[0], 0)
+            elif ch_vector[1]:
+                sign = -1 if ch_vector[1] < 0 else 1
+                result = super().act(result, 0, ch_vector[1] + sign * object.shape[1])
+            return result
+
+
+class Compounds:
+    ## Combination Flip and Translation
+    class VFlipTile(Actions.VFlip, Actions.VTile):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return Actions.VTile.act(Actions.VFlip.act(object))
+
+    class HFlipTile(Actions.HFlip, Actions.HTile):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return Actions.HTile.act(Actions.HFlip.act(object))
+
+    class VFlipHinge(Actions.VFlip, Actions.Vertical):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return Actions.Vertical.act(Actions.VFlip.act(object), object.shape[0] - 1)
+
+    class HFlipHinge(Actions.HFlip, Actions.Horizontal):
+        @classmethod
+        def act(cls, object: "Object") -> "Object":
+            return Actions.Horizontal.act(
+                Actions.HFlip.act(object), object.shape[1] - 1
+            )
+
+    class RotTile(Actions.Turn, Actions.Tile):
+        @classmethod
+        def act(cls, object: "Object", row: int, col: int) -> "Object":
+            # TODO This currently takes two args that are a reference row, col.
+            # This position represents the axis of rotation (into the 2D plane)
+            # It gets populated via the Generator "default args", which is a bit
+            # of a hacked solution, perhaps.
+            turned = super().act(object, 1)
+            if row > object.row:
+                return Actions.Tile.act(turned, 1, 0)
+            elif col > object.col:
+                return Actions.Tile.act(turned, 0, 1)
+            else:
+                return Actions.Tile.act(turned, -1, 0)
 
 
 # A list of pairs of action sets, where the first actions might be
 # substituted by the second action as a 2-object function
 # TODO WIP
-pair_actions = [Action.adjoin, Action.align, Action.resize]
-subs = [("fp", "S"), ("ws", "AL")]
+# pair_actions = [Adjoin, Align, Resize]
+# subs = [("fp", "S"), ("ws", "AL")]
+# degeneracies = [{"|", "_", "t"}]
+
+action_map: dict[str, type[Action]] = {
+    "": Actions.Identity,
+    "c": Actions.Paint,  # color
+    "t": Actions.Translate,
+    "v": Actions.Vertical,
+    "h": Actions.Horizontal,
+    "T": Actions.Tile,
+    "V": Actions.VTile,
+    "H": Actions.HTile,
+    "j": Actions.Justify,
+    "z": Actions.Zero,
+    "f": Actions.VScale,  # flatten
+    "p": Actions.HScale,  # pinch
+    "t": Actions.Turn,
+    "+": Actions.Flip,
+    "|": Actions.HFlip,
+    "_": Actions.VFlip,
+    "S": Actions.Resize,
+    "A": Actions.Adjoin,
+    "L": Actions.Align,
+    # Compound
+    "m": Compounds.VFlipHinge,
+    "M": Compounds.VFlipTile,
+    "e": Compounds.HFlipHinge,
+    "E": Compounds.HFlipTile,
+    "O": Compounds.RotTile,
+}
+
+for code, action in action_map.items():
+    action.code = code
+    Actions.map[code] = action
+
+# TODO Add a mixin to handle additional Action properties
+pair_actions = [Actions.Adjoin, Actions.Align, Actions.Resize]
+subs = [("fp", "S"), ("vh", "AL")]
 degeneracies = [{"|", "_", "t"}, {"", "z"}]

@@ -1,6 +1,6 @@
 from typing import Any, Callable, TypeAlias
 
-from arc.actions import Action
+from arc.actions import Actions
 from arc.generator import Transform
 from arc.object import Object
 from arc.util import logger
@@ -23,23 +23,23 @@ def compare_position(left: "Object", right: "Object") -> ComparisonReturn:
     # equivalent operations. For example, if an object is moved from (3, 0) to (0, 0)
     # this could be a 'zeroing', a 'row-justify' or an upward move of 3 units.
     if r2 == 0 and c2 == 0:
-        transform.actions.append(Action.zero)
+        transform.actions.append(Actions.Zero)
         transform.args.append(tuple([]))
         return transform
     if r2 != r1:
         # Justifying a single dimension is also special
         if r2 == 0:
-            transform.actions.append(Action.justify)
+            transform.actions.append(Actions.Justify)
             transform.args.append((0,))
         else:
-            transform.actions.append(Action.vertical)
+            transform.actions.append(Actions.Vertical)
             transform.args.append((r2 - r1,))
     if c2 != c1:
         if c2 == 0:
-            transform.actions.append(Action.justify)
+            transform.actions.append(Actions.Justify)
             transform.args.append((1,))
         else:
-            transform.actions.append(Action.horizontal)
+            transform.actions.append(Actions.Horizontal)
             transform.args.append((c2 - c1,))
     return transform
 
@@ -52,7 +52,7 @@ def compare_color(left: "Object", right: "Object") -> ComparisonReturn:
     if c1 != c2:
         # Color remapping is a basic transform
         if len(c1) == 1 and len(c2) == 1:
-            transform.actions.append(Action.recolor)
+            transform.actions.append(Actions.Paint)
             transform.args.append((list(c2)[0],))
     return transform
 
@@ -72,7 +72,7 @@ def compare_order(left: "Object", right: "Object") -> ComparisonReturn:
     for axis, code in [(0, "R"), (1, "C")]:
         if left.shape[axis] != right.shape[axis]:
             ct = right.shape[axis] - 1
-            scaler = Action.r_scale if code == "R" else Action.c_scale
+            scaler = Actions.VScale if code == "R" else Actions.HScale
             transform.actions.append(scaler)
             transform.args.append((ct,))
     return transform
@@ -88,18 +88,18 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
 
     # TODO For now, just brute force search. This could be made more efficient.
     for code in ["|", "_"]:
-        if Action()[code](left) == right:
-            transform.actions.append(Action()[code])
+        if (action := Actions.map[code]).act(left) == right:
+            transform.actions.append(action)
             transform.args.append(tuple([]))
             return transform
     if (rotation := compare_rotation(left, right)).actions:
         return rotation
     for code in ["|", "_"]:
         for ct in [1, 2, 3]:
-            if Action()[code](Action.turn(left, ct)) == right:
-                transform.actions.append(Action.turn)
+            if (action := Actions.map[code]).act(Actions.Turn.act(left, ct)) == right:
+                transform.actions.append(Actions.Turn)
                 transform.args.append(tuple([ct]))
-                transform.actions.append(Action()[code])
+                transform.actions.append(action)
                 transform.args.append(tuple([]))
                 return transform
 
@@ -109,8 +109,8 @@ def compare_orientation(left: "Object", right: "Object") -> ComparisonReturn:
 def compare_rotation(left: "Object", right: "Object") -> ComparisonReturn:
     log.debug("Comparing Rotation")
     for ct in [1, 2, 3]:
-        if Action.turn(left, ct) == right:
-            return Transform([Action.turn], [(ct,)])
+        if Actions.Turn.act(left, ct) == right:
+            return Transform([Actions.Turn], [(ct,)])
     return Transform([])
 
 

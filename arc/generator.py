@@ -14,18 +14,15 @@ Transforms, as well as repetition of these transforms, to generate larger object
 such as lines, rectangles, and tilings.
 """
 import re
-from typing import TYPE_CHECKING, Any, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any
 
-from arc.actions import Action
-from arc.types import Position
+from arc.actions import Action, Actions
+from arc.types import Position, ArgsList
 from arc.util import common
 
 
 if TYPE_CHECKING:
     from arc.object import Object
-
-ArgsType: TypeAlias = list[tuple[int, ...]]
-ActionType: TypeAlias = Callable[..., "Object"]
 
 # This regex parses the series of actions represented in a Generator 'code'.
 # It expects a series of alphabet characters each optionally followed by
@@ -40,11 +37,11 @@ copies_regex = re.compile(r"\*(\d+)")
 class Transform:
     def __init__(
         self,
-        actions: list[ActionType],
-        args: ArgsType | None = None,
+        actions: list[type[Action]],
+        args: ArgsList | None = None,
     ):
         self.actions = actions
-        self.args: ArgsType = args or [tuple([])] * len(self.actions)
+        self.args: ArgsList = args or [tuple([])] * len(self.actions)
         if len(self.args) < len(self.actions):
             self.args.extend([tuple([])] * (len(self.actions) - len(self.args)))
 
@@ -68,18 +65,18 @@ class Transform:
         """Characteristic of the Transform: the unique, sorted Action keys involved."""
         characteristic: set[str] = set()
         for action in self.actions:
-            characteristic.add(Action().rev_map[action.__name__])
+            characteristic.add(action.code)
         return "".join(sorted(characteristic))
 
     @classmethod
     def from_code(cls, code: str) -> "Transform":
         """Create a Transform from a code (string of Action keys and args)."""
         chars, raw_args = zip(*act_regex.findall(code))
-        args: ArgsType = [
+        args: ArgsList = [
             tuple(map(int, item.split(","))) if item else tuple() for item in raw_args
         ]
         return cls(
-            actions=[Action()[char] for char in chars],
+            actions=[Actions.map[char] for char in chars],
             args=args,
         )
 
@@ -88,7 +85,7 @@ class Transform:
         """Return the string of action keys and args."""
         msg = ""
         for action, args in zip(self.actions, self.args):
-            msg += f"{Action().rev_map[action.__name__]}{','.join(map(str, args))}"
+            msg += f"{action.code}{','.join(map(str, args))}"
         return msg
 
     @property
@@ -118,9 +115,9 @@ class Transform:
         result = object
         for action, args in zip(self.actions, self.args):
             try:
-                result = action(result, *args)
+                result = action.act(result, *args)
             except:
-                result = action(result, *default_args)
+                result = action.act(result, *default_args)
         return result
 
 

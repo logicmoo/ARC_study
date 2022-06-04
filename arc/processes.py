@@ -154,9 +154,9 @@ class MakeBase(Process):
         codes: tuple[str, ...] = tuple([])
         rows, cols = object.grid.shape
         if cols > 1:
-            codes += (f"C*{cols - 1}",)
+            codes += (f"H*{cols - 1}",)
         if rows > 1:
-            codes += (f"R*{rows - 1}",)
+            codes += (f"V*{rows - 1}",)
         generator = Generator.from_codes(codes) if codes else None
 
         # For a single color present, this simplifies to a single line/rect
@@ -245,9 +245,9 @@ class Tiling(Process):
         )
         codes: tuple[str, ...] = tuple([])
         if r_ct > 1:
-            codes += (f"R*{r_ct-1}",)
+            codes += (f"V*{r_ct-1}",)
         if c_ct > 1:
-            codes += (f"C*{c_ct-1}",)
+            codes += (f"H*{c_ct-1}",)
         gen = Generator.from_codes(codes)
         log.debug(f"Generator: {gen}")
         # TODO For now, assume unit cells are not worth sub-analyzing
@@ -315,14 +315,14 @@ class Reflection(Process):
         codes: tuple[str, ...] = tuple([])
         if axes[0]:
             if odd_vertical:
-                codes += ("v*1",)
+                codes += ("m*1",)
             else:
-                codes += ("V*1",)
+                codes += ("M*1",)
         if axes[1]:
             if odd_horizontal:
-                codes += ("h*1",)
+                codes += ("e*1",)
             else:
-                codes += ("H*1",)
+                codes += ("E*1",)
         gen = Generator.from_codes(codes)
         # TODO Should we assume unit cells are not worth sub-analyzing?
         # e.g. should we set leaf=True in the args below

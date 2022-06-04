@@ -1,7 +1,6 @@
-import numpy as np
 import pytest
 
-from arc.actions import Action
+from arc.actions import Actions
 from arc.grid_methods import gridify
 from arc.object import Object
 from arc.link import ObjectDelta
@@ -27,14 +26,14 @@ def test_translation():
     dot1 = Object(1, 1, 1)
     dot2 = Object(2, 1, 1)
     delta = ObjectDelta(dot1, dot2)
-    assert delta.transform.code == "w1"
+    assert delta.transform.code == "v1"
 
     dot3 = Object(1, 2, 1)
     delta = ObjectDelta(dot1, dot3)
-    assert delta.transform.code == "s1"
+    assert delta.transform.code == "h1"
 
     delta = ObjectDelta(dot2, dot3)
-    assert delta.transform.code == "w-1s1"
+    assert delta.transform.code == "v-1h1"
 
 
 def test_justification():
@@ -65,19 +64,19 @@ def test_rotation(grid3x3: Grid):
     """Test if rotations, reflections are detected."""
     left = Object.from_grid(grid3x3)
 
-    r90 = Object.from_grid(np.rot90(grid3x3))
+    r90 = Actions.Turn.act(Object.from_grid(grid3x3), 1)
     delta = ObjectDelta(left, r90)
-    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.actions == [Actions.Turn]
     assert delta.transform.args == [(1,)]
 
-    r180 = Object.from_grid(np.rot90(np.rot90(grid3x3)))
+    r180 = Actions.Turn.act(Object.from_grid(grid3x3), 2)
     delta = ObjectDelta(left, r180)
-    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.actions == [Actions.Turn]
     assert delta.transform.args == [(2,)]
 
-    r270 = Object.from_grid(np.rot90(np.rot90(np.rot90(grid3x3))))
+    r270 = Actions.Turn.act(Object.from_grid(grid3x3), 3)
     delta = ObjectDelta(left, r270)
-    assert delta.transform.actions == [Action.turn]
+    assert delta.transform.actions == [Actions.Turn]
     assert delta.transform.args == [(3,)]
 
 
@@ -85,12 +84,12 @@ def test_reflection(grid3x3: Grid):
     """Test if rotations, reflections are detected."""
     left = Object.from_grid(grid3x3)
 
-    vertical = Object.from_grid(np.flip(grid3x3, 0))
+    vertical = Actions.Flip.act(Object.from_grid(grid3x3), 0)
     delta = ObjectDelta(left, vertical)
-    assert delta.transform.actions == [Action.flip_v]
+    assert delta.transform.actions == [Actions.VFlip]
     assert delta.transform.args == [tuple()]
 
-    horizontal = Object.from_grid(np.flip(grid3x3, 1))
+    horizontal = Actions.Flip.act(Object.from_grid(grid3x3), 1)
     delta = ObjectDelta(left, horizontal)
-    assert delta.transform.actions == [Action.flip_h]
+    assert delta.transform.actions == [Actions.HFlip]
     assert delta.transform.args == [tuple()]
