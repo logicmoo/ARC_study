@@ -1,3 +1,5 @@
+import collections
+
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
@@ -38,7 +40,7 @@ class Task:
         # Utility
         self.traits: set[str] = set([])
         self.template_map: dict[str, Template] = {}
-        self.validation: dict[str, Object] = {}
+        self.validation_map: dict[str, list[Object]] = collections.defaultdict(list)
         self.fail: str = ""
 
         # Load scenes, cases ("train" data) and tests
@@ -242,8 +244,9 @@ class Task:
                 else:
                     template.apply_variable(path, link.value)
 
-            if scene.output.rep != template.generate(template.frame):
+            if (val_rep := template.generate(template.frame)) != scene.output.rep:
                 log.info(f" x Scene {case_idx} failed validation under {char}")
+                self.validation_map[char].append(val_rep)
                 return False
         return True
 
