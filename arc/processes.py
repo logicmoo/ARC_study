@@ -158,7 +158,8 @@ class Processes:
             # For a single color present, this simplifies to a single line/rect
             if len(object.c_rank) == 1:
                 return Object(
-                    *object.anchor,
+                    *object.loc,
+                    color=color,
                     generator=generator,
                     leaf=True,
                     process=f"{self.code}{color}",
@@ -171,7 +172,7 @@ class Processes:
             )
             front = Object.from_points(front_points, process="Btop")
             return Object(
-                *object.anchor,
+                *object.loc,
                 children=[background, front],
                 leaf=True,
                 process=f"{self.code}{color}",
