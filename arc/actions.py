@@ -121,14 +121,12 @@ class Actions:
     class Scale(Action):
         @classmethod
         def act(cls, object: "Object", code: str, value: int) -> "Object":
-            """Change the value associated with a generator"""
-            if not object.generator:
+            """Change the value associated with a generating code"""
+            if not object.generating:
                 return object.copy()
-            copies = object.generator.copies.copy()
-            for idx, trans in enumerate(object.generator.transforms):
-                if trans.char == code:
-                    copies[idx] = value
-            return object.copy(generator=object.generator.copy(copies=copies))
+            updated_codes = object.codes.copy()
+            updated_codes[code] = value
+            return object.copy(codes=updated_codes)
 
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args | None:
@@ -137,6 +135,7 @@ class Actions:
                 if left.sil(right):
                     return tuple([])
 
+            # TODO
             # There could exist one or more generators to create the other object
             args = tuple([])
             for axis in [0, 1]:
@@ -252,15 +251,15 @@ class Compounds:
 
     class RotTile(Actions.Turn, Actions.Tile):
         @classmethod
-        def act(cls, object: "Object", row: int, col: int) -> "Object":
+        def act(cls, object: "Object") -> "Object":
             # TODO This currently takes two args that are a reference row, col.
             # This position represents the axis of rotation (into the 2D plane)
             # It gets populated via the Generator "default args", which is a bit
             # of a hacked solution, perhaps.
             turned = super().act(object, 1)
-            if row > object.row:
+            if object.height > object.row:
                 return Actions.Tile.act(turned, 1, 0)
-            elif col > object.col:
+            elif object.width > object.col:
                 return Actions.Tile.act(turned, 0, 1)
             else:
                 return Actions.Tile.act(turned, -1, 0)

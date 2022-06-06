@@ -2,6 +2,7 @@ import collections
 from functools import cached_property
 from typing import Any
 import uuid
+from arc.actions import Actions
 
 from arc.types import (
     BaseObjectPath,
@@ -26,7 +27,7 @@ from arc.grid_methods import (
     translational_order,
 )
 from arc.definitions import Constants as cst
-from arc.generator import Generator
+from arc.util.common import get_characteristic
 
 log = logger.fancy_logger("Object", level=30)
 
@@ -84,7 +85,7 @@ class Object:
         col: int = 0,
         color: int = cst.NULL_COLOR,
         children: list["Object"] | None = None,
-        generator: Generator | None = None,
+        codes: dict[str, int] | None = None,
         row_bound: int = cst.MAX_ROWS,
         col_bound: int = cst.MAX_COLS,
         name: str = "",
@@ -95,9 +96,11 @@ class Object:
         self.col: int = col
         self.color: int = color
         self.children: list["Object"] = children or []
-        self.generator: Generator = generator or Generator([])
         self.row_bound: int = row_bound
         self.col_bound: int = col_bound
+        self.codes: dict[str, int] = collections.defaultdict(int)
+        if codes is not None:
+            self.codes.update(codes)
 
         # Utility attributes
         self.name: str = name
@@ -108,13 +111,6 @@ class Object:
 
         # Attributes used during linking
         self.depth: int | None = None
-
-        # WIP Integrate generation into Object
-        self.codes: dict[str, int] = collections.defaultdict(int)
-
-        if self.generator:
-            for trans, copies in self.generator.rep:
-                self.codes[trans.code] = copies
 
     ## Constructors
     @classmethod
@@ -189,20 +185,46 @@ class Object:
         return (self.row, self.col, self.color)
 
     @cached_property
+    def char(self) -> str:
+        hot_codes = [code for code, val in self.codes.items() if val > 0]
+        return get_characteristic(hot_codes)
+
+    @cached_property
+    def generating_dim(self) -> int:
+        return len(self.char)
+
+    @cached_property
     def generating(self) -> bool:
-        return any(val > 0 for val in self.codes.values())
+        return self.generating_dim > 0
 
     # NOTE: Keep an eye on the caching here to make sure it behaves appropriately
     @cached_property
     def materialized(self) -> "Object":
-        if not self.generator:
+        if not self.generating:
             return self
         kernel = Object(
             color=self.color,
             children=[obj.materialized for obj in self.children],
         )
-        new_obj = Object(*self.anchor, children=self.generator.materialize(kernel))
+        new_obj = Object(*self.anchor, children=self._materialize(kernel, self.codes))
         return new_obj
+
+    @staticmethod
+    def _materialize(object: "Object", codes: dict[str, int]) -> list["Object"]:
+        """Creates a materialized (no generators) object hierarchy."""
+        results = [object.copy()]
+        for action_code, count in codes.items():
+            if not count:
+                continue
+            action = Actions.map[action_code]
+            new_results: list[Object] = []
+            for current in results:
+                new_results.append(current)
+                for _ in range(count):
+                    current = action.act(current)
+                    new_results.append(current)
+            results = new_results
+        return results
 
     @cached_property
     def points(self) -> PointDict:
@@ -211,7 +233,7 @@ class Object:
             return {(0, 0): self.color}
 
         pts: PointDict = {}
-        if self.generator:
+        if self.generating:
             pts.update(self.materialized.points)
         else:
             # NOTE The order of children determines layering, bottom first
@@ -292,16 +314,16 @@ class Object:
         if self.color == cst.NEGATIVE_COLOR:
             return "Cutout"
         elif not self.children:
-            if not self.generator:
+            if not self.generating:
                 return "Dot"
-            elif self.generator.dim == 1:
+            elif self.generating_dim == 1:
                 return "Line"
-            elif self.generator.dim == 2:
+            elif self.generating_dim == 2:
                 return "Rect"
             else:
                 return "Compound"
         else:
-            if self.generator and self.generator.dim > 0:
+            if self.generating_dim > 0:
                 return "Pattern"
             elif self.process == "Cell":
                 return "Cell"
@@ -427,8 +449,8 @@ class Object:
         indent = "  " * tab
         output = [indent + self.__repr__()]
 
-        if self.generator:
-            output.append(f"{indent}  Generator{self.generator}")
+        if self.generating:
+            output.append(f"{indent}  Generating{self.codes}")
 
         dot_kids = 0
         for child in self.children:
@@ -461,7 +483,7 @@ class Object:
         # Perhaps altering children isn't necessary in most cases
         new_args = {
             "children": [kid.copy() for kid in self.children],
-            "generator": self.generator,
+            "codes": self.codes.copy(),
             "row_bound": self.row_bound,
             "col_bound": self.col_bound,
             "name": self.name,
@@ -495,7 +517,7 @@ class Object:
                 continue
 
             # We can't flatten through a generator
-            if kid.generator:
+            if kid.generating:
                 new_children.append(flat_kid)
                 continue
 
@@ -541,7 +563,7 @@ class Object:
             own_props += cst.CUTOUT_PROPS * self.size
 
         from_children = sum([item.props for item in self.children])
-        from_gen = 0 if not self.generator else self.generator.props
+        from_gen = int(self.generating) + 2 * self.generating_dim
         return cst.NON_DOT_PROPS + own_props + from_gen + from_children
 
     @cached_property

@@ -1,4 +1,3 @@
-from arc.generator import Generator
 from arc.object import Object
 from arc.actions import chebyshev_vector
 from arc.actions import Actions
@@ -36,8 +35,7 @@ def test_deformations():
     pt1 = Object(1, 1, 1)
     assert Actions.Scale.act(pt1, "V", 2) == pt1
 
-    sq_gen = Generator.from_codes(("V*4", "H*4"))
-    square = Object(1, 1, 1, generator=sq_gen)
+    square = Object(1, 1, 1, codes={"H": 4, "V": 4})
 
     flat = Actions.VScale.act(square, 2)
     assert flat.loc == (1, 1)
@@ -47,7 +45,7 @@ def test_deformations():
     assert thin.loc == (1, 1)
     assert thin.shape == (5, 3)
 
-    assert Actions.Scale.act(Actions.Scale.act(square, "R", 1), "R", 4) == square
+    assert Actions.Scale.act(Actions.Scale.act(square, "V", 1), "V", 4) == square
 
 
 def test_rotation():
@@ -90,31 +88,31 @@ def test_color():
 
 
 def test_resize():
-    obj1 = Object(generator=Generator.from_codes(("V*5", "H*3")))
-    obj2 = Object(2, 1, generator=Generator.from_codes(("V*1", "H*1")))
-    obj3 = Object(generator=Generator.from_codes(("V*1", "H*1")))
+    obj1 = Object(codes={"V": 5, "H": 3})
+    obj2 = Object(2, 1, codes={"V": 1, "H": 1})
+    obj3 = Object(codes={"V": 1, "H": 1})
     assert Actions.Resize.act(obj1, obj2) == obj3
 
-    obj4 = Object(1, 5, generator=Generator.from_codes(("V*5", "H*1")))
-    obj5 = Object(generator=Generator.from_codes(("V*5", "H*1")))
+    obj4 = Object(1, 5, codes={"V": 5, "H": 1})
+    obj5 = Object(codes={"V": 5, "H": 1})
     assert Actions.Resize.act(obj1, obj4) == obj5
 
-    obj6 = Object(generator=Generator.from_codes(("V*3", "H*3")))
-    obj7 = Object(generator=Generator.from_codes(("V*3", "H*3")))
+    obj6 = Object(codes={"V": 3, "H": 3})
+    obj7 = Object(codes={"V": 3, "H": 3})
     assert Actions.Resize.act(obj1, obj6) == obj7
 
 
 def test_chebyshev():
-    obj1 = Object(5, 5, generator=Generator.from_codes(("V*2", "H*3")))
-    obj2 = Object(2, 1, generator=Generator.from_codes(("V*1", "H*1")))
+    obj1 = Object(5, 5, codes={"V": 2, "H": 3})
+    obj2 = Object(2, 1, codes={"V": 1, "H": 1})
     assert chebyshev_vector(obj2, obj1) == (1, 0)
     assert chebyshev_vector(obj1, obj2) == (-1, 0)
 
-    obj3 = Object(2, 1, generator=Generator.from_codes(("V*5", "H*1")))
+    obj3 = Object(2, 1, codes={"V": 5, "H": 1})
     assert chebyshev_vector(obj3, obj1) == (0, 2)
     assert chebyshev_vector(obj1, obj3) == (0, -2)
 
-    obj4 = Object(4, 4, generator=Generator.from_codes(("V*1", "H*2")))
+    obj4 = Object(4, 4, codes={"V": 1, "H": 2})
     assert chebyshev_vector(obj1, obj4) == (0, 0)
     assert chebyshev_vector(obj4, obj1) == (0, 0)
 
@@ -126,14 +124,20 @@ def test_chebyshev():
     assert chebyshev_vector(obj6, obj1) == (0, -1)
     assert chebyshev_vector(obj1, obj6) == (0, 1)
 
-    obj7 = Object(10, 6, generator=Generator.from_codes(("H*6",)))
+    obj7 = Object(
+        10,
+        6,
+        codes={
+            "H": 6,
+        },
+    )
     assert chebyshev_vector(obj7, obj1) == (-2, 0)
     assert chebyshev_vector(obj1, obj7) == (2, 0)
 
 
 def test_adjoin():
-    obj1 = Object(5, 5, generator=Generator.from_codes(("V*2", "H*3")))
-    obj2 = Object(2, 1, generator=Generator.from_codes(("V*1", "H*1")))
+    obj1 = Object(5, 5, codes={"V": 2, "H": 3})
+    obj2 = Object(2, 1, codes={"V": 1, "H": 1})
     assert Actions.Adjoin.act(obj2, obj1) == Actions.Vertical.act(obj2, 1)
 
     obj3 = Object(10, 10)
@@ -141,8 +145,8 @@ def test_adjoin():
 
 
 def test_align():
-    obj1 = Object(5, 5, generator=Generator.from_codes(("V*2", "H*3")))
-    obj2 = Object(2, 1, generator=Generator.from_codes(("V*1", "H*1")))
+    obj1 = Object(5, 5, codes={"V": 2, "H": 3})
+    obj2 = Object(2, 1, codes={"V": 1, "H": 1})
     assert Actions.Align.act(obj2, obj1) == Actions.Vertical.act(obj2, 3)
 
     obj3 = Object(2, 3)

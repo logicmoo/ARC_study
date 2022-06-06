@@ -5,7 +5,6 @@ from arc.actions import Actions
 
 from arc.definitions import Constants as cst
 from arc.object import Object, ObjectPath
-from arc.generator import Generator
 from arc.types import BaseObjectPath
 from arc.util import logger
 from arc.util.common import all_equal
@@ -134,19 +133,13 @@ class Template:
             for key, val in structure["props"].items()
             if val != "?" and len(key) > 1
         }
-        gens = {
+        codes: dict[str, int] = {
             key: val
             for key, val in structure["props"].items()
-            if val != 0 and len(key) == 1
-        }
-        if "?" in gens.values():
-            generator = None
-        else:
-            generator = Generator.from_codes(
-                tuple(f"{key}*{val}" for key, val in gens.items())
-            )
+            if val not in (0, "?") and len(key) == 1
+        }  # type: ignore
 
-        return Object(children=children, generator=generator, **props)
+        return Object(children=children, codes=codes, **props)
 
     @staticmethod
     def recursive_compare(

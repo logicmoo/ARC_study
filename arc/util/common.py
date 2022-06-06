@@ -12,7 +12,7 @@ def all_equal(iterable: Iterable[Any]):
     return next(group, True) and not next(group, False)
 
 
-def get_characteristic(input: str) -> str:
+def get_characteristic(input: str | list[str]) -> str:
     """Return the unique, sorted characters in the string."""
     return "".join(sorted(set(input)))
 

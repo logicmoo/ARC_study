@@ -2,7 +2,6 @@ from arc.grid_methods import grid_equal, gridify
 
 from arc.object import Object
 from arc.definitions import Constants as cst
-from arc.generator import Generator
 
 
 def test_basics():
@@ -96,11 +95,11 @@ def test_simple_flatten():
 
 
 def test_deep_flatten():
-    l31 = Object(color=3, generator=Generator.from_codes(("V*2",)))
-    l32 = Object(0, 1, 4, generator=Generator.from_codes(("V*2",)))
-    l21 = Object(color=2, generator=Generator.from_codes(("V*2",)))
+    l31 = Object(color=3, codes={"V": 2})
+    l32 = Object(0, 1, 4, codes={"V": 2})
+    l21 = Object(color=2, codes={"V": 2})
     l22 = Object(0, 1, children=[l31, l32])
-    l11 = Object(color=1, generator=Generator.from_codes(("V*2",)))
+    l11 = Object(color=1, codes={"V": 2})
     l12 = Object(0, 1, children=[l21, l22])
     l0 = Object(children=[l11, l12])
 

@@ -29,14 +29,14 @@ class Inventory:
         return [obj for ranked_objs in self.inventory.values() for obj in ranked_objs]
 
     def create_inventory(self, obj: Object, depth: int = 0) -> dict[str, list[Object]]:
-        """Recursively find all objects, index them by their generator."""
+        """Recursively find all objects, index them by generating characteristic."""
         inventory: dict[str, list[Object]] = collections.defaultdict(list)
-        inventory[obj.generator.char].append(obj)
+        inventory[obj.char].append(obj)
         self.depth[depth].append(obj)
         obj.depth = depth
 
         # If an object is a single-color blob, we shouldn't need to pick out children
-        if obj.meta == "Blob" and len(obj.c_rank) == 1 and not obj.generator:
+        if obj.meta == "Blob" and len(obj.c_rank) == 1 and not obj.generating:
             return inventory
 
         for kid in obj.children:
@@ -66,11 +66,11 @@ class Inventory:
         return match
 
     def find_scene_match(self, obj: Object) -> ObjectDelta | None:
-        # We prune the search for transformation matches by generator characteristic
+        # We prune the search for transformation matches by generating characteristic
         # as there (currently) is no presumption of dynamic generators--we assume
         # that if the output contains objects with generators, their characteristics
         # are constant across cases.
-        candidates = self.inventory.get(obj.generator.char, [])
+        candidates = self.inventory.get(obj.char, [])
         threshold = 8
 
         if not candidates:

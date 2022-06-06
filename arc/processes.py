@@ -3,7 +3,6 @@ import collections
 
 import numpy as np
 
-from arc.generator import Generator
 from arc.types import Point, PointList, PositionSet
 from arc.util import logger
 from arc.grid_methods import eval_mesh, point_filter
@@ -147,29 +146,26 @@ class Processes:
                 color = object.c_rank[0][0]
 
             # Create a Generator based on the grid size
-            codes: tuple[str, ...] = tuple([])
+            codes: dict[str, int] = {}
             rows, cols = object.grid.shape
             if cols > 1:
-                codes += (f"H*{cols - 1}",)
+                codes["H"] = cols - 1
             if rows > 1:
-                codes += (f"V*{rows - 1}",)
-            generator = Generator.from_codes(codes) if codes else None
+                codes["V"] = rows - 1
 
             # For a single color present, this simplifies to a single line/rect
             if len(object.c_rank) == 1:
                 return Object(
                     *object.loc,
                     color=color,
-                    generator=generator,
+                    codes=codes,
                     leaf=True,
                     process=f"{self.code}{color}",
                 )
 
             # Split off the base color from the "front matter"
             _, front_points = point_filter(object.points, color)
-            background = Object(
-                color=color, generator=generator, leaf=True, process="BG"
-            )
+            background = Object(color=color, codes=codes, leaf=True, process="BG")
             front = Object.from_points(front_points, process="Btop")
             return Object(
                 *object.loc,
@@ -237,13 +233,12 @@ class Processes:
             log.debug(
                 f"Tiling with {row_stride}x{col_stride} cell, bound: {row_bound, col_bound}"
             )
-            codes: tuple[str, ...] = tuple([])
+            codes: dict[str, int] = {}
             if r_ct > 1:
-                codes += (f"V*{r_ct-1}",)
+                codes["V"] = int(r_ct - 1)
             if c_ct > 1:
-                codes += (f"H*{c_ct-1}",)
-            gen = Generator.from_codes(codes)
-            log.debug(f"Generator: {gen}")
+                codes["H"] = int(c_ct - 1)
+            log.debug(f"Generator codes: {codes}")
             # TODO For now, assume unit cells are not worth sub-analyzing
             cell = Object.from_points(
                 cell_pts,
@@ -252,7 +247,7 @@ class Processes:
             )
             return Object(
                 *object.loc,
-                generator=gen,
+                codes=codes,
                 children=[cell],
                 row_bound=row_bound,
                 col_bound=col_bound,
@@ -304,25 +299,24 @@ class Processes:
                 log.debug(f"Empty cell pts generated from following object")
                 object.debug()
                 return None
-            codes: tuple[str, ...] = tuple([])
+            codes: dict[str, int] = {}
             if axes[0]:
                 if odd_vertical:
-                    codes += ("m*1",)
+                    codes["m"] = 1
                 else:
-                    codes += ("M*1",)
+                    codes["M"] = 1
             if axes[1]:
                 if odd_horizontal:
-                    codes += ("e*1",)
+                    codes["e"] = 1
                 else:
-                    codes += ("E*1",)
-            gen = Generator.from_codes(codes)
+                    codes["E"] = 1
             # TODO Should we assume unit cells are not worth sub-analyzing?
             # e.g. should we set leaf=True in the args below
             cell = Object.from_points(cell_pts, leaf=True, process="Cell")
             candidate = Object(
                 *object.loc,
                 color=cell.color,
-                generator=gen,
+                codes=codes,
                 children=[cell],
                 leaf=True,
                 process="Refl",
@@ -378,13 +372,11 @@ class Processes:
                 object.debug()
                 return None
 
-            codes: tuple[str, ...] = tuple([])
-            codes += ("O*3",)
-            gen = Generator.from_codes(codes)
+            codes: dict[str, int] = {"O": 3}
             # TODO For now, assume unit cells are not worth sub-analyzing
             cell = Object.from_points(cell_pts, leaf=True, process="Cell")
             candidate = Object(
-                *object.loc, generator=gen, children=[cell], leaf=True, process="Rot"
+                *object.loc, codes=codes, children=[cell], leaf=True, process="Rot"
             )
             return candidate
 

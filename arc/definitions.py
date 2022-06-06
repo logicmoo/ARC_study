@@ -41,7 +41,7 @@ class Constants:
     ALL_STEPS = STEPS_BASE + STEPS_DIAG
 
     # Solving
-    TOP_K_CHARS = 3
+    TOP_K_CHARS = 5
 
     # Information
     DOT_PROPS = 1  # 'entropic weight' of a single point

@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from arc.actions import Action, Actions
 from arc.types import Position, ArgsList
-from arc.util import common
+from arc.util import common, logger
 
 
 if TYPE_CHECKING:
@@ -33,6 +33,12 @@ if TYPE_CHECKING:
 act_regex = re.compile(r"([a-zA-Z])(-?\d*(?:,-?\d+)*)")
 copies_regex = re.compile(r"\*(\d+)")
 
+log = logger.fancy_logger("Transform", level=30)
+
+
+class TransformError(Exception):
+    pass
+
 
 class Transform:
     def __init__(
@@ -43,7 +49,8 @@ class Transform:
         self.actions = actions
         self.args: ArgsList = args or [tuple([])] * len(self.actions)
         if len(self.args) < len(self.actions):
-            self.args.extend([tuple([])] * (len(self.actions) - len(self.args)))
+            log.error(f"Insufficient arguments for Transform: {args} -> {actions}")
+            raise TransformError
 
     def __bool__(self) -> bool:
         return len(self.actions) > 0

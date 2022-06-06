@@ -67,9 +67,12 @@ class Scene:
         end result.
         """
         if not decomp_tree_only:
-            current = self.link_maps[self.current]
+            current = None
+            if self.current:
+                current = self.link_maps[self.current]
             del self.link_maps
-            self.link_maps: dict[str, LinkMap] = {self.current: current}
+            if current is not None:
+                self.link_maps: dict[str, LinkMap] = {self.current: current}
 
         self.input.clean()
         self.output.clean()

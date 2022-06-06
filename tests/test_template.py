@@ -1,4 +1,3 @@
-from arc.generator import Generator
 from arc.object import Object, ObjectPath
 from arc.template import Template
 
@@ -52,8 +51,8 @@ def test_dot_structure() -> None:
 
 
 def test_generator_structure() -> None:
-    line_1 = Object(1, 1, 1, generator=Generator.from_codes(("V*5",)))
-    line_2 = Object(2, 1, 1, generator=Generator.from_codes(("V*6",)))
+    line_1 = Object(1, 1, 1, codes={"V": 5})
+    line_2 = Object(2, 1, 1, codes={"V": 6})
 
     template = Template.from_outputs([line_1, line_2])
     assert template.structure == {

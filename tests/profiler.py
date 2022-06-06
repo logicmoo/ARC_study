@@ -75,7 +75,7 @@ if __name__ == "__main__":
         "-s", "--single", help="Run a single task index (N = idx)", action="store_true"
     )
     parser.add_argument(
-        "-t", "--time_limit", help="Maximum seconds per task", type=int, default=10
+        "-t", "--time_limit", help="Maximum seconds per task", type=int, default=60
     )
     parser.add_argument(
         "-v", "--verbose", help="Show debug logging", action="store_true"
