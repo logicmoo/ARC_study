@@ -8,7 +8,7 @@ from arc.link import ObjectDelta
 from arc.object import Object, ObjectPath
 
 from arc.actions import Actions
-from arc.generator import Transform, Generator
+from arc.transform import Transform
 
 from arc.inventory import Inventory
 from arc.solution import Solution

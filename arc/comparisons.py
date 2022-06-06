@@ -1,7 +1,7 @@
 from typing import Any, Callable, TypeAlias
 
 from arc.actions import Actions
-from arc.generator import Transform
+from arc.transform import Transform
 from arc.object import Object
 from arc.util import logger
 

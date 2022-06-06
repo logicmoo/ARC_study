@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from arc.definitions import Constants as cst
 from arc.comparisons import ObjectComparison, default_comparisons
-from arc.generator import Transform
+from arc.transform import Transform
 from arc.object import Object
 from arc.types import BaseObjectPath
 from arc.util import logger

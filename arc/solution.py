@@ -12,7 +12,7 @@ from arc.comparisons import (
     compare_rotation,
 )
 from arc.template import Template
-from arc.generator import Transform
+from arc.transform import Transform
 from arc.labeler import Labeler, all_traits
 from arc.object import Object, ObjectPath, sort_layer
 from arc.link import ObjectDelta, VariableLink

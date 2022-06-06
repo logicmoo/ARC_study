@@ -1,7 +1,7 @@
 from arc.actions import Actions
 
 from arc.object import Object
-from arc.generator import Transform
+from arc.transform import Transform
 from arc.grid_methods import gridify, grid_equal
 
 
