@@ -147,7 +147,7 @@ class Generator:
         copies: list[int] = [],
     ):
         self.transforms = transforms
-        self.copies = copies or [0] * len(self.transforms)
+        self.copies: list[int] = copies or [0] * len(self.transforms)
 
     def __bool__(self) -> bool:
         return len(self.transforms) > 0
@@ -163,6 +163,10 @@ class Generator:
                 curr += f"*{copies}"
             msg.append(curr)
         return f"({','.join(msg)})"
+
+    @property
+    def rep(self) -> list[tuple[Transform, int]]:
+        return [pair for pair in zip(self.transforms, self.copies)]
 
     @property
     def codes(self) -> tuple[str, ...]:

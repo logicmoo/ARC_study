@@ -1,4 +1,4 @@
-from collections import Counter
+import collections
 from functools import cached_property
 from typing import Any
 import uuid
@@ -109,6 +109,13 @@ class Object:
         # Attributes used during linking
         self.depth: int | None = None
 
+        # WIP Integrate generation into Object
+        self.codes: dict[str, int] = collections.defaultdict(int)
+
+        if self.generator:
+            for trans, copies in self.generator.rep:
+                self.codes[trans.code] = copies
+
     ## Constructors
     @classmethod
     def from_grid(
@@ -180,6 +187,10 @@ class Object:
     def anchor(self) -> tuple[int, int, int]:
         """The *local* position and color information of the Object."""
         return (self.row, self.col, self.color)
+
+    @cached_property
+    def generating(self) -> bool:
+        return any(val > 0 for val in self.codes.values())
 
     # NOTE: Keep an eye on the caching here to make sure it behaves appropriately
     @cached_property
@@ -536,7 +547,7 @@ class Object:
     @cached_property
     def c_rank(self) -> list[tuple[int, int]]:
         """Get the counts for each color on the grid, starting with most prevalent"""
-        counter = Counter(self.points.values())
+        counter = collections.Counter(self.points.values())
         return sorted(counter.items(), key=lambda x: (x[1], x[0]), reverse=True)
 
     @cached_property
@@ -580,7 +591,10 @@ class Object:
     def get_value(self, path: ObjectPath) -> int | None:
         target = self.get_path(path.base)
         if target and isinstance(path.property, str):
-            return getattr(target, path.property)
+            if len(path.property) == 1:
+                return target.codes[path.property]
+            else:
+                return getattr(target, path.property)
 
         return None
 

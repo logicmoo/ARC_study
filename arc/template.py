@@ -1,11 +1,12 @@
 import collections
 from copy import deepcopy
 from typing import Literal, TypeAlias, TypedDict
+from arc.actions import Actions
 
 from arc.definitions import Constants as cst
 from arc.object import Object, ObjectPath
-from arc.generator import Generator, Transform
-from arc.types import BaseObjectPath, PropertyPath
+from arc.generator import Generator
+from arc.types import BaseObjectPath
 from arc.util import logger
 from arc.util.common import all_equal
 
@@ -25,7 +26,6 @@ class CommonProperties(TypedDict, total=False):
 
 class StructureDef(TypedDict):
     props: CommonProperties
-    generator: tuple[str, ...]
     children: list["StructureDef"]
 
 
@@ -70,7 +70,6 @@ class Template:
     def _init_structure() -> StructureDef:
         return {
             "props": {},
-            "generator": tuple([]),
             "children": [],
         }
 
@@ -79,8 +78,6 @@ class Template:
         indent = "  " * depth
         node = self.get_base(path, self.structure)
         args = [f"{arg} = {val}" for arg, val in node["props"].items()]
-        if gen := node["generator"]:
-            args.append(f"generator = {gen}")
         if ObjectPath(path) in self.variables:
             args.append("children = ?")
         line = f"{indent}({', '.join(args)})"
@@ -105,7 +102,7 @@ class Template:
     def get_value(path: ObjectPath, root: StructureDef) -> int | None:
         node: StructureDef = Template.get_base(path.base, root)
         if node and isinstance(path.property, str):
-            return node["props"].get(path.property, cst.DEFAULT[path.property])
+            return node["props"].get(path.property, cst.DEFAULT.get(path.property, 0))
 
     def init_frame(self) -> None:
         self.frame: StructureDef = deepcopy(self.structure)
@@ -125,19 +122,30 @@ class Template:
         if target:
             if isinstance(path.property, str):
                 target["props"][path.property] = value
-            else:
-                log.warning("Need to implement Generator value insertions")
 
     @classmethod
     def generate(cls, structure: StructureDef) -> Object:
         children: list[Object] = [
             cls.generate(child_struc) for child_struc in structure["children"]
         ]
-        if "?" in "".join(structure["generator"]):
+        # Get core properties
+        props = {
+            key: val
+            for key, val in structure["props"].items()
+            if val != "?" and len(key) > 1
+        }
+        gens = {
+            key: val
+            for key, val in structure["props"].items()
+            if val != 0 and len(key) == 1
+        }
+        if "?" in gens.values():
             generator = None
         else:
-            generator = Generator.from_codes(structure["generator"])
-        props = {key: val for key, val in structure["props"].items() if val != "?"}
+            generator = Generator.from_codes(
+                tuple(f"{key}*{val}" for key, val in gens.items())
+            )
+
         return Object(children=children, generator=generator, **props)
 
     @staticmethod
@@ -183,11 +191,9 @@ class Template:
         return structure, variables
 
     @staticmethod
-    def compare_properties(
-        objs: list["Object"],
-    ) -> tuple[StructureDef, set[PropertyPath]]:
+    def compare_properties(objs: list["Object"]) -> tuple[StructureDef, set[str]]:
         struc = Template._init_structure()
-        vars: set[PropertyPath] = set([])
+        vars: set[str] = set([])
 
         # Basic properties. cst.DEFAULT contains each with a default value
         for prop in cst.DEFAULT:
@@ -199,54 +205,14 @@ class Template:
                 struc["props"][prop] = "?"
                 vars.add(prop)  # type: ignore (prop is seen as generic 'str')
 
-        ## The Generator requires a few levels of handling
-        gen_repr: tuple[str, ...] = tuple([])
-
-        # First, compare length of the Transforms for each object. If there is a
-        # mismatch, we should determine the most likely scenario
-        if not all_equal([len(obj.generator) for obj in objs]):
-            log.warning(f"Mismatch in number of generator transforms: {objs}")
-            return struc, vars
-
-        if not objs[0].generator:
-            return struc, vars
-
-        trans_repr: list[str] = []
-
-        # Get the list of nth transforms across generators
-        transforms: list[list[Transform]] = [obj.generator.transforms for obj in objs]
-        for t_idx, trans_cut in enumerate(zip(*transforms)):
-            if not all_equal([len(trans) for trans in trans_cut]):
-                # TODO Implement
-                log.warning(f"Mismatch in length of transform actions: {trans_cut}")
-                return struc, vars
-
-            common_actions: str = ""
-            # TODO Only support arg-less actions for now, for simplicity
-            for a_idx, actions in enumerate(
-                zip(*[trans.actions for trans in trans_cut])
-            ):
-                if not all_equal(actions):
-                    vars.add((t_idx, a_idx))
-                    common_actions += "?"
-                else:
-                    common_actions += actions[0].code
-
-            trans_repr.append(common_actions)
-
-        common_copies: list[str] = []
-        for c_idx, copies_cut in enumerate(
-            zip(*[obj.generator.copies for obj in objs])
-        ):
-            if not all_equal(copies_cut):
-                vars.add((c_idx,))
-                common_copies.append("?")
+        # Access generating codes in the objects
+        for code in Actions.map:
+            cts = collections.Counter([obj.codes[code] for obj in objs])
+            if len(cts) == 1:
+                if (val := next(iter(cts))) != 0:
+                    struc["props"][code] = val
             else:
-                common_copies.append(str(copies_cut[0]))
-
-        for trans, copies in zip(trans_repr, common_copies):
-            gen_repr += (f"{trans}*{copies}",)
-
-        struc["generator"] = gen_repr
+                struc["props"][code] = "?"
+                vars.add(code)  # type: ignore (prop is seen as generic 'str')
 
         return struc, vars

@@ -85,7 +85,7 @@ class VariableNode(SolutionNode):
             log.warning(f"Unable to select {self.selector} from {input}")
             return None
 
-        return getattr(selection[0], self.property)
+        return selection[0].get_value(ObjectPath(property=self.property))
 
 
 class TransformNode(SolutionNode):

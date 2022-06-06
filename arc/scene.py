@@ -147,7 +147,7 @@ class Scene:
             # E.g. if we need a 'color' input, use 'color' from an Inventory object.
             prop = obj_path.property
             for obj in inputs:
-                if value == getattr(obj, prop):
+                if value == obj.get_value(ObjectPath(property=prop)):
                     log.debug(f"Candidate: {obj}")
                     link_map[obj_path] = VariableLink(
                         obj, target, obj_path.base, prop, value

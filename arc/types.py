@@ -34,5 +34,4 @@ PointDict: TypeAlias = dict[Position, int]
 Property: TypeAlias = Literal["row", "col", "color", "row_bound", "col_bound"]
 
 BaseObjectPath: TypeAlias = tuple[int, ...]
-GeneratorPath: TypeAlias = tuple[int] | tuple[int, int]
-PropertyPath: TypeAlias = Property | GeneratorPath
+PropertyPath: TypeAlias = str

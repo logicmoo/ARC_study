@@ -9,7 +9,6 @@ def test_dot_structure() -> None:
     template = Template.from_outputs([dot_1, dot_2])
     assert template.structure == {
         "children": [],
-        "generator": tuple([]),
         "props": {
             "row": "?",
             "col": "?",
@@ -33,20 +32,16 @@ def test_dot_structure() -> None:
             {
                 "props": {"row": 1, "color": "?"},
                 "children": [],
-                "generator": tuple([]),
             },
             {
                 "props": {"row": 3, "color": "?"},
                 "children": [],
-                "generator": tuple([]),
             },
             {
                 "props": {"row": 5, "color": "?"},
                 "children": [],
-                "generator": tuple([]),
             },
         ],
-        "generator": tuple([]),
         "props": {},
     }
     assert template.variables == {
@@ -63,7 +58,6 @@ def test_generator_structure() -> None:
     template = Template.from_outputs([line_1, line_2])
     assert template.structure == {
         "children": [],
-        "generator": ("V*?",),
-        "props": {"row": "?", "col": 1, "color": 1},
+        "props": {"row": "?", "col": 1, "color": 1, "V": "?"},
     }
-    assert template.variables == {ObjectPath(property=(0,)), ObjectPath(property="row")}
+    assert template.variables == {ObjectPath(property="V"), ObjectPath(property="row")}
