@@ -50,20 +50,20 @@ def test_deformations():
 
 def test_rotation():
     """Test object rotation."""
-    # Turning a point should yield itself
+    # Rotating a point should yield itself
     pt1 = Object(1, 1, 1)
-    assert Actions.Turn.act(pt1, 1) == pt1
+    assert Actions.Rotate.act(pt1, 1) == pt1
 
     # A monocolor line is symmetric under 180 deg rotation
     blue_line = Object(children=[Object(0, 0, 1), Object(1, 0, 1), Object(2, 0, 1)])
-    assert Actions.Turn.act(blue_line, 1).shape == (1, 3)
-    assert Actions.Turn.act(blue_line, 2) == blue_line
+    assert Actions.Rotate.act(blue_line, 1).shape == (1, 3)
+    assert Actions.Rotate.act(blue_line, 2) == blue_line
 
     composite = Object(children=[blue_line, pt1])
-    assert Actions.Turn.act(composite, 1).shape == (2, 3)
-    assert Actions.Turn.act(composite, 2).shape == (3, 2)
-    assert Actions.Turn.act(composite, 2) != composite
-    assert Actions.Turn.act(composite, 4) == composite
+    assert Actions.Rotate.act(composite, 1).shape == (2, 3)
+    assert Actions.Rotate.act(composite, 2).shape == (3, 2)
+    assert Actions.Rotate.act(composite, 2) != composite
+    assert Actions.Rotate.act(composite, 4) == composite
 
 
 def test_reflection():

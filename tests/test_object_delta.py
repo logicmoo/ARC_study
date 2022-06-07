@@ -64,19 +64,19 @@ def test_rotation(grid3x3: Grid):
     """Test if rotations, reflections are detected."""
     left = Object.from_grid(grid3x3)
 
-    r90 = Actions.Turn.act(Object.from_grid(grid3x3), 1)
+    r90 = Actions.Rotate.act(Object.from_grid(grid3x3), 1)
     delta = ObjectDelta(left, r90)
-    assert delta.transform.actions == [Actions.Turn]
+    assert delta.transform.actions == [Actions.Rotate]
     assert delta.transform.args == [(1,)]
 
-    r180 = Actions.Turn.act(Object.from_grid(grid3x3), 2)
+    r180 = Actions.Rotate.act(Object.from_grid(grid3x3), 2)
     delta = ObjectDelta(left, r180)
-    assert delta.transform.actions == [Actions.Turn]
+    assert delta.transform.actions == [Actions.Rotate]
     assert delta.transform.args == [(2,)]
 
-    r270 = Actions.Turn.act(Object.from_grid(grid3x3), 3)
+    r270 = Actions.Rotate.act(Object.from_grid(grid3x3), 3)
     delta = ObjectDelta(left, r270)
-    assert delta.transform.actions == [Actions.Turn]
+    assert delta.transform.actions == [Actions.Rotate]
     assert delta.transform.args == [(3,)]
 
 

@@ -92,7 +92,7 @@ class TransformNode(SolutionNode):
     def __init__(
         self,
         selector: Selector,
-        action: type[Action] = Actions.Identity,
+        action: type[Action] = Action,
         args: tuple[ActionArg, ...] = tuple(),
         paths: set[ObjectPath] = set([]),
     ) -> None:
@@ -108,7 +108,7 @@ class TransformNode(SolutionNode):
         cls,
         inputs: list[list[Object]],
         link_node: list[list[ObjectDelta]],
-        action: type[Action] = Actions.Identity,
+        action: type[Action] = Action,
     ) -> list["TransformNode | None"]:
         selectors: list[Selector] = []
 
@@ -158,7 +158,7 @@ class TransformNode(SolutionNode):
                     return [None]
                 args = (Selector(inputs, [secondaries]),)
                 log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
-            elif action == Actions.Identity:
+            elif action == Action:
                 # Identity actions won't have args, so skip the next block
                 pass
             else:
@@ -332,7 +332,7 @@ class Solution:
 
                     # TODO WIP Figure out this mapping in the Actions overhaul
                     comparisons: list[ObjectComparison] = []
-                    if target == "t":
+                    if target == "r":
                         comparisons = [compare_rotation]
                     elif target in ["_", "|"]:
                         comparisons = [compare_orientation]
