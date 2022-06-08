@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from arc.actions import Actions, Action, pair_actions, degeneracies, subs
+from arc.actions import Actions, Action, Pairwise, degeneracies, subs
 from arc.board import Inventory
 from arc.comparisons import (
     ObjectComparison,
@@ -139,7 +139,7 @@ class TransformNode(SolutionNode):
             deltas = [delta for group in subnode for delta in group]
             paths = {ObjectPath(delta.base) for delta in deltas}
 
-            if action in pair_actions:
+            if issubclass(action, Pairwise):
                 log.debug(f"Determining selector for {action.__name__}")
                 secondaries: list[Object] = []
                 for delta_group, candidates in zip(subnode, inputs):

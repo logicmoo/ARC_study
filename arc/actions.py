@@ -18,7 +18,7 @@ class Action:
     n_args: int = 0
 
     @classmethod
-    def act(cls, object: "Object") -> "Object":
+    def act(cls, object: "Object", *args: "int | Object") -> "Object":
         """Return a copy of the object with any logic applied."""
         return object.copy()
 
@@ -26,6 +26,13 @@ class Action:
     def inv(cls, left: "Object", right: "Object") -> Args | None:
         """Detect if this action helps relate two objects."""
         return None
+
+
+class Pairwise(Action):
+    @classmethod
+    def act(cls, object: "Object", secondary: "Object") -> "Object":
+        """Return a copy of the object with any logic applied."""
+        return object.copy()
 
 
 class Actions:
@@ -226,21 +233,21 @@ class Actions:
     ## 2-OBJECT ACTIONS
     # These actions leverage another object as the source of information
     # on how to transform the primary object.
-    class Resize(Scale):
+    class Resize(Pairwise, Scale):
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
-            """Alter the primary object so its shape matches the secondary."""
+            """Alter the main object so its shape matches the secondary."""
             result = object.copy()
             if object.shape[0] != secondary.shape[0]:
-                result = super().act(result, "V", secondary.shape[0] - 1)
+                result = Actions.Scale.act(result, "V", secondary.shape[0] - 1)
             if object.shape[1] != secondary.shape[1]:
-                result = super().act(result, "H", secondary.shape[1] - 1)
+                result = Actions.Scale.act(result, "H", secondary.shape[1] - 1)
             return result
 
-    class Adjoin(Translate):
+    class Adjoin(Pairwise, Translate):
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
-            """Translate the primary in one direction towards the secondary.
+            """Translate the main object in one direction towards the secondary.
 
             The primary will not intersect the secondary.
             """
@@ -248,23 +255,27 @@ class Actions:
             result = object.copy()
             ch_vector = chebyshev_vector(object, secondary)
             if ch_vector[0]:
-                result = super().act(result, ch_vector[0], 0)
+                result = Actions.Translate.act(result, ch_vector[0], 0)
             elif ch_vector[1]:
-                result = super().act(result, 0, ch_vector[1])
+                result = Actions.Translate.act(result, 0, ch_vector[1])
             return result
 
-    class Align(Translate):
+    class Align(Pairwise, Translate):
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
-            """Translate the primary the smallest amount to align on an axis with secondary."""
+            """Translate the main object to the nearest alignment to secondary."""
             result = object.copy()
             ch_vector = chebyshev_vector(object, secondary)
             if ch_vector[0]:
                 sign = -1 if ch_vector[0] < 0 else 1
-                result = super().act(result, ch_vector[0] + sign * object.shape[0], 0)
+                result = Actions.Translate.act(
+                    result, ch_vector[0] + sign * object.shape[0], 0
+                )
             elif ch_vector[1]:
                 sign = -1 if ch_vector[1] < 0 else 1
-                result = super().act(result, 0, ch_vector[1] + sign * object.shape[1])
+                result = Actions.Translate.act(
+                    result, 0, ch_vector[1] + sign * object.shape[1]
+                )
             return result
 
 
@@ -346,6 +357,5 @@ for code, action in action_map.items():
     Actions.map[code] = action
 
 # TODO Add a mixin to handle additional Action properties
-pair_actions = [Actions.Adjoin, Actions.Align, Actions.Resize]
 subs = [("fp", "S"), ("vh", "AL")]
 degeneracies = [{"|", "_", "r"}, {"", "z"}]
