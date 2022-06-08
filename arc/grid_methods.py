@@ -1,4 +1,5 @@
 from collections import Counter
+from typing import Callable
 
 import numpy as np
 
@@ -9,12 +10,12 @@ log = logger.fancy_logger("GridMethods", level=30)
 
 from arc.types import (
     Grid,
-    Point,
     PointDict,
     PointList,
     Position,
     PositionList,
     PositionSet,
+    Shape,
 )
 
 
@@ -32,22 +33,22 @@ def grid_equal(left: Grid, right: Grid) -> bool:
     return np.array_equal(left, right)  # type: ignore
 
 
-def norm_points(points: PointList) -> tuple[Position, PointList, bool]:
+def norm_points(points: PointDict) -> tuple[Position, PointDict, bool]:
     """Calculate the anchor (min row and col) of a list of points and norm them.
 
     Returns a tuple: anchor coordinates, materialized point list.
     """
     minrow, mincol = cst.MAX_ROWS, cst.MAX_COLS
     monochrome = True
-    color = points[0][2]
-    for pt in points:
-        minrow = min(minrow, pt[0])
-        mincol = min(mincol, pt[1])
-        if color != pt[2]:
+    first_color = list(points.values())[0]
+    for (row, col), color in points.items():
+        minrow = min(minrow, row)
+        mincol = min(mincol, col)
+        if first_color != color:
             monochrome = False
-    result: PointList = []
-    for pt in points:
-        result.append((pt[0] - minrow, pt[1] - mincol, pt[2]))
+    result: PointDict = {}
+    for (row, col), color in points.items():
+        result[(row - minrow, col - mincol)] = color
     return (minrow, mincol), result, monochrome
 
 
@@ -61,15 +62,15 @@ def shift_locs(locs: PositionSet, ref_loc: Position) -> PositionList:
     return new_locs
 
 
-def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
+def point_filter(points: PointDict, color: int) -> tuple[PointDict, PointDict]:
     """Filter out a single color from a grid."""
-    match_pts: PointList = []
-    other_pts: PointList = []
-    for (row, col), val in points.items():
+    match_pts: PointDict = {}
+    other_pts: PointDict = {}
+    for loc, val in points.items():
         if val == color:
-            match_pts.append((row, col, val))
+            match_pts[loc] = val
         else:
-            other_pts.append((row, col, val))
+            other_pts[loc] = val
     return match_pts, other_pts
 
 
@@ -95,10 +96,10 @@ def point_filter(points: PointDict, color: int) -> tuple[PointList, PointList]:
 #     return out
 
 
-def connect(marked: Grid, max_ct: int = 10) -> list[PointList]:
+def connect(marked: Grid, max_ct: int = 10) -> list[PointDict]:
     """Connect any objects based on point adjacency."""
     M, N = marked.shape
-    blobs: list[PointList] = []
+    blobs: list[PointDict] = []
     for start in zip(*np.where(marked != cst.MARKED_COLOR)):  # type: ignore
         if marked[start] == cst.MARKED_COLOR:
             continue
@@ -118,7 +119,7 @@ def connect(marked: Grid, max_ct: int = 10) -> list[PointList]:
                 ):
                     pts.append((new_r, new_c, marked[new_r][new_c]))
                     marked[new_r][new_c] = cst.MARKED_COLOR
-        blobs.append(pts)
+        blobs.append({(row, col): color for row, col, color in pts})
 
         blobs = sorted(blobs, key=lambda x: len(x), reverse=True)
     return blobs
@@ -172,14 +173,20 @@ def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
     return bound_pts, enclosed_locs
 
 
+def tile_mesh_func(grid: Grid, cell_shape: Shape, loc: Position) -> list[int]:
+    row, col = loc
+    row_stride, col_stride = cell_shape
+    return grid[row::row_stride, col::col_stride].ravel()  # type: ignore
+
+
 # @logger.log_call(log, "warning", ignore_idxs={0})
 def eval_mesh(
     grid: Grid,
-    row_stride: int,
-    col_stride: int,
+    cell_shape: Shape,
+    mesh_func: Callable[[Grid, Shape, Position], list[int]],
     remove_noise: bool = True,
     ignore_colors: list[int] | None = None,
-) -> list[Point]:
+) -> PointDict:
     """Count how many times each color shows up in a sub-mesh.
 
     Define a sub-mesh from a grid by starting from a position (i, j) and moving by
@@ -191,13 +198,14 @@ def eval_mesh(
     'eval_mesh' is called again and will attempt to ignore those colors.
     """
     ignored: list[int] = ignore_colors or []
-    cell_pts: list[Point] = []
+    cell_pts: PointDict = {}
     noise_cts: list[int] = [0] * cst.N_COLORS
     used_cts: list[int] = [0] * cst.N_COLORS
 
+    row_stride, col_stride = cell_shape
     for i in range(row_stride):
         for j in range(col_stride):
-            cts = Counter(grid[i::row_stride, j::col_stride].ravel())
+            cts = Counter(mesh_func(grid, cell_shape, (i, j)))
             color_stats = cts.most_common()  # most_common() -> [(key, ct), ...]
             use_idx = 0
             while color_stats[use_idx][0] in ignored:
@@ -208,7 +216,8 @@ def eval_mesh(
             used_cts[best_color] += color_stats[use_idx][1]
             for item in color_stats[use_idx + 1 :]:
                 noise_cts[item[0]] += item[1]
-            cell_pts.append((i, j, best_color))
+            if best_color != cst.NULL_COLOR:
+                cell_pts[i, j] = best_color
 
     if remove_noise:
         ignored: list[int] = []
@@ -218,8 +227,8 @@ def eval_mesh(
         if ignored:
             return eval_mesh(
                 grid,
-                row_stride,
-                col_stride,
+                cell_shape,
+                mesh_func,
                 remove_noise=False,
                 ignore_colors=ignored,
             )

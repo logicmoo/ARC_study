@@ -142,13 +142,13 @@ class Object:
     @classmethod
     def from_points(
         cls,
-        points: PointList,
+        points: PointDict,
         loc: Position = (0, 0),
         name: str = "",
         leaf: bool = False,
         process: str = "",
     ) -> "Object":
-        """Create an Object from a list of Points.
+        """Create an Object from a dictionary of Points.
 
         This is used during Generator.materialize to efficiently generate the
         points belonging to resulting objects.
@@ -162,15 +162,16 @@ class Object:
             log.warning("Empty from_points() constructor")
             raise EmptyObject
         elif len(points) == 1:
-            return cls(*points[0], **kwargs)
+            (row, col), color = list(points.items())[0]
+            return cls(row, col, color, **kwargs)
 
         norm_loc, normed, monochrome = norm_points(points)
         loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])
         if monochrome:
-            children = [Object(*pt[:2]) for pt in normed]
-            return cls(*loc, normed[0][2], children=children, **kwargs)
+            children = [Object(*loc) for loc in normed]
+            return cls(*loc, list(normed.values())[0], children=children, **kwargs)
         else:
-            children = [Object(*pt) for pt in normed]
+            children = [Object(*pt, color) for pt, color in normed.items()]
             return cls(*loc, children=children, **kwargs)
 
     ## Core properties
@@ -372,9 +373,9 @@ class Object:
         return self.bound_info[1]
 
     @cached_property
-    def blobs(self) -> list[PointList]:
+    def blobs(self) -> list[PointDict]:
         if len(self.points) == 1:
-            return [[self.anchor]]
+            return [{self.loc: self.color}]
         marked = self.grid.copy()
         marked[marked == cst.NULL_COLOR] = cst.MARKED_COLOR
         return connect(marked)
@@ -447,7 +448,8 @@ class Object:
         output = [indent + self.__repr__()]
 
         if self.generating:
-            output.append(f"{indent}  Generating{self.codes}")
+            gen = f"({', '.join([f'{k}:{v}' for k, v in self.codes.items()])})"
+            output.append(f"{indent}  Generating{gen}")
 
         dot_kids = 0
         for child in self.children:

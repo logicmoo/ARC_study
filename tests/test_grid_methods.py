@@ -44,10 +44,10 @@ def rotated3x3(board_data_3x3: BoardData) -> Grid:
 
 
 def test_norm_pts():
-    pts = [(1, 1, 1), (3, 1, 1)]
+    pts = {(1, 1): 1, (3, 1): 1}
     anchor, normed, mono = norm_points(pts)
     assert anchor == (1, 1)
-    assert normed == [(0, 0, 1), (2, 0, 1)]
+    assert normed == {(0, 0): 1, (2, 0): 1}
     assert mono == True
 
 
@@ -56,15 +56,15 @@ def test_connect():
     grid = gridify([[1, mc, 1, mc, 1]])
 
     result = connect(grid.copy())
-    assert result == [[(0, 0, 1)], [(0, 2, 1)], [(0, 4, 1)]]
+    assert result == [{(0, 0): 1}, {(0, 2): 1}, {(0, 4): 1}]
 
     grid = gridify([[1, 1, 1, 1, 1]])
     result = connect(grid.copy())
-    assert result == [[(0, i, 1) for i in range(5)]]
+    assert result == [{(0, i): 1 for i in range(5)}]
 
     grid = gridify([[1, 1, mc, 1, 1]])
     result = connect(grid.copy())
-    assert result == [[(0, 0, 1), (0, 1, 1)], [(0, 3, 1), (0, 4, 1)]]
+    assert result == [{(0, 0): 1, (0, 1): 1}, {(0, 3): 1, (0, 4): 1}]
 
 
 def test_get_boundary():

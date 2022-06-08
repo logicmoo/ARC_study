@@ -18,6 +18,7 @@ class TaskData(TypedDict):
 
 
 Grid: TypeAlias = np.ndarray[Any, np.dtype[np.int64]]  # type: ignore
+Shape: TypeAlias = tuple[int, int]
 
 Args: TypeAlias = tuple[int, ...]
 ArgsList: TypeAlias = list[tuple[int, ...]]

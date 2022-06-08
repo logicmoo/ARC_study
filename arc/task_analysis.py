@@ -8,7 +8,7 @@ from arc.task import Task
 
 ## Progress on training tasks
 # TODO Task 30 needs Align action touched up
-solved_tasks = {8, 16, 39, 49, 188, 194}
+solved_tasks = {8, 16, 39, 49, 57, 188, 194}
 
 # Large tilings tend to take a while, keep them separate
 large_tiling = {17, 61, 287, 305}

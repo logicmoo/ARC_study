@@ -38,7 +38,7 @@ def test_cutout():
 
 
 def test_points_constructor():
-    obj = Object.from_points([(1, 1, 1)])
+    obj = Object.from_points({(1, 1): 1})
     assert obj == Object(1, 1, 1)
 
 

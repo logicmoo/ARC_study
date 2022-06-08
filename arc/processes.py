@@ -1,12 +1,11 @@
-import collections
 from abc import ABC, abstractmethod
 
 import numpy as np
 
 from arc.definitions import Constants as cst
-from arc.grid_methods import eval_mesh, point_filter
+from arc.grid_methods import eval_mesh, point_filter, tile_mesh_func
 from arc.object import Object
-from arc.types import Point, PointList, PositionSet
+from arc.types import Grid, PointDict, Position, PositionSet, Shape
 from arc.util import logger
 from arc.util.common import process_exception
 
@@ -59,10 +58,11 @@ class Process(ABC):
         else:
             # At this point, the silhouetes match, so there is just color
             # disagreement from the input and output.
-            recolor_pts: PointList = []
-            for loc, color in input.points.items():
-                if output.points[loc] != color:
-                    recolor_pts.append((*loc, color))
+            recolor_pts = {
+                loc: color
+                for loc, color in input.points.items()
+                if output.points[loc] != color
+            }
 
             # If the disagreement is occluded, we will end up with no recolor_pts.
             if not recolor_pts:
@@ -71,7 +71,7 @@ class Process(ABC):
             log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
             return self.add_patch(output, recolor_pts, "Reco")
 
-    def add_patch(self, output: Object, points: PointList, tag: str) -> Object:
+    def add_patch(self, output: Object, points: PointDict, tag: str) -> Object:
         """Create a container that will contain the Process output and patch."""
         out = output.copy(anchor=(0, 0, output.color))
         patch = Object.from_points(points, leaf=True, process=tag)
@@ -132,6 +132,28 @@ class Processes:
                 children=[match, other],
                 leaf=True,
                 process=f"{self.code}{color}",
+            )
+            return candidate
+
+    class SeparateAllColors(Process):
+        def test(self, object: Object) -> bool:
+            return len(object.c_rank) > 1
+
+        def apply(self, object: Object) -> Object | None:
+            """Improves representation by putting all points of one color together."""
+            children: list[Object] = []
+            curr_pts: PointDict = object.points
+            for color, _ in object.c_rank[:-1]:
+                match_pts, curr_pts = point_filter(curr_pts, color)
+                children.append(Object.from_points(match_pts))
+            # The remaining curr_pts will be for the last color
+            children.append(Object.from_points(curr_pts))
+
+            candidate = Object(
+                *object.loc,
+                children=children,
+                leaf=True,
+                process=f"{self.code}*",
             )
             return candidate
 
@@ -219,7 +241,8 @@ class Processes:
                 col_stride = object.shape[1]
 
             # Identify each point that's part of the unit cell
-            cell_pts = eval_mesh(object.grid, row_stride, col_stride)
+            cell_shape = (row_stride, col_stride)
+            cell_pts = eval_mesh(object.grid, cell_shape, tile_mesh_func)
             if not cell_pts:
                 log.debug(f"Empty cell pts generated from following object")
                 object.debug()
@@ -281,20 +304,23 @@ class Processes:
                 cs = C // 2 + int(odd_horizontal)
                 axes[1] = True
 
+            def refl_mesh_func(
+                grid: Grid, cell_shape: Shape, loc: Position
+            ) -> list[int]:
+                i, j = loc
+                mesh_locs: list[Position] = [(i, j)]
+                if axes[0]:
+                    mesh_locs.append((R - 1 - i, j))
+                if axes[1]:
+                    mesh_locs.append((i, C - 1 - j))
+                if axes[0] and axes[1]:
+                    mesh_locs.append((R - 1 - i, C - 1 - j))
+                return [grid[loc] for loc in mesh_locs]
+
             # grid_v = np.flip(obj.grid, 0)
             # grid_h = np.flip(obj.grid, 1)
             # Identify each point that's part of the unit cell
-            cell_pts: list[Point] = []
-            for i in range(rs):
-                for j in range(cs):
-                    base_color = object.grid[i, j]
-
-                    # TODO will need to handle noise similar to Tiling
-                    # if base_color != ref_color:
-                    # pass
-                    if base_color != cst.NULL_COLOR:
-                        cell_pts.append((i, j, base_color))
-
+            cell_pts = eval_mesh(object.grid, (rs, cs), refl_mesh_func)
             if not cell_pts:
                 log.debug(f"Empty cell pts generated from following object")
                 object.debug()
@@ -347,26 +373,22 @@ class Processes:
             # Case 1: Commensurate 90 (no overlap), even shape values
             R, C = object.shape
             rs, cs = R // 2, C // 2
+            axes = [True, True]
 
-            cell_pts: list[Point] = []
-            for i in range(rs):
-                for j in range(cs):
-                    # Sub-mask for 90 deg rotation
-                    locs = [
-                        (i, j),
-                        (R - 1 - j, i),
-                        (j, C - 1 - j),
-                        (R - 1 - i, C - 1 - j),
-                    ]
-                    colors = [object.grid[r, c] for r, c in locs]
-                    base_color = collections.Counter(colors).most_common()[0][0]
+            def rot_mesh_func(
+                grid: Grid, cell_shape: Shape, loc: Position
+            ) -> list[int]:
+                i, j = loc
+                mesh_locs: list[Position] = [(i, j)]
+                if axes[0]:
+                    mesh_locs.append((R - 1 - j, i))
+                if axes[1]:
+                    mesh_locs.append((j, C - 1 - i))
+                if axes[0] and axes[1]:
+                    mesh_locs.append((R - 1 - i, C - 1 - j))
+                return [grid[loc] for loc in mesh_locs]
 
-                    # TODO will need to handle noise similar to Tiling
-                    # if base_color != ref_color:
-                    # pass
-                    if base_color != cst.NULL_COLOR:
-                        cell_pts.append((i, j, base_color))
-
+            cell_pts = eval_mesh(object.grid, (rs, cs), rot_mesh_func)
             if not cell_pts:
                 log.debug(f"Empty cell pts generated from following object")
                 object.debug()
@@ -384,7 +406,8 @@ class Processes:
 process_map: dict[str, type[Process]] = {
     "B": Processes.Background,
     "C": Processes.ConnectObjects,
-    "S": Processes.SeparateColor,
+    "s": Processes.SeparateColor,
+    # "S": Processes.SeparateAllColors,
     "T": Processes.Tiling,
     "R": Processes.Reflection,
     "O": Processes.Rotation,
