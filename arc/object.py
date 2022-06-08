@@ -1,9 +1,20 @@
 import collections
+import uuid
 from functools import cached_property
 from typing import Any
-import uuid
-from arc.actions import Actions
 
+from arc.actions import Actions
+from arc.definitions import Constants as cst
+from arc.grid_methods import (
+    connect,
+    get_boundary,
+    grid_overlap,
+    gridify,
+    mirror_order,
+    norm_points,
+    rotational_order,
+    translational_order,
+)
 from arc.types import (
     BaseObjectPath,
     BoardData,
@@ -16,17 +27,6 @@ from arc.types import (
     PropertyPath,
 )
 from arc.util import logger
-from arc.grid_methods import (
-    connect,
-    get_boundary,
-    grid_overlap,
-    gridify,
-    mirror_order,
-    norm_points,
-    rotational_order,
-    translational_order,
-)
-from arc.definitions import Constants as cst
 from arc.util.common import get_characteristic
 
 log = logger.fancy_logger("Object", level=30)
@@ -417,12 +417,9 @@ class Object:
         return self.children[key]
 
     @cached_property
-    def uid(self) -> str:
+    def uid(self) -> uuid.UUID:
         """Generate a unique ID for the object, used for Labeling."""
-        # TODO Look into fixing this up
-        # hasher = hashlib.sha1(str(uuid.uuid1()).encode())
-        # return str(base64.urlsafe_b64decode(hasher.digest()))[:8]
-        return str(int(uuid.uuid1()) % 1000000)
+        return uuid.uuid4()
 
     #! Properties relying on the traits dictionary shouldn't be cached
     @property

@@ -1,10 +1,13 @@
 import collections
-from typing import Any, Callable
+import uuid
+from typing import Any, Callable, TypeAlias
 
 from arc.object import Object
 from arc.util import logger
 
 log = logger.fancy_logger("Description", level=30)
+
+Labels: TypeAlias = dict[uuid.UUID, dict[str, Any]]
 
 # NOTE: These lists are priority ranked. When finding a Selector,
 # and choosing amongst possible uniquely identifying trait sets,
@@ -22,9 +25,7 @@ all_traits = intrinsic_properties + ranked_properties
 
 class Labeler:
     def __init__(self, obj_groups: list[list[Object]]) -> None:
-        self.labels: dict[str, dict[str, Any]] = {
-            obj.uid: {} for group in obj_groups for obj in group
-        }
+        self.labels: Labels = {obj.uid: {} for group in obj_groups for obj in group}
         for group in obj_groups:
             self.label_intrinsic_properties(group, intrinsic_properties)
             for param in ranked_parameters:
