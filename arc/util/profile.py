@@ -6,7 +6,6 @@ import signal
 import time
 from typing import Any, Callable
 
-
 # This list is passed to @profile() which aggregates the cumulative runtime
 # into these functions, which represent the primary stages of task solutioning.
 PROFILE_BREAKOUT_STD: list[str] = [

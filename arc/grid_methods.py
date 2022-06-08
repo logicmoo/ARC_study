@@ -2,8 +2,8 @@ from collections import Counter
 
 import numpy as np
 
-from arc.util import logger
 from arc.definitions import Constants as cst
+from arc.util import logger
 
 log = logger.fancy_logger("GridMethods", level=30)
 

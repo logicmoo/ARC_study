@@ -3,8 +3,8 @@ import collections
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
-from arc.object import Object
 from arc.link import ObjectDelta
+from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution, TransformNode, VariableNode
 from arc.template import Template

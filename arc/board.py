@@ -1,4 +1,5 @@
 from functools import cached_property
+
 from arc.definitions import Constants as cst
 from arc.grid_methods import shift_locs
 from arc.inventory import Inventory

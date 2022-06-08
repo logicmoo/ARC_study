@@ -1,13 +1,13 @@
-from abc import ABC, abstractmethod
 import collections
+from abc import ABC, abstractmethod
 
 import numpy as np
 
+from arc.definitions import Constants as cst
+from arc.grid_methods import eval_mesh, point_filter
+from arc.object import Object
 from arc.types import Point, PointList, PositionSet
 from arc.util import logger
-from arc.grid_methods import eval_mesh, point_filter
-from arc.definitions import Constants as cst
-from arc.object import Object
 from arc.util.common import process_exception
 
 log = logger.fancy_logger("Processes", level=30)

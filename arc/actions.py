@@ -1,14 +1,14 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-from arc.grid_methods import gridify
 
+from arc.grid_methods import gridify
 from arc.object_relations import chebyshev_vector
 from arc.types import Args
 
 if TYPE_CHECKING:
-    from arc.types import Grid
     from arc.object import Object
+    from arc.types import Grid
 
 
 class Action:

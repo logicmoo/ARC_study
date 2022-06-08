@@ -1,12 +1,12 @@
 import argparse
 import multiprocessing as mp
+import time
 from multiprocessing.context import Process
 from queue import Queue
-import time
 
 from arc.arc import ARC
 from arc.definitions import Constants as cst
-from arc.task_analysis import all_solved, all_eval_solved, fast_solved, blocklist
+from arc.task_analysis import all_eval_solved, all_solved, blocklist, fast_solved
 from arc.util import logger
 
 log = logger.fancy_logger("Script", level=20)

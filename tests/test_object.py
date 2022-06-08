@@ -1,7 +1,6 @@
-from arc.grid_methods import grid_equal, gridify
-
-from arc.object import Object
 from arc.definitions import Constants as cst
+from arc.grid_methods import grid_equal, gridify
+from arc.object import Object
 
 
 def test_basics():

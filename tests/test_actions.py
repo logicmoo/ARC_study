@@ -1,6 +1,5 @@
+from arc.actions import Actions, chebyshev_vector
 from arc.object import Object
-from arc.actions import chebyshev_vector
-from arc.actions import Actions
 
 
 def test_translations():

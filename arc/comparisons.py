@@ -1,8 +1,8 @@
 from typing import Any, Callable, TypeAlias
 
 from arc.actions import Actions
-from arc.transform import Transform
 from arc.object import Object
+from arc.transform import Transform
 from arc.util import logger
 
 log = logger.fancy_logger("Comparisons", level=30)

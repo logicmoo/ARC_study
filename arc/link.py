@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 
-from arc.definitions import Constants as cst
 from arc.comparisons import ObjectComparison, default_comparisons
-from arc.transform import Transform
+from arc.definitions import Constants as cst
 from arc.object import Object
+from arc.transform import Transform
 from arc.types import BaseObjectPath
 from arc.util import logger
-
 
 log = logger.fancy_logger("Link", level=30)
 

@@ -1,14 +1,14 @@
 from typing import Any, TypeAlias, TypedDict
 
 import matplotlib
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
+from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta
 from arc.object import Object
-from arc.board import Board
 from arc.scene import Scene
 from arc.task import Task
 from arc.types import Grid

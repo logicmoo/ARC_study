@@ -6,7 +6,6 @@ import sys
 import traceback
 from typing import Any, Callable, Literal, Optional, TypeAlias
 
-
 LogLevel: TypeAlias = (
     Literal["debug"]
     | Literal["info"]

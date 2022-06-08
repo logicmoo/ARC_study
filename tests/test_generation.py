@@ -1,8 +1,7 @@
 from arc.actions import Actions
-
+from arc.grid_methods import grid_equal, gridify
 from arc.object import Object
 from arc.transform import Transform
-from arc.grid_methods import gridify, grid_equal
 
 
 def test_transform():

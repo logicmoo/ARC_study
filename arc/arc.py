@@ -4,15 +4,14 @@ import logging
 import pickle
 import time
 import traceback
+from collections import Counter
 from pathlib import Path
 from typing import Any, TypeAlias
-from collections import Counter
 
 from arc.definitions import Constants as cst
 from arc.task import Task
-from arc.task_analysis import TaskTraits, all_solved, all_eval_solved, blocklist
-from arc.util import logger
-from arc.util import profile
+from arc.task_analysis import TaskTraits, all_eval_solved, all_solved, blocklist
+from arc.util import logger, profile
 from arc.util.common import process_exception
 
 log = logger.fancy_logger("ARC", level=20)

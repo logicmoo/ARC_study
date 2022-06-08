@@ -2,8 +2,8 @@ from typing import TypeAlias
 
 from arc.board import Board, Inventory
 from arc.definitions import Constants as cst
-from arc.object import Object, ObjectPath
 from arc.link import ObjectDelta, VariableLink
+from arc.object import Object, ObjectPath
 from arc.template import Variables
 from arc.types import BaseObjectPath, SceneData
 from arc.util import logger

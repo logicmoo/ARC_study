@@ -1,13 +1,13 @@
 import collections
 from functools import cached_property
 
-from arc.object import Object
-from arc.link import ObjectDelta
 from arc.comparisons import (
     ObjectComparison,
-    default_comparisons,
     decomposition_comparisons,
+    default_comparisons,
 )
+from arc.link import ObjectDelta
+from arc.object import Object
 from arc.util import dictutil, logger
 
 log = logger.fancy_logger("Inventory", level=30)

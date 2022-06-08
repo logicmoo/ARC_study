@@ -3,7 +3,7 @@ from typing import TypeAlias
 
 import numpy as np
 
-from arc.actions import Actions, Action, Pairwise, degeneracies, subs
+from arc.actions import Action, Actions, Pairwise, degeneracies, subs
 from arc.board import Inventory
 from arc.comparisons import (
     ObjectComparison,
@@ -11,13 +11,13 @@ from arc.comparisons import (
     compare_position,
     compare_rotation,
 )
-from arc.template import Template
-from arc.transform import Transform
 from arc.labeler import Labeler, all_traits
-from arc.object import Object, ObjectPath, sort_layer
 from arc.link import ObjectDelta, VariableLink
+from arc.object import Object, ObjectPath, sort_layer
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
+from arc.template import Template
+from arc.transform import Transform
 from arc.util import logger
 
 log = logger.fancy_logger("Solution", level=20)

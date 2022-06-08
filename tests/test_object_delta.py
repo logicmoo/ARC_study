@@ -1,9 +1,8 @@
 import pytest
-
 from arc.actions import Actions
 from arc.grid_methods import gridify
-from arc.object import Object
 from arc.link import ObjectDelta
+from arc.object import Object
 from arc.types import BoardData, Grid
 
 

@@ -1,13 +1,13 @@
 import argparse
 
+from arc.arc import ARC
+from arc.definitions import Constants as cst
+from arc.util import logger, profile
+
 # Guppy provides a breakdown of data structures and their mem usage
 # which can be useful occasionally.
 # from guppy import hpy  # type: ignore
 
-from arc.arc import ARC
-from arc.definitions import Constants as cst
-from arc.util import logger
-from arc.util import profile
 
 log = logger.fancy_logger("Profiler", level=20)
 

@@ -17,9 +17,8 @@ import re
 from typing import TYPE_CHECKING, Any
 
 from arc.actions import Action, Actions
-from arc.types import Position, ArgsList
+from arc.types import ArgsList, Position
 from arc.util import common, logger
-
 
 if TYPE_CHECKING:
     from arc.object import Object

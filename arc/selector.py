@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, TypeAlias
-from arc.object import Object, sort_layer
-from arc.link import ObjectDelta
 
 from arc.labeler import Labeler, all_traits
+from arc.link import ObjectDelta
+from arc.object import Object, sort_layer
 from arc.util import logger
 
 log = logger.fancy_logger("Selector", level=30)

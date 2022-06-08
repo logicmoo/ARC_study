@@ -1,8 +1,8 @@
 import collections
 from copy import deepcopy
 from typing import Literal, TypeAlias, TypedDict
-from arc.actions import Actions
 
+from arc.actions import Actions
 from arc.definitions import Constants as cst
 from arc.object import Object, ObjectPath
 from arc.types import BaseObjectPath

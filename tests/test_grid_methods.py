@@ -1,16 +1,15 @@
 import numpy as np
 import pytest
-
+from arc.definitions import Constants as cst
 from arc.grid_methods import (
     connect,
     get_boundary,
     gridify,
+    mirror_order,
     norm_points,
     rotational_order,
     translational_order,
-    mirror_order,
 )
-from arc.definitions import Constants as cst
 from arc.types import BoardData, Grid
 
 
