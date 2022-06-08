@@ -197,7 +197,7 @@ def eval_mesh(
     unit cell but also present during other positions where it isn't used),
     'eval_mesh' is called again and will attempt to ignore those colors.
     """
-    ignored: list[int] = ignore_colors or []
+    ignored: list[int] = ignore_colors or [cst.NULL_COLOR]
     cell_pts: PointDict = {}
     noise_cts: list[int] = [0] * cst.N_COLORS
     used_cts: list[int] = [0] * cst.N_COLORS
@@ -220,7 +220,6 @@ def eval_mesh(
                 cell_pts[i, j] = best_color
 
     if remove_noise:
-        ignored: list[int] = []
         for color, (used, noise) in enumerate(zip(used_cts, noise_cts)):
             if used and noise and (noise / (used + noise)) > 0.5:
                 ignored.append(color)

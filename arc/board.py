@@ -6,7 +6,7 @@ from arc.inventory import Inventory
 from arc.object import Object
 from arc.processes import Process, Processes
 from arc.types import BoardData, PositionSet
-from arc.util import logger, common
+from arc.util import common, logger
 
 log = logger.fancy_logger("Board", level=30)
 
@@ -87,6 +87,7 @@ class Board:
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
+            log.debug(f"Decomposing candidate with key: {key}")
             candidates = self._decomposition(obj, inventory, set([]))
             for code, obj in candidates:
                 if obj.props > cst.PRUNE_PROPS_COEFF * self.rep.props:
@@ -176,6 +177,7 @@ class Board:
         for process_class in self.processes:
             process = process_class()
             if process.test(obj):
+                log.debug(f"Applying {process.__class__.__name__}")
                 candidate = process.run(obj, occlusion)
                 if candidate:
                     candidates.append((process.code, candidate))

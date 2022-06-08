@@ -4,11 +4,10 @@ import numpy as np
 
 from arc.grid_methods import gridify
 from arc.object_relations import chebyshev_vector
-from arc.types import Args
+from arc.types import Args, Grid
 
 if TYPE_CHECKING:
     from arc.object import Object
-    from arc.types import Grid
 
 
 class Action:
@@ -125,7 +124,7 @@ class Actions:
         """The group of 2D orthogonal operations, args representing the matrix."""
 
         o_args = (1, 0, 0, 1)
-        o_matrix: "Grid" = gridify([[1, 0], [0, 1]])
+        o_matrix: Grid = gridify([[1, 0], [0, 1]])
 
         @classmethod
         def act(
@@ -163,7 +162,7 @@ class Actions:
                         return combined
 
     class Rotate(Orthogonal):
-        o_matrices: tuple["Grid", ...] = (
+        o_matrices: tuple[Grid, ...] = (
             gridify([[1, 0], [0, 1]]),
             gridify([[0, -1], [1, 0]]),
             gridify([[-1, 0], [0, -1]]),

@@ -52,7 +52,7 @@ class Process(ABC):
             # TODO Don't use cutouts for now
             log.debug(f"  (not implemented) {len(extra_locs)} extra points")
             return None
-            # cut_points = [(*loc, cst.NEGATIVE_COLOR) for loc in extra_locs]
+            # cut_points = {loc: cst.NEGATIVE_COLOR for loc in extra_locs}
             # log.debug(f"  Cutting {len(cut_points)} points as patch")
             # return self.add_patch(output, cut_points, "Cut")
         else:
@@ -85,8 +85,11 @@ class Process(ABC):
         try:
             if candidate := self.apply(object):
                 if repaired := self.repair(object, candidate, occlusion):
-                    self.success(candidate)
-                    return repaired
+                    if repaired == object:
+                        self.success(candidate)
+                        return repaired
+                    else:
+                        log.info("Repair failed to property repair object")
                 else:
                     self.fail("Repair unsuccessful")
                     return None

@@ -24,7 +24,7 @@ fast_solved = solved_tasks | dc_solved | mdl_solved
 all_solved = fast_solved | large_tiling
 
 ## Progress on evaluation tasks
-all_eval_solved = {17, 49, 177, 179, 197, 301, 309, 366, 372}
+all_eval_solved = {17, 49, 177, 179, 197, 217, 301, 309, 366, 372}
 
 # Set of tasks that engage in significant compute at present, and are not
 # under consideration for finding a solution. We filter these out to

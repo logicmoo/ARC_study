@@ -46,7 +46,7 @@ class Constants:
     # Information
     DOT_PROPS = 1  # 'entropic weight' of a single point
     NON_DOT_PROPS = 2  # 'entropic weight' of a container object
-    CUTOUT_PROPS = 5
+    CUTOUT_PROPS = 2
 
     cname = {
         0: "Black",
