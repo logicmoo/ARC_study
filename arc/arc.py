@@ -63,6 +63,7 @@ class ARC:
     @staticmethod
     def load(pid: str | int) -> "ARC":
         """Create an ARC instance from a pickled checkpoint."""
+        log.info(f"Loading pickled ARC from '{pid}.pkl'")
         with open(f"{pid}.pkl", "rb") as fh:
             return pickle.load(fh)
 

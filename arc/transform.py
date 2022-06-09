@@ -62,7 +62,10 @@ class Transform:
             return "ID()"
 
         output = ", ".join(
-            [f"{act.__name__}{args}" for act, args in zip(self.actions, self.args)]
+            [
+                f"{act.__name__}({','.join(map(str, args))})"
+                for act, args in zip(self.actions, self.args)
+            ]
         )
         return output
 

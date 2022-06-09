@@ -1,43 +1,25 @@
-# type: ignore
-import functools
-import streamlit as st
-import time
 from io import BytesIO
 
-from matplotlib.figure import Figure
-from matplotlib import pyplot
 import streamlit as st
-
-from arc.viz import plot
 from arc.arc import Index
+from arc.viz import plot
+from matplotlib import pyplot
+from matplotlib.figure import Figure
 
 
-@st.cache(allow_output_mutation=True, ttl=None)
-def cached_plot(plot_idx: Index, tag: str = "") -> BytesIO:
+def cached_plot(plot_idx: Index, attribute: str | None = None) -> BytesIO:
+    full_idx = (plot_idx, attribute)
     _arc = st.session_state.arc
+    plot_cache = st.session_state.plot_cache
+    if full_idx in plot_cache:
+        return plot_cache[full_idx]
+
     image_buffer = BytesIO()
-    fig: Figure = plot(_arc[plot_idx], show_axis=False)
+    if attribute is not None:
+        fig: Figure = plot(getattr(_arc[plot_idx], attribute))
+    else:
+        fig: Figure = plot(_arc[plot_idx])
     fig.savefig(image_buffer, format="png")
     pyplot.close(fig)
+    plot_cache[full_idx] = image_buffer
     return image_buffer
-
-
-def timed(func):
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        t1 = time.time()
-        result = func(*args, **kwargs)
-        dt = time.time() - t1
-        st.write(f"...finished in {dt:.3f}s")
-        return result
-
-    return wrapped
-
-
-# def logger() -> None:
-#     msg = st.session_state.logs
-#     with logger.container():
-#         st.markdown(
-#             f'<p style="background-color:#bbbbbb;font-size:16px;">{msg}</p>',
-#             unsafe_allow_html=True,
-#         )

@@ -79,7 +79,7 @@ class Template:
         args = [f"{arg} = {val}" for arg, val in node["props"].items()]
         if ObjectPath(path) in self.variables:
             args.append("children = ?")
-        line = f"{indent}({', '.join(args)})"
+        line = f"{indent}{path or 'root'} ({', '.join(args)})"
         display: list[str] = [line]
         for idx in range(len(node["children"])):
             display.extend(self._display_node(path + (idx,)))
