@@ -1,14 +1,13 @@
 import streamlit as st
 from arc.app.explorer import explorer
 from arc.app.settings import Settings
-from arc.app.solver import solution
+from arc.app.solution import solution
 from arc.arc import ARC
 
 
 def run_ui(start_mode: str = "Dev", n: int = Settings.N) -> None:
     """Central UI logic governing components to display."""
     init_session()
-    # mode_selector(start_mode, n)
     task_filter()
     task_selector()
 
@@ -20,28 +19,9 @@ def run_ui(start_mode: str = "Dev", n: int = Settings.N) -> None:
 
 def init_session() -> None:
     if "arc" not in st.session_state:
-        _arc = ARC.load("demo_run")
+        _arc = ARC.load(Settings.pickle_id)
         st.session_state.arc = _arc
         st.session_state.plot_cache = {}
-
-
-def mode_selector(start_mode: str, n: int) -> None:
-    options = ["Demo", "Stats", "Dev"]
-    st.sidebar.selectbox(  # type: ignore
-        "Select a mode", options, key="mode", index=options.index(start_mode)
-    )
-
-    # Demo mode has all solutions precalculated, can be used for filtering
-    if st.session_state.mode == "Demo":
-        _arc = ARC.load("demo_run")
-    # Stats mode decomposes all boards for filtering (WIP)
-    elif st.session_state.mode == "Stats":
-        _arc = ARC(N=n, folder=Settings.folder)
-    # Dev mode is the default
-    else:
-        _arc = ARC(N=n, folder=Settings.folder)
-
-    st.session_state.arc = _arc
 
 
 def task_filter() -> None:

@@ -448,7 +448,7 @@ class Object:
         output = [indent + self.__repr__()]
 
         if self.generating:
-            gen = f"({', '.join([f'{k}:{v}' for k, v in self.codes.items()])})"
+            gen = f"({', '.join([f'{k}:{v}' for k, v in self.codes.items() if v > 0])})"
             output.append(f"{indent}  Generating{gen}")
 
         dot_kids = 0
