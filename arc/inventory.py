@@ -1,13 +1,16 @@
 import collections
 from functools import cached_property
 
+from arc.actions import Action
 from arc.comparisons import (
     ObjectComparison,
     decomposition_comparisons,
     default_comparisons,
 )
+from arc.definitions import Constants as cst
 from arc.link import ObjectDelta
 from arc.object import Object
+from arc.transform import Transform
 from arc.util import dictutil, logger
 
 log = logger.fancy_logger("Inventory", level=30)
@@ -47,16 +50,62 @@ class Inventory:
             dictutil.merge(inventory, self.create_inventory(kid, depth=depth + 1))
         return inventory
 
+    @classmethod
+    def _invert(cls, left: Object, right: Object) -> ObjectDelta | None:
+        transform = Transform([])
+        log.debug("Comparing:")
+        log.debug(f"  {left}")
+        log.debug(f"  {right}")
+        if left == right:
+            return ObjectDelta(left, right, transform)
+
+        for core_action in Action.__subclasses__():
+            if (args := core_action.inv(left, right)) is None:
+                return None
+            elif args == tuple([]):
+                continue
+            else:
+                transform = transform.concat(Transform([core_action], [args]))
+                log.debug(f"->{transform}")
+        if transform.apply(left) != right:
+            return None
+        return ObjectDelta(left, right, transform)
+
+    @classmethod
+    def _find_match(
+        cls, candidates: list[Object], target: Object, dist_threshold: int
+    ) -> ObjectDelta | None:
+        if not candidates:
+            log.debug(f"No candidates")
+            return None
+
+        best: int = dist_threshold + 1
+        match: ObjectDelta | None = None
+        log.debug(f"Matching {target} against {len(candidates)} candidates")
+        for candidate in candidates:
+            if (delta := cls._invert(candidate, target)) is not None:
+                log.debug(f"Candidate has delta: {delta}")
+                if delta.dist < best:
+                    best = delta.dist
+                    match = delta
+        if not match:
+            log.debug(f"No matches meeting threshold: {dist_threshold}")
+
+        return match
+
     def find_decomposition_match(self, obj: Object) -> ObjectDelta | None:
         candidates = self.all
         threshold = 2
 
         if not candidates:
             return None
+
         best = threshold + 0.5
         match = None
         for candidate in candidates:
-            delta = ObjectDelta(candidate, obj, comparisons=decomposition_comparisons)
+            delta = ObjectDelta.from_comparisons(
+                candidate, obj, comparisons=decomposition_comparisons
+            )
             if delta.dist < best:
                 match = delta
                 best = delta.dist
@@ -65,12 +114,12 @@ class Inventory:
             return None
         return match
 
-    def find_scene_match(self, obj: Object) -> ObjectDelta | None:
+    def find_scene_match(self, target: Object) -> ObjectDelta | None:
         # We prune the search for transformation matches by generating characteristic
         # as there (currently) is no presumption of dynamic generators--we assume
         # that if the output contains objects with generators, their characteristics
         # are constant across cases.
-        candidates = self.inventory.get(obj.char, [])
+        candidates = self.inventory.get(target.char, [])
         threshold = 8
 
         if not candidates:
@@ -78,7 +127,9 @@ class Inventory:
         best = threshold + 0.5
         match = None
         for candidate in candidates:
-            delta = ObjectDelta(candidate, obj, comparisons=self.comparisons)
+            delta = ObjectDelta.from_comparisons(
+                candidate, target, comparisons=self.comparisons
+            )
             if delta.dist < best:
                 match = delta
                 best = delta.dist
@@ -86,3 +137,7 @@ class Inventory:
             log.debug(f"No matches meeting threshold: {threshold}")
             return None
         return match
+
+        # return self._find_match(
+        #     candidates, target, dist_threshold=cst.LINK_DIST_THRESHOLD
+        # )

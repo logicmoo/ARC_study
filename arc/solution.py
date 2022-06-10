@@ -340,7 +340,7 @@ class Solution:
                         comparisons = [compare_position]
 
                     for delta in deltas:
-                        new_delta = ObjectDelta(
+                        new_delta = ObjectDelta.from_comparisons(
                             delta.left,
                             delta.right,
                             base=delta.base,

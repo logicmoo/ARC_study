@@ -31,7 +31,7 @@ def subdivide_groups(selection: Selection) -> list[Selection]:
             for idx, target in enumerate(new_selections):
                 dist = sum(
                     [
-                        ObjectDelta(delta.left, tgt_delta.left).dist
+                        ObjectDelta.from_comparisons(delta.left, tgt_delta.left).dist
                         for group in target
                         for tgt_delta in group
                     ]
@@ -146,6 +146,13 @@ class Selector:
 
     def __bool__(self) -> bool:
         return not self.null
+
+    @property
+    def props(self) -> int:
+        total_props = 0
+        for criterion in self.criteria:
+            total_props += len(criterion.values)
+        return total_props
 
     def select(self, group: list[Object]) -> list[Object]:
         # TODO Handle the timing of Labeling traits, vs intrinsic traits

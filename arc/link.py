@@ -71,34 +71,47 @@ class ObjectDelta(Link):
         self,
         left: Object,
         right: Object,
+        transform: Transform,
+        base: BaseObjectPath = tuple(),
+        tag: int = 0,
+        null: bool = False,
+    ):
+        super().__init__(left, right, base)
+        self.tag: int = tag
+        self.transform: Transform = transform
+        self.null: bool = null
+
+    def __bool__(self) -> bool:
+        return not self.null
+
+    @classmethod
+    def from_comparisons(
+        cls,
+        left: Object,
+        right: Object,
         base: BaseObjectPath = tuple(),
         tag: int = 0,
         comparisons: list["ObjectComparison"] = default_comparisons,
     ):
-        super().__init__(left, right, base)
-        self.tag: int = tag
-        self.null: bool = False
-        self.transform: Transform = Transform([])
-        self.comparisons = comparisons
-        if left == right:
-            return
 
         # TODO We should make a separate class/method to perform these comparisons, which
         # yields instances of Links.
+        transform = Transform([])
+        if left == right:
+            return cls(left, right, transform, base, tag)
         log.debug("Comparing:")
         log.debug(f"  {left}")
         log.debug(f"  {right}")
         for comparison in comparisons:
-            transform = comparison(self.left, self.right)
-            self.transform = self.transform.concat(transform)
-        log.debug(f"->{self.transform}")
+            transform = transform.concat(comparison(left, right))
+        log.debug(f"->{transform}")
 
-        if self.transform.apply(left) != right:
-            self.null = True
+        null = False
+        if transform.apply(left) != right:
+            null = True
             log.debug("Failed test")
 
-    def __bool__(self) -> bool:
-        return not self.null
+        return cls(left, right, transform, base, tag, null)
 
     @property
     def dist(self) -> int:
