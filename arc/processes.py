@@ -170,7 +170,7 @@ class Processes:
             else:
                 color = object.c_rank[0][0]
 
-            # Create a Generator based on the grid size
+            # Create generating codes based on the grid size
             codes: dict[str, int] = {}
             rows, cols = object.grid.shape
             if cols > 1:
@@ -264,7 +264,7 @@ class Processes:
                 codes["V"] = int(r_ct - 1)
             if c_ct > 1:
                 codes["H"] = int(c_ct - 1)
-            log.debug(f"Generator codes: {codes}")
+            log.debug(f"Generating codes: {codes}")
             # TODO For now, assume unit cells are not worth sub-analyzing
             cell = Object.from_points(
                 cell_pts,

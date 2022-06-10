@@ -1,3 +1,15 @@
+"""Object class
+
+On its own, the Object class can only represent hierarchical collections of points.
+Intuitively, however, primitives such as rectangles shouldn't be represented as their
+constituent points, but a higher-level abstraction requiring fewer specifying 
+parameters. We also want to avoid enumerating these primitives as much as possible,
+favoring a more generalized approach. Thus, the Object has 'generating codes' which
+indicate repeated applications of Actions. A line can be represented by a single point
+that is 'generatively translated' along a direction (leaving behind a copy each time).
+A 4x4 square would be 3 horizontal translations followed by 3 vertical.
+"""
+
 import collections
 import uuid
 from functools import cached_property
@@ -150,7 +162,7 @@ class Object:
     ) -> "Object":
         """Create an Object from a dictionary of Points.
 
-        This is used during Generator.materialize to efficiently generate the
+        This is used during materialize() to efficiently generate the
         points belonging to resulting objects.
         """
         kwargs = {

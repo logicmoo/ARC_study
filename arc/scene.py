@@ -135,9 +135,6 @@ class Scene:
 
         link_map: LinkMap = {}
         for obj_path in variables:
-            # TODO Skip Generator links for now
-            if not isinstance(obj_path.property, str):
-                continue
             log.debug(f"Searching for link to {obj_path}")
             output_rep = self.output.tree[self.output.characteristic_map[decomp_char]]
             target = self.output.rep.get_path(obj_path.base)
