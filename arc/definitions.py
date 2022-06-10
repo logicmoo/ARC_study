@@ -27,18 +27,21 @@ class Constants:
         "col_bound": MAX_COLS,
     }
 
-    # Processing
+    STEPS_BASE: list[tuple[int, int]] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    STEPS_DIAG: list[tuple[int, int]] = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+    ALL_STEPS = STEPS_BASE + STEPS_DIAG
+
+    # Decomposition
     PRUNE_PROPS_COEFF = 4  # Max factor above the best representation allowed
     PRUNE_SKIP_GEN = 2  # Generations to look back for prune comparison
     PRUNE_SAFE_GEN = 3  # Generations from root to always allow before pruning
 
-    MAX_DIST = 10000
     MAX_BLOBS = 10
     DEFAULT_MAX_ITER = 100  # Default maximum rounds of decomposition
 
-    STEPS_BASE: list[tuple[int, int]] = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-    STEPS_DIAG: list[tuple[int, int]] = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
-    ALL_STEPS = STEPS_BASE + STEPS_DIAG
+    # Linking
+    MAX_DIST = 10000
+    LINK_DIST_THRESHOLD = 8
 
     # Solving
     TOP_K_CHARS = 5

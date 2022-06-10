@@ -5,15 +5,17 @@ import numpy as np
 from arc.grid_methods import gridify
 from arc.object_relations import chebyshev_vector
 from arc.types import Args, Grid
+from arc.util.common import Representation
 
 if TYPE_CHECKING:
     from arc.object import Object
 
 
-class Action:
+class Action(metaclass=Representation):
     code: str = ""
     dimension: str = ""
     args = tuple([])
+    hot_arg: int = 0
     n_args: int = 0
 
     @classmethod
@@ -27,7 +29,7 @@ class Action:
         return None
 
 
-class Pairwise(Action):
+class Pairwise:
     @classmethod
     def act(cls, object: "Object", secondary: "Object") -> "Object":
         """Return a copy of the object with any logic applied."""
@@ -45,6 +47,7 @@ class Actions:
 
     class Paint(Action):
         dimension = "Color"
+        n_args = 1
 
         @classmethod
         def act(cls, object: "Object", color: int) -> "Object":
@@ -54,13 +57,17 @@ class Actions:
         def inv(cls, left: "Object", right: "Object") -> Args | None:
             c1 = set([item[0] for item in left.c_rank])
             c2 = set([item[0] for item in right.c_rank])
-            if c1 != c2 and len(c1) == 1 and len(c2) == 1:
-                return (list(c2)[0],)
+            if len(c1) == 1 and len(c2) == 1:
+                if c1 != c2:
+                    return (list(c2)[0],)
+                else:
+                    return tuple([])
 
     ## LOCATION
 
     class Translate(Action):
         dimension = "Length"
+        n_args = 2
 
         @classmethod
         def act(cls, object: "Object", dr: int, dc: int) -> "Object":
@@ -71,15 +78,21 @@ class Actions:
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args | None:
             if left.loc == right.loc:
-                return
+                return tuple([])
             return (right.row - left.row, right.col - left.col)
 
     class Vertical(Translate):
+        hot_arg = 1
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", dr: int) -> "Object":
             return super().act(object, dr, 0)
 
     class Horizontal(Translate):
+        hot_arg = 0
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", dc: int) -> "Object":
             return super().act(object, 0, dc)
@@ -87,23 +100,33 @@ class Actions:
     class Tile(Translate):
         """Translate based on the object's shape."""
 
+        n_args = 2
+
         @classmethod
         def act(cls, object: "Object", nr: int, nc: int) -> "Object":
             dr, dc = object.shape
             return super().act(object, nr * dr, nc * dc)
 
     class VTile(Tile):
+        hot_arg = 1
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return super().act(object, 1, 0)
 
     class HTile(Tile):
+        hot_arg = 0
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return super().act(object, 0, 1)
 
     class Justify(Translate):
         """Set one of row or column to zero."""
+
+        n_args = 1
 
         @classmethod
         def act(cls, object: "Object", axis: int) -> "Object":
@@ -115,6 +138,8 @@ class Actions:
     class Zero(Justify):
         """Set row and column to zero."""
 
+        n_args = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return object.copy((0, 0, object.color))
@@ -123,6 +148,8 @@ class Actions:
     class Orthogonal(Action):
         """The group of 2D orthogonal operations, args representing the matrix."""
 
+        n_args = 4
+
         o_args = (1, 0, 0, 1)
         o_matrix: Grid = gridify([[1, 0], [0, 1]])
 
@@ -130,24 +157,26 @@ class Actions:
         def act(
             cls, object: "Object", ul: int = 1, ur: int = 0, ll: int = 0, lr: int = 1
         ) -> "Object":
-            det = ul * lr - ll * ur
-            if det == 1:
-                # Rotations by 90, 180, 270 have -1, 0, 1 as the upper right element.
-                return Actions.Rotate.act(object, ur + 2)
-            else:
-                # Reflections across H and V axes have 1 and -1 as upper left element.
-                if ul != 0:
-                    return Actions.Flip.act(object, int(ul == 1))
-                # Diagonal reflections have ul == 0, ur == 1 or -1
-                elif ur == 1:
-                    return Actions.Flip.act(Actions.Rotate.act(object, 1), 1)
-                else:
-                    return Actions.Rotate.act(Actions.Flip.act(object, 1), 1)
+            # TODO WIP
+            return Object()
+            # det = ul * lr - ll * ur
+            # if det == 1:
+            #     # Rotations by 90, 180, 270 have -1, 0, 1 as the upper right element.
+            #     return Actions.Rotate.act(object, ur + 2)
+            # else:
+            #     # Reflections across H and V axes have 1 and -1 as upper left element.
+            #     if ul != 0:
+            #         return Actions.Flip.act(object, int(ul == 1))
+            #     # Diagonal reflections have ul == 0, ur == 1 or -1
+            #     elif ur == 1:
+            #         return Actions.Flip.act(Actions.Rotate.act(object, 1), 1)
+            #     else:
+            #         return Actions.Rotate.act(Actions.Flip.act(object, 1), 1)
 
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args | None:
             if left.c_rank != right.c_rank:
-                return None
+                return tuple([])
 
             for reflection in (cls, Actions.VFlip, Actions.HFlip):
                 if (reflected := reflection.act(left)) == right:
@@ -160,6 +189,7 @@ class Actions:
                             ).ravel()
                         )
                         return combined
+            return tuple([])
 
     class Rotate(Orthogonal):
         o_matrices: tuple[Grid, ...] = (
@@ -201,6 +231,8 @@ class Actions:
 
     ## DEFORMATIONS
     class Scale(Action):
+        n_args = 2
+
         @classmethod
         def act(cls, object: "Object", code: str, value: int) -> "Object":
             """Change the value associated with a generating code"""
@@ -220,11 +252,15 @@ class Actions:
             return args
 
     class VScale(Scale):
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", value: int) -> "Object":
             return super().act(object, "V", value)
 
     class HScale(Scale):
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", value: int) -> "Object":
             return super().act(object, "H", value)
@@ -233,6 +269,8 @@ class Actions:
     # These actions leverage another object as the source of information
     # on how to transform the primary object.
     class Resize(Pairwise, Scale):
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
             """Alter the main object so its shape matches the secondary."""
@@ -244,6 +282,8 @@ class Actions:
             return result
 
     class Adjoin(Pairwise, Translate):
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
             """Translate the main object in one direction towards the secondary.
@@ -260,6 +300,8 @@ class Actions:
             return result
 
     class Align(Pairwise, Translate):
+        n_args = 1
+
         @classmethod
         def act(cls, object: "Object", secondary: "Object") -> "Object":
             """Translate the main object to the nearest alignment to secondary."""
@@ -332,11 +374,13 @@ action_map: dict[str, type[Action]] = {
     "j": Actions.Justify,
     "z": Actions.Zero,
     # Orientation
+    "o": Actions.Orthogonal,
     "r": Actions.Rotate,
     "+": Actions.Flip,
     "|": Actions.HFlip,
     "_": Actions.VFlip,
     # Deformation
+    "s": Actions.Scale,
     "f": Actions.VScale,  # flatten
     "p": Actions.HScale,  # pinch
     # Pair

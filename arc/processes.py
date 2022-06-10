@@ -1,5 +1,3 @@
-from abc import ABC, abstractmethod
-
 import numpy as np
 
 from arc.definitions import Constants as cst
@@ -7,12 +5,12 @@ from arc.grid_methods import eval_mesh, point_filter, tile_mesh_func
 from arc.object import Object
 from arc.types import Grid, PointDict, Position, PositionSet, Shape
 from arc.util import logger
-from arc.util.common import process_exception
+from arc.util.common import Representation, process_exception
 
 log = logger.fancy_logger("Processes", level=30)
 
 
-class Process(ABC):
+class Process(metaclass=Representation):
     code: str = ""
 
     def __init__(self):
@@ -101,7 +99,6 @@ class Process(ABC):
             log.error(logger.pretty_traceback(*exception))
             return None
 
-    @abstractmethod
     def apply(self, object: Object) -> Object | None:
         pass
 

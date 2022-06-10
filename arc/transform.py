@@ -57,7 +57,7 @@ class Transform:
 
         output = ", ".join(
             [
-                f"{act.__name__}({','.join(map(str, args))})"
+                f"{act}({','.join(map(str, args))})"
                 for act, args in zip(self.actions, self.args)
             ]
         )

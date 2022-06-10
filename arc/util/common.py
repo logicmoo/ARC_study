@@ -22,3 +22,8 @@ def process_exception() -> tuple[str, str, list[FrameSummary]]:
     exc_name = getattr(exc_type, "__name__", "")
     tb = traceback.extract_tb(exc_tb)
     return (exc_name, str(exc_value), tb)
+
+
+class Representation(type):
+    def __repr__(cls) -> str:
+        return cls.__name__
