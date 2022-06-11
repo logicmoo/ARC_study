@@ -1,7 +1,7 @@
 import pytest
 from arc.actions import Actions
 from arc.grid_methods import gridify
-from arc.link import ObjectDelta
+from arc.inventory import Inventory
 from arc.object import Object
 from arc.types import BoardData, Grid
 
@@ -24,38 +24,22 @@ def test_translation():
     """Test changes in location for a given object."""
     dot1 = Object(1, 1, 1)
     dot2 = Object(2, 1, 1)
-    delta = ObjectDelta.from_comparisons(dot1, dot2)
-    assert delta.transform.code == "v1"
+    delta = Inventory.invert(dot1, dot2)
+    assert delta.transform.code == "t1,0"
 
     dot3 = Object(1, 2, 1)
-    delta = ObjectDelta.from_comparisons(dot1, dot3)
-    assert delta.transform.code == "h1"
+    delta = Inventory.invert(dot1, dot3)
+    assert delta.transform.code == "t0,1"
 
-    delta = ObjectDelta.from_comparisons(dot2, dot3)
-    assert delta.transform.code == "v-1h1"
-
-
-def test_justification():
-    """Test special translations, justifying an axis or zeroing both."""
-    dot1 = Object(1, 1, 1)
-    dot2 = Object(0, 1, 1)
-    delta = ObjectDelta.from_comparisons(dot1, dot2)
-    assert delta.transform.code == "j0"
-
-    dot3 = Object(1, 0, 1)
-    delta = ObjectDelta.from_comparisons(dot1, dot3)
-    assert delta.transform.code == "j1"
-
-    dot4 = Object(0, 0, 1)
-    delta = ObjectDelta.from_comparisons(dot1, dot4)
-    assert delta.transform.code == "z"
+    delta = Inventory.invert(dot2, dot3)
+    assert delta.transform.code == "t-1,1"
 
 
 def test_recoloring():
     """Test changes in color for a given object."""
     dot1 = Object(1, 1, 1)
     dot2 = Object(1, 1, 4)
-    delta = ObjectDelta.from_comparisons(dot1, dot2)
+    delta = Inventory.invert(dot1, dot2)
     assert delta.transform.code == "c4"
 
 
@@ -64,19 +48,19 @@ def test_rotation(grid3x3: Grid):
     left = Object.from_grid(grid3x3)
 
     r90 = Actions.Rotate.act(Object.from_grid(grid3x3), 1)
-    delta = ObjectDelta.from_comparisons(left, r90)
-    assert delta.transform.actions == [Actions.Rotate]
-    assert delta.transform.args == [(1,)]
+    delta = Inventory.invert(left, r90)
+    assert delta.transform.actions == [Actions.Orthogonal]
+    assert delta.transform.args == [(0, 1)]
 
     r180 = Actions.Rotate.act(Object.from_grid(grid3x3), 2)
-    delta = ObjectDelta.from_comparisons(left, r180)
-    assert delta.transform.actions == [Actions.Rotate]
-    assert delta.transform.args == [(2,)]
+    delta = Inventory.invert(left, r180)
+    assert delta.transform.actions == [Actions.Orthogonal]
+    assert delta.transform.args == [(0, 2)]
 
     r270 = Actions.Rotate.act(Object.from_grid(grid3x3), 3)
-    delta = ObjectDelta.from_comparisons(left, r270)
-    assert delta.transform.actions == [Actions.Rotate]
-    assert delta.transform.args == [(3,)]
+    delta = Inventory.invert(left, r270)
+    assert delta.transform.actions == [Actions.Orthogonal]
+    assert delta.transform.args == [(0, 3)]
 
 
 def test_reflection(grid3x3: Grid):
@@ -84,11 +68,12 @@ def test_reflection(grid3x3: Grid):
     left = Object.from_grid(grid3x3)
 
     vertical = Actions.Flip.act(Object.from_grid(grid3x3), 0)
-    delta = ObjectDelta.from_comparisons(left, vertical)
-    assert delta.transform.actions == [Actions.VFlip]
-    assert delta.transform.args == [tuple()]
+    delta = Inventory.invert(left, vertical)
+    assert delta.transform.actions == [Actions.Orthogonal]
+    assert delta.transform.args == [(1, 0)]
 
     horizontal = Actions.Flip.act(Object.from_grid(grid3x3), 1)
-    delta = ObjectDelta.from_comparisons(left, horizontal)
-    assert delta.transform.actions == [Actions.HFlip]
-    assert delta.transform.args == [tuple()]
+    delta = Inventory.invert(left, horizontal)
+    assert delta.transform.actions == [Actions.Orthogonal]
+    # TODO We should make sure the simplest transform comes from inversion
+    assert delta.transform.args == [(1, 2)]

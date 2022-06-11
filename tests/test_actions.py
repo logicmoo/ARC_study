@@ -63,12 +63,13 @@ def test_orthogonal():
     diag1 = Object.from_grid(np.flip(r90.grid, 0))  # type: ignore
     diag2 = Object.from_grid(np.flip(r90.grid, 1))  # type: ignore
 
-    o_matrices = Actions.Rotate.o_matrices
-    assert r90 == Actions.Orthogonal.act(obj, *(o_matrices[1].ravel()))
-    assert r180 == Actions.Orthogonal.act(obj, *(o_matrices[2].ravel()))
-    assert r270 == Actions.Orthogonal.act(obj, *(o_matrices[3].ravel()))
-    assert vflip == Actions.Orthogonal.act(obj, *Actions.VFlip.o_args)
-    assert hflip == Actions.Orthogonal.act(obj, *Actions.HFlip.o_args)
+    assert r90 == Actions.Orthogonal.act(obj, 0, 1)
+    assert r180 == Actions.Orthogonal.act(obj, 0, 2)
+    assert r270 == Actions.Orthogonal.act(obj, 0, 3)
+    assert vflip == Actions.Orthogonal.act(obj, 1, 0)
+    assert hflip == Actions.Orthogonal.act(obj, 2, 0)
+    assert diag1 == Actions.Orthogonal.act(obj, 1, 3)
+    assert diag2 == Actions.Orthogonal.act(obj, 1, 1)
 
     assert r90 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, r90))  # type: ignore
     assert r180 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, r180))  # type: ignore

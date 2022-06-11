@@ -3,21 +3,14 @@ from typing import TypeAlias
 
 import numpy as np
 
-from arc.actions import Action, Actions, Pairwise, degeneracies, subs
+from arc.actions import Action, Actions, Pairwise
 from arc.board import Inventory
-from arc.comparisons import (
-    ObjectComparison,
-    compare_orientation,
-    compare_position,
-    compare_rotation,
-)
 from arc.labeler import Labeler, all_traits
 from arc.link import ObjectDelta, VariableLink
 from arc.object import Object, ObjectPath, sort_layer
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.template import Template
-from arc.transform import Transform
 from arc.util import logger
 
 log = logger.fancy_logger("Solution", level=20)
@@ -46,6 +39,10 @@ class SolutionNode:
 
     def apply(self, input: list[Object]) -> list[Object] | int | None:
         return None
+
+    @property
+    def props(self) -> int:
+        return 0
 
 
 class VariableNode(SolutionNode):
@@ -101,7 +98,26 @@ class TransformNode(SolutionNode):
         self.args = args
 
     def __repr__(self) -> str:
-        return f"Select {self.selector} -> {self.action.__name__}{self.args} -> {self.paths}"
+        return f"({self.props})Select {self.selector} -> {self.action}{self.args} -> {self.paths}"
+
+    @property
+    def props(self) -> int:
+        total_props = 0
+        for arg in self.args:
+            if isinstance(arg, Selector):
+                total_props += arg.props
+            elif isinstance(arg, int):
+                total_props += 1
+            else:
+                total_props += 1
+                try:
+                    if arg[1] is None:
+                        total_props += 100
+                    else:
+                        total_props += 2 * len(arg[1])
+                except:
+                    log.warning(f"Node on {self.action} has arg issue")
+        return total_props
 
     @classmethod
     def from_action(
@@ -140,7 +156,7 @@ class TransformNode(SolutionNode):
             paths = {ObjectPath(delta.base) for delta in deltas}
 
             if issubclass(action, Pairwise):
-                log.debug(f"Determining selector for {action.__name__}")
+                log.debug(f"Determining selector for {action}")
                 secondaries: list[Object] = []
                 for delta_group, candidates in zip(subnode, inputs):
                     for delta in delta_group:
@@ -154,41 +170,32 @@ class TransformNode(SolutionNode):
                                 secondaries.append(obj)
                                 break
                 if len(secondaries) < len(link_node):
-                    log.info(f"Insufficient secondaries found for {action.__name__}")
+                    log.info(f"Insufficient secondaries found for {action}")
                     return [None]
                 args = (Selector(inputs, [secondaries]),)
-                log.info(f"Pairwise selector for {action.__name__}: {args[0]}")
-            elif action == Action:
-                # Identity actions won't have args, so skip the next block
-                pass
+                log.info(f"Pairwise selector for {action}: {args[0]}")
             else:
                 # now check the arguments
+                hot_arg = action.hot_arg
                 transforms = [delta.transform for delta in deltas]
-                all_args: set[tuple[int, ...]] = set()
-                # TODO HACK This messily handles finding the args that might belong
-                # to the desired transform node from a multi-action delta.
-                for transform in transforms:
-                    matched_args = [
-                        d_args
-                        for d_act, d_args in zip(transform.actions, transform.args)
-                        if d_act == action
-                    ]
-                    # TODO Add arg count matching
-                    if matched_args:
-                        all_args.add(matched_args[0])
-                    else:
-                        all_args.add(transform.args[0])
 
-                if all(all_args) and len(all_args) > 1:
-                    # Non-null, non-constant action arguments means we need a mapping
-                    # or a secondary object to provide the value.
-                    labeler = Labeler(selection)
-                    arg_mapping = cls.determine_map(deltas, labeler)
-                    if not arg_mapping[0]:
-                        return [None]
-                    args = (arg_mapping,)
-                else:
-                    args = all_args.pop()
+                # TODO NOTE We have a single transform (code len == 1) and also
+                # presume zero or one arguments.
+                for _ in range(action.n_args):
+                    all_args: set[int] = {
+                        trans.args[0][hot_arg] for trans in transforms
+                    }
+
+                    if len(all_args) > 1:
+                        # Non-null, non-constant action arguments means we need a mapping
+                        # or a secondary object to provide the value.
+                        labeler = Labeler(selection)
+                        arg_mapping = cls.determine_map(deltas, labeler)
+                        if not arg_mapping[0]:
+                            return [None]
+                        args = (arg_mapping,)
+                    else:
+                        args = (all_args.pop(),)
 
             nodes.append(cls(selector, action, args, paths))
 
@@ -288,8 +295,6 @@ class Solution:
         self.level_attention: int | None = attention
         self.template: Template = template or Template()
 
-        # Created during 'bundle'
-        self.transform_map: dict[str, list[str]] = defaultdict(list)
         # Create during 'create_nodes'
         self.nodes: list[SolutionNode] = []
 
@@ -315,91 +320,6 @@ class Solution:
                 else:
                     self.var_targets[path].append(link)
 
-        # Attempt replacing degenerate transforms to reduce unique transforms used
-        # E.g. Rotate 90 and Flipping could be equivalent for some objects
-        for group in degeneracies:
-            overlap = self.bundled.keys() & group
-            # If we have two or more elements from the degeneracy group, try stuff
-            if len(overlap) > 1:
-                log.debug(f"Attempting to bundle {overlap}")
-                results: dict[str, list[ObjectDelta]] = defaultdict(list)
-                for target in overlap:
-                    deltas = [
-                        delta
-                        for key in overlap - {target}
-                        for delta in self.bundled[key]
-                    ]
-
-                    # TODO WIP Figure out this mapping in the Actions overhaul
-                    comparisons: list[ObjectComparison] = []
-                    if target == "r":
-                        comparisons = [compare_rotation]
-                    elif target in ["_", "|"]:
-                        comparisons = [compare_orientation]
-                    elif target in ["", "z"]:
-                        comparisons = [compare_position]
-
-                    for delta in deltas:
-                        new_delta = ObjectDelta.from_comparisons(
-                            delta.left,
-                            delta.right,
-                            base=delta.base,
-                            comparisons=comparisons,
-                        )
-
-                        # TODO HACK Need a better way to control the transform
-                        # assocated with the delta. Consider the "z" vs "" case
-                        if target == "z":
-                            new_delta.transform = Transform([Actions.Zero])
-
-                        if not new_delta.null:
-                            results[target].append(new_delta)
-                        else:
-                            results.pop(target, [])
-                            break
-                # If there exists a valid linking using a single action, we almost
-                # always want to use it.
-                if results:
-                    # The 'best' bundling involves the target with fewest changed items
-                    target, deltas = sorted(results.items(), key=lambda x: len(x[1]))[0]
-                    log.debug(f"Choosing smallest map change: {deltas} -> {target}")
-                    for key in overlap - {target}:
-                        self.bundled.pop(key)
-                    self.bundled[target].extend(deltas)
-
-        self.transform_map: dict[str, list[str]] = defaultdict(list)
-        for key in self.bundled:
-            if len(key) > 2:
-                log.info(f"Ignore transform with 3+ codes: {key}")
-            else:
-                self.transform_map[key] = [key]
-
-        # TODO WIP
-        # We check a few rules to know when we should attempt a higher-level transform
-        for left, right in subs:
-            log.debug(f"Checking substitution: {left} -> {right}")
-
-            # Case 1: Double transforms ("ws", "fp") -> map to pairwise action
-            if left in self.transform_map:
-                self.transform_map[right].extend(self.transform_map.pop(left))
-            elif set(left) & set(self.transform_map.keys()):
-                for char in left:
-                    present = char in self.bundled
-                    scene_set = set(delta.tag for delta in self.bundled[char])
-                    complete = len(scene_set) == len(cases)
-                    # Case 2: Non-constant transforms across cases
-                    if present and not complete:
-                        self.transform_map[right].extend(self.transform_map.pop(char))
-                    # Case 3: There's overlap in the substitution key, but no other compelling
-                    # evidence, so we just add the pairwise transforms as actions to attempt
-                    # if the original action fails.
-                    elif present and complete:
-                        self.transform_map[char + right].extend(
-                            self.transform_map.pop(char)
-                        )
-
-        log.info(f"Transform mapping: {self.transform_map}")
-
     def create_nodes(self, cases: list[Scene]) -> bool:
         self.nodes = []
         if self.level_attention is not None:
@@ -414,39 +334,57 @@ class Solution:
             if raw_node:
                 self.nodes.append(raw_node)
 
-        for codes, base_chars in self.transform_map.items():
+        for code, delta in self.bundled.items():
+            if len(code) > 1:
+                log.info(f"Skipping (code > 1) Link {delta}")
+                continue
+
             # The link node is a list of lists of ObjectDeltas related to the transform
             link_node: list[list[ObjectDelta]] = []
             for case in cases:
                 case_node = [
-                    delta
-                    for key in base_chars
-                    for delta in self.bundled.get(key, [])
-                    if delta.tag == case.idx
+                    delta for delta in self.bundled[code] if delta.tag == case.idx
                 ]
                 link_node.append(case_node)
             link_node = list(filter(None, link_node))
 
-            final_nodes: list[SolutionNode] = []
-            if len(codes) <= 1:
-                action = Actions.map[codes]
+            candidate_nodes: list[TransformNode] = []
+            base_action = Actions.map[code]
+            action_queue = [base_action]
+            while action_queue:
+                action = action_queue.pop(0)
+                # NOTE In general, we cannot have a situation where an action with more
+                # args non-trivially replaces an action with fewer.
+                if action.n_args > base_action.n_args:
+                    continue
+                log.info(f"Attempting Solution node for action '{action}'")
                 raw_nodes = TransformNode.from_action(inputs, link_node, action)
-                final_nodes.extend(filter(None, raw_nodes))
-            else:
-                for char in codes:
-                    log.info(f"Attempting Solution node for char '{char}'")
-                    action = Actions.map[char]
-                    raw_nodes = TransformNode.from_action(inputs, link_node, action)
-                    nodes = list(filter(None, raw_nodes))
-                    if nodes:
-                        final_nodes.extend(nodes)
-                        break
+                candidate_nodes.extend(filter(None, raw_nodes))
+                action_queue.extend(action.__subclasses__())
 
-            if final_nodes:
-                log.info("Added TransformNodes:")
-                for node in final_nodes:
+            if candidate_nodes:
+                log.info("Found TransformNodes:")
+                for node in candidate_nodes:
                     log.info(node)
-                self.nodes.extend(final_nodes)
+                for node in sorted(candidate_nodes, key=lambda x: x.props):
+                    valid = True
+                    for input_group, deltas in zip(inputs, link_node):
+                        result = node.apply(input_group)
+                        if not result:
+                            valid = False
+                            break
+                        result = sorted(result)
+                        rights = sorted([delta.right for delta in deltas])
+                        if result != rights:
+                            log.info("Mismatch between inputs and ouptuts:")
+                            log.info(result)
+                            log.info(rights)
+                            valid = False
+                            break
+                    if valid:
+                        log.info(f"Choosing: {node}")
+                        self.nodes.append(node)
+                        break
             # We should create at least one SolutionNode per transform key,
             # otherwise we'll be missing pieces from the output.
             # TODO This should be based on gaps in the Template.

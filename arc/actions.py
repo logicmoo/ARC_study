@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from arc.grid_methods import gridify
+from arc.definitions import Constants as cst
 from arc.object_relations import chebyshev_vector
 from arc.types import Args, Grid
 from arc.util.common import Representation
@@ -18,7 +18,7 @@ class DeterminantError(Exception):
 class Action(metaclass=Representation):
     code: str = ""
     dimension: str = ""
-    args = tuple([])
+    args: Args = tuple([])
     hot_arg: int = 0
     n_args: int = 0
 
@@ -28,9 +28,9 @@ class Action(metaclass=Representation):
         return object.copy()
 
     @classmethod
-    def inv(cls, left: "Object", right: "Object") -> Args | None:
+    def inv(cls, left: "Object", right: "Object") -> Args:
         """Detect if this action helps relate two objects."""
-        return None
+        return tuple([])
 
 
 class Pairwise:
@@ -54,18 +54,19 @@ class Actions:
         n_args = 1
 
         @classmethod
-        def act(cls, object: "Object", color: int) -> "Object":
+        def act(cls, object: "Object", color: int = cst.NULL_COLOR) -> "Object":
+            if color == cst.NULL_COLOR:
+                return object.copy()
             return object.copy(anchor=(*object.loc, color))
 
         @classmethod
-        def inv(cls, left: "Object", right: "Object") -> Args | None:
+        def inv(cls, left: "Object", right: "Object") -> Args:
             c1 = set([item[0] for item in left.c_rank])
             c2 = set([item[0] for item in right.c_rank])
             if len(c1) == 1 and len(c2) == 1:
                 if c1 != c2:
                     return (list(c2)[0],)
-                else:
-                    return tuple([])
+            return tuple([])
 
     ## LOCATION
 
@@ -74,13 +75,13 @@ class Actions:
         n_args = 2
 
         @classmethod
-        def act(cls, object: "Object", dr: int, dc: int) -> "Object":
+        def act(cls, object: "Object", dr: int = 0, dc: int = 0) -> "Object":
             """Return a new Object/Shape with transformed coordinates"""
             a_row, a_col, color = object.anchor
             return object.copy((a_row + dr, a_col + dc, color))
 
         @classmethod
-        def inv(cls, left: "Object", right: "Object") -> Args | None:
+        def inv(cls, left: "Object", right: "Object") -> Args:
             if left.loc == right.loc:
                 return tuple([])
             return (right.row - left.row, right.col - left.col)
@@ -90,7 +91,7 @@ class Actions:
         n_args = 1
 
         @classmethod
-        def act(cls, object: "Object", dr: int) -> "Object":
+        def act(cls, object: "Object", dr: int = 0) -> "Object":
             return super().act(object, dr, 0)
 
     class Horizontal(Translate):
@@ -98,7 +99,7 @@ class Actions:
         n_args = 1
 
         @classmethod
-        def act(cls, object: "Object", dc: int) -> "Object":
+        def act(cls, object: "Object", dc: int = 0) -> "Object":
             return super().act(object, 0, dc)
 
     class Tile(Translate):
@@ -107,7 +108,7 @@ class Actions:
         n_args = 2
 
         @classmethod
-        def act(cls, object: "Object", nr: int, nc: int) -> "Object":
+        def act(cls, object: "Object", nr: int = 0, nc: int = 0) -> "Object":
             dr, dc = object.shape
             return super().act(object, nr * dr, nc * dc)
 
@@ -152,63 +153,39 @@ class Actions:
     class Orthogonal(Action):
         """The group of 2D orthogonal operations, args representing the matrix."""
 
-        n_args = 4
-        o_args = (1, 0, 0, 1)
-        o_matrix: Grid = gridify([[1, 0], [0, 1]])
+        n_args = 2
+        o_arg = 0
 
         # TODO WIP
         @classmethod
         def act(
-            cls, object: "Object", ul: int = 1, ur: int = 0, ll: int = 0, lr: int = 1
+            cls, object: "Object", reflection: int = 0, rotation: int = 0
         ) -> "Object":
-            # The determinant must be 1 or -1, corresponding to Rotation and Reflection.
-            det = ul * lr - ll * ur
-            if det == 1:
-                # Identity
-                if ul == 1 and ur == 0 and ll == 0 and lr == 1:
-                    return object.copy()
-
-                # Rotations by 90, 180, 270 have -1, 0, 1 as the upper right element.
-                return Actions.Rotate.act(object, ur + 2)
-            elif det == -1:
-                # Reflections in H and V directions have 1 and -1 as upper left element.
-                if ul == 1:
-                    return Actions.HFlip.act(object)
-                elif ul == -1:
-                    return Actions.VFlip.act(object)
-                # Diagonal reflections have ul == 0, ur == 1 or -1
-                elif ur == 1:
-                    return Actions.Flip.act(Actions.Rotate.act(object, 1), 1)
-                else:
-                    return Actions.Rotate.act(Actions.Flip.act(object, 1), 1)
-            else:
-                raise DeterminantError
+            result = object.copy()
+            if reflection == 1:
+                result = Actions.VFlip.act(result)
+            elif reflection == 2:
+                result = Actions.HFlip.act(result)
+            if rotation > 0:
+                result = Actions.Rotate.act(result, rotation)
+            return result
 
         @classmethod
-        def inv(cls, left: "Object", right: "Object") -> Args | None:
+        def inv(cls, left: "Object", right: "Object") -> Args:
             if left.c_rank != right.c_rank:
                 return tuple([])
 
             for reflection in (cls, Actions.VFlip, Actions.HFlip):
                 if (reflected := reflection.act(left)) == right:
-                    return reflection.o_args
+                    return (reflection.o_arg, 0)
                 for ct in [1, 2, 3]:
                     if Actions.Rotate.act(reflected, ct) == right:
-                        combined = tuple(
-                            np.matmul(
-                                reflection.o_matrix, Actions.Rotate.o_matrices[ct]
-                            ).ravel()
-                        )
-                        return combined
+                        return (reflection.o_arg, ct)
             return tuple([])
 
     class Rotate(Orthogonal):
-        o_matrices: tuple[Grid, ...] = (
-            gridify([[1, 0], [0, 1]]),
-            gridify([[0, -1], [1, 0]]),
-            gridify([[-1, 0], [0, -1]]),
-            gridify([[0, 1], [-1, 0]]),
-        )
+        n_args = 1
+        hot_arg = 1
 
         @classmethod
         def act(cls, object: "Object", num: int) -> "Object":
@@ -218,6 +195,9 @@ class Actions:
             return object.__class__.from_grid(grid=turned, anchor=object.anchor)
 
     class Flip(Orthogonal):
+        n_args = 1
+        hot_arg = 0
+
         @classmethod
         def act(cls, object: "Object", horizontal: int) -> "Object":
             """Flip the object via the specified axis."""
@@ -225,16 +205,16 @@ class Actions:
             return object.__class__.from_grid(grid=grid, anchor=object.anchor)
 
     class VFlip(Flip):
-        o_args = (-1, 0, 0, 1)
-        o_matrix = gridify([[-1, 0], [0, 1]])
+        n_args = 0
+        o_arg = 1
 
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return super().act(object, 0)
 
     class HFlip(Flip):
-        o_args = (1, 0, 0, -1)
-        o_matrix = gridify([[1, 0], [0, -1]])
+        n_args = 0
+        o_arg = 2
 
         @classmethod
         def act(cls, object: "Object") -> "Object":
@@ -255,7 +235,7 @@ class Actions:
             return object.copy(codes=updated_codes)
 
         @classmethod
-        def inv(cls, left: "Object", right: "Object") -> Args | None:
+        def inv(cls, left: "Object", right: "Object") -> Args:
             args = tuple([])
             for axis in [0, 1]:
                 if left.shape[axis] != right.shape[axis]:
@@ -410,7 +390,3 @@ action_map: dict[str, type[Action]] = {
 for code, action in action_map.items():
     action.code = code
     Actions.map[code] = action
-
-# TODO Add a mixin to handle additional Action properties
-subs = [("fp", "S"), ("vh", "AL")]
-degeneracies = [{"|", "_", "r"}, {"", "z"}]
