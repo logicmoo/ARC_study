@@ -11,16 +11,16 @@ log = logger.fancy_logger("Processes", level=30)
 
 
 class Process(metaclass=Representation):
-    code: str = ""
+    code: str = ""  # Single-character key for representating the process
+    threshold: float = 1.0  # Usually used in test()
 
-    def __init__(self):
-        pass
-
-    def test(self, object: Object) -> bool:
-        """Check whether we believe we should run this process."""
+    @classmethod
+    def test(cls, object: Object) -> bool:
+        """Check whether we should run this process."""
         return True
 
-    def cell_test(self, object: Object, min_size: int, min_dim: int) -> bool:
+    @classmethod
+    def cell_test(cls, object: Object, min_size: int, min_dim: int) -> bool:
         """Common test for repeated elements (tiles, rotation, flip)."""
         # A cell should have at least 4 points for symmetry to be useful
         if object.size < min_size:
@@ -30,14 +30,15 @@ class Process(metaclass=Representation):
             return False
         return True
 
+    @classmethod
     def repair(
-        self, input: Object, output: Object, occlusion: PositionSet
+        cls, input: Object, output: Object, occlusion: PositionSet
     ) -> Object | None:
         """Repair any inconsistencies between input and output."""
         if input == output:
             return output
         elif len(output.points) == 0:
-            log.warning(f"Process {self.__class__.__name__} generated empty object")
+            log.warning(f"Process {cls} generated empty object")
             return None
 
         log.debug(f"Patching {output} -> {input}")
@@ -52,7 +53,7 @@ class Process(metaclass=Representation):
             return None
             # cut_points = {loc: cst.NEGATIVE_COLOR for loc in extra_locs}
             # log.debug(f"  Cutting {len(cut_points)} points as patch")
-            # return self.add_patch(output, cut_points, "Cut")
+            # return cls.add_patch(output, cut_points, "Cut")
         else:
             # At this point, the silhouetes match, so there is just color
             # disagreement from the input and output.
@@ -67,9 +68,10 @@ class Process(metaclass=Representation):
                 return output
 
             log.debug(f"  Recoloring {len(recolor_pts)} points as patch")
-            return self.add_patch(output, recolor_pts, "Reco")
+            return cls.add_patch(output, recolor_pts, "Reco")
 
-    def add_patch(self, output: Object, points: PointDict, tag: str) -> Object:
+    @classmethod
+    def add_patch(cls, output: Object, points: PointDict, tag: str) -> Object:
         """Create a container that will contain the Process output and patch."""
         out = output.copy(anchor=(0, 0, output.color))
         patch = Object.from_points(points, leaf=True, process=tag)
@@ -78,37 +80,42 @@ class Process(metaclass=Representation):
         container = Object(*output.anchor, children=[out, patch], **kwargs)
         return container
 
-    def run(self, object: Object, occlusion: PositionSet = set([])) -> Object | None:
-        self.info(object)
+    @classmethod
+    def run(cls, object: Object, occlusion: PositionSet = set([])) -> Object | None:
+        cls.info(object)
         try:
-            if candidate := self.apply(object):
-                if repaired := self.repair(object, candidate, occlusion):
+            if candidate := cls.apply(object):
+                if repaired := cls.repair(object, candidate, occlusion):
                     if repaired == object:
-                        self.success(candidate)
+                        cls.success(candidate)
                         return repaired
                     else:
                         log.info("Repair failed to property repair object")
                 else:
-                    self.fail("Repair unsuccessful")
+                    cls.fail("Repair unsuccessful")
                     return None
             else:
                 return None
         except Exception as _:
             exception = process_exception()
-            log.error(f"{exception[0]} exception during {self.__class__.__name__}")
+            log.error(f"{exception[0]} exception during {cls}")
             log.error(logger.pretty_traceback(*exception))
             return None
 
-    def apply(self, object: Object) -> Object | None:
+    @classmethod
+    def apply(cls, object: Object) -> Object | None:
         pass
 
-    def info(self, object: Object) -> None:
-        log.debug(f"Running {self.__class__.__name__} on {object.id}")
+    @classmethod
+    def info(cls, object: Object) -> None:
+        log.debug(f"Running {cls} on {object.id}")
 
-    def fail(self, message: str) -> None:
+    @classmethod
+    def fail(cls, message: str) -> None:
         log.debug(f"  ...failed: {message}")
 
-    def success(self, object: Object, message: str = "") -> None:
+    @classmethod
+    def success(cls, object: Object, message: str = "") -> None:
         msg_str = f"({message})" if message else ""
         log.debug(f"  ...finished: {(object.props)} props {msg_str}")
 
@@ -117,10 +124,12 @@ class Processes:
     map: dict[str, type[Process]] = {}
 
     class SeparateColor(Process):
-        def test(self, object: Object) -> bool:
+        @classmethod
+        def test(cls, object: Object) -> bool:
             return len(object.c_rank) > 1
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             """Improves representation by putting all points of one color together."""
             color = object.c_rank[0][0]
 
@@ -131,15 +140,17 @@ class Processes:
                 *object.loc,
                 children=[match, other],
                 leaf=True,
-                process=f"{self.code}{color}",
+                process=f"{cls.code}{color}",
             )
             return candidate
 
     class SeparateAllColors(Process):
-        def test(self, object: Object) -> bool:
+        @classmethod
+        def test(cls, object: Object) -> bool:
             return len(object.c_rank) > 1
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             """Improves representation by putting all points of one color together."""
             children: list[Object] = []
             curr_pts: PointDict = object.points
@@ -153,12 +164,13 @@ class Processes:
                 *object.loc,
                 children=children,
                 leaf=True,
-                process=f"{self.code}*",
+                process=f"{cls.code}*",
             )
             return candidate
 
     class Background(Process):
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             # NOTE: This currently assumes a black background if black is present
             # which should be altered later to be more data-driven.
             if 0 in [item[0] for item in object.c_rank]:
@@ -182,7 +194,7 @@ class Processes:
                     color=color,
                     codes=codes,
                     leaf=True,
-                    process=f"{self.code}{color}",
+                    process=f"{cls.code}{color}",
                 )
 
             # Split off the base color from the "front matter"
@@ -193,16 +205,18 @@ class Processes:
                 *object.loc,
                 children=[background, front],
                 leaf=True,
-                process=f"{self.code}{color}",
+                process=f"{cls.code}{color}",
             )
 
     class ConnectObjects(Process):
         """Cluster points together that aren't of masked colors."""
 
-        def test(self, object: Object) -> bool:
+        @classmethod
+        def test(cls, object: Object) -> bool:
             return 1 < object.connectedness < cst.MAX_BLOBS
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             object_pts = object.blobs
             children: list[Object] = []
             for idx, pts in enumerate(object_pts):
@@ -220,24 +234,26 @@ class Processes:
 
         threshold = 0.9
 
-        def test(self, object: Object) -> bool:
-            if not self.cell_test(object, 4, 3):
+        @classmethod
+        def test(cls, object: Object) -> bool:
+            if not cls.cell_test(object, 4, 3):
                 return False
             R, row_level = object.order_trans_row
             C, col_level = object.order_trans_col
             if (R, C) == object.shape:
                 return False
-            if row_level < self.threshold and col_level < self.threshold:
+            if row_level < cls.threshold and col_level < cls.threshold:
                 return False
             return True
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             row_stride, row_level = object.order_trans_row
             col_stride, col_level = object.order_trans_col
 
-            if row_level < self.threshold:
+            if row_level < cls.threshold:
                 row_stride = object.shape[0]
-            if col_level < self.threshold:
+            if col_level < cls.threshold:
                 col_stride = object.shape[1]
 
             # Identify each point that's part of the unit cell
@@ -283,24 +299,26 @@ class Processes:
 
         threshold = 0.9
 
-        def test(self, object: Object) -> bool:
-            if not self.cell_test(object, 4, 3):
+        @classmethod
+        def test(cls, object: Object) -> bool:
+            if not cls.cell_test(object, 4, 3):
                 return False
             r_level, c_level = object.order_mirror
-            if r_level < self.threshold and c_level < self.threshold:
+            if r_level < cls.threshold and c_level < cls.threshold:
                 return False
             return True
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             axes = [False, False]
             R, C = object.shape
             rs, cs = R, C
             odd_vertical = R % 2 == 1
             odd_horizontal = C % 2 == 1
-            if object.order_mirror[0] >= self.threshold:
+            if object.order_mirror[0] >= cls.threshold:
                 rs = R // 2 + int(odd_vertical)
                 axes[0] = True
-            if object.order_mirror[1] >= self.threshold:
+            if object.order_mirror[1] >= cls.threshold:
                 cs = C // 2 + int(odd_horizontal)
                 axes[1] = True
 
@@ -317,8 +335,6 @@ class Processes:
                     mesh_locs.append((R - 1 - i, C - 1 - j))
                 return [grid[loc] for loc in mesh_locs]
 
-            # grid_v = np.flip(obj.grid, 0)
-            # grid_h = np.flip(obj.grid, 1)
             # Identify each point that's part of the unit cell
             cell_pts = eval_mesh(object.grid, (rs, cs), refl_mesh_func)
             if not cell_pts:
@@ -354,8 +370,9 @@ class Processes:
 
         threshold = 0.8
 
-        def test(self, object: Object) -> bool:
-            if not self.cell_test(object, 4, 3):
+        @classmethod
+        def test(cls, object: Object) -> bool:
+            if not cls.cell_test(object, 4, 3):
                 return False
 
             # TODO Handle 180 deg rotations, which can have mismatched shape params
@@ -364,11 +381,12 @@ class Processes:
             # Odd shaped rot symmetry is equivalent to mirror symmetry
             elif object.shape[0] % 2 == 1:
                 return False
-            elif object.order_rotation[1] < self.threshold:
+            elif object.order_rotation[1] < cls.threshold:
                 return False
             return True
 
-        def apply(self, object: Object) -> Object | None:
+        @classmethod
+        def apply(cls, object: Object) -> Object | None:
             # TODO WIP How many cases of combining rotated elements are there?
             # Case 1: Commensurate 90 (no overlap), even shape values
             R, C = object.shape

@@ -174,14 +174,13 @@ class Board:
         self, obj: Object, occlusion: PositionSet
     ) -> list[tuple[str, Object]]:
         candidates: list[tuple[str, Object]] = []
-        for process_class in self.processes:
-            process = process_class()
+        for process in self.processes:
             if process.test(obj):
-                log.debug(f"Applying {process.__class__.__name__}")
+                log.debug(f"Applying {process}")
                 candidate = process.run(obj, occlusion)
                 if candidate:
                     candidates.append((process.code, candidate))
             else:
-                log.debug(f"{process.__class__.__name__} failed pre-run test")
+                log.debug(f"{process} failed pre-run test")
 
         return candidates

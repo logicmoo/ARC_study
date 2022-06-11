@@ -25,5 +25,7 @@ def process_exception() -> tuple[str, str, list[FrameSummary]]:
 
 
 class Representation(type):
+    """Metaclass for convenient printing of concept classes' names."""
+
     def __repr__(cls) -> str:
         return cls.__name__

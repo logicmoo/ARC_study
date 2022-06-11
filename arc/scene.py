@@ -135,6 +135,8 @@ class Scene:
 
         link_map: LinkMap = {}
         for obj_path in variables:
+            if obj_path.property is None:
+                continue
             log.debug(f"Searching for link to {obj_path}")
             output_rep = self.output.tree[self.output.characteristic_map[decomp_char]]
             target = self.output.rep.get_path(obj_path.base)

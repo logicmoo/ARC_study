@@ -30,7 +30,7 @@ def solution(task_idx: int):
     # Solution
     with st.expander(f"The Solution parameters", expanded=True):
         sol = _arc[task_idx].solution
-        actions = ", ".join([process_map[code].__name__ for code in sol.characteristic])
+        actions = ", ".join([str(process_map[code]) for code in sol.characteristic])
         st.write(f"Decomposition characteristic: {sol.characteristic} | {actions}")  # type: ignore
         st.write(f"Attention at depth: {sol.level_attention}")  # type: ignore
         st.write(f"Nodes in the Solution graph:")  # type: ignore
