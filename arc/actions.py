@@ -11,6 +11,10 @@ if TYPE_CHECKING:
     from arc.object import Object
 
 
+class DeterminantError(Exception):
+    pass
+
+
 class Action(metaclass=Representation):
     code: str = ""
     dimension: str = ""
@@ -149,29 +153,36 @@ class Actions:
         """The group of 2D orthogonal operations, args representing the matrix."""
 
         n_args = 4
-
         o_args = (1, 0, 0, 1)
         o_matrix: Grid = gridify([[1, 0], [0, 1]])
 
+        # TODO WIP
         @classmethod
         def act(
             cls, object: "Object", ul: int = 1, ur: int = 0, ll: int = 0, lr: int = 1
         ) -> "Object":
-            # TODO WIP
-            return Object()
-            # det = ul * lr - ll * ur
-            # if det == 1:
-            #     # Rotations by 90, 180, 270 have -1, 0, 1 as the upper right element.
-            #     return Actions.Rotate.act(object, ur + 2)
-            # else:
-            #     # Reflections across H and V axes have 1 and -1 as upper left element.
-            #     if ul != 0:
-            #         return Actions.Flip.act(object, int(ul == 1))
-            #     # Diagonal reflections have ul == 0, ur == 1 or -1
-            #     elif ur == 1:
-            #         return Actions.Flip.act(Actions.Rotate.act(object, 1), 1)
-            #     else:
-            #         return Actions.Rotate.act(Actions.Flip.act(object, 1), 1)
+            # The determinant must be 1 or -1, corresponding to Rotation and Reflection.
+            det = ul * lr - ll * ur
+            if det == 1:
+                # Identity
+                if ul == 1 and ur == 0 and ll == 0 and lr == 1:
+                    return object.copy()
+
+                # Rotations by 90, 180, 270 have -1, 0, 1 as the upper right element.
+                return Actions.Rotate.act(object, ur + 2)
+            elif det == -1:
+                # Reflections in H and V directions have 1 and -1 as upper left element.
+                if ul == 1:
+                    return Actions.HFlip.act(object)
+                elif ul == -1:
+                    return Actions.VFlip.act(object)
+                # Diagonal reflections have ul == 0, ur == 1 or -1
+                elif ur == 1:
+                    return Actions.Flip.act(Actions.Rotate.act(object, 1), 1)
+                else:
+                    return Actions.Rotate.act(Actions.Flip.act(object, 1), 1)
+            else:
+                raise DeterminantError
 
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args | None:
@@ -196,7 +207,7 @@ class Actions:
             gridify([[1, 0], [0, 1]]),
             gridify([[0, -1], [1, 0]]),
             gridify([[-1, 0], [0, -1]]),
-            gridify([[0, 1], [0, -1]]),
+            gridify([[0, 1], [-1, 0]]),
         )
 
         @classmethod
@@ -208,22 +219,22 @@ class Actions:
 
     class Flip(Orthogonal):
         @classmethod
-        def act(cls, object: "Object", axis: int) -> "Object":
+        def act(cls, object: "Object", horizontal: int) -> "Object":
             """Flip the object via the specified axis."""
-            grid: Grid = np.flip(object.grid, axis)  # type: ignore
+            grid: Grid = np.flip(object.grid, horizontal)  # type: ignore
             return object.__class__.from_grid(grid=grid, anchor=object.anchor)
 
     class VFlip(Flip):
-        o_args = (1, 0, 0, -1)
-        o_matrix = gridify([[1, 0], [0, -1]])
+        o_args = (-1, 0, 0, 1)
+        o_matrix = gridify([[-1, 0], [0, 1]])
 
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return super().act(object, 0)
 
     class HFlip(Flip):
-        args = (-1, 0, 0, 1)
-        o_matrix = gridify([[-1, 0], [0, 1]])
+        o_args = (1, 0, 0, -1)
+        o_matrix = gridify([[1, 0], [0, -1]])
 
         @classmethod
         def act(cls, object: "Object") -> "Object":
@@ -234,12 +245,13 @@ class Actions:
         n_args = 2
 
         @classmethod
-        def act(cls, object: "Object", code: str, value: int) -> "Object":
+        def act(cls, object: "Object", vertical: int, horizontal: int) -> "Object":
             """Change the value associated with a generating code"""
-            if not object.generating:
-                return object.copy()
             updated_codes = object.codes.copy()
-            updated_codes[code] = value
+            if vertical > 0:
+                updated_codes["V"] = vertical - 1
+            if horizontal > 0:
+                updated_codes["H"] = horizontal - 1
             return object.copy(codes=updated_codes)
 
         @classmethod
@@ -247,7 +259,7 @@ class Actions:
             args = tuple([])
             for axis in [0, 1]:
                 if left.shape[axis] != right.shape[axis]:
-                    ct = right.shape[axis] - 1
+                    ct = right.shape[axis]
                     args += (ct,)
             return args
 
@@ -256,14 +268,14 @@ class Actions:
 
         @classmethod
         def act(cls, object: "Object", value: int) -> "Object":
-            return super().act(object, "V", value)
+            return super().act(object, value, 0)
 
     class HScale(Scale):
         n_args = 1
 
         @classmethod
         def act(cls, object: "Object", value: int) -> "Object":
-            return super().act(object, "H", value)
+            return super().act(object, 0, value)
 
     ## 2-OBJECT ACTIONS
     # These actions leverage another object as the source of information
@@ -276,9 +288,9 @@ class Actions:
             """Alter the main object so its shape matches the secondary."""
             result = object.copy()
             if object.shape[0] != secondary.shape[0]:
-                result = Actions.Scale.act(result, "V", secondary.shape[0] - 1)
+                result = Actions.Scale.act(result, secondary.shape[0], 0)
             if object.shape[1] != secondary.shape[1]:
-                result = Actions.Scale.act(result, "H", secondary.shape[1] - 1)
+                result = Actions.Scale.act(result, 0, secondary.shape[1])
             return result
 
     class Adjoin(Pairwise, Translate):

@@ -71,7 +71,7 @@ def compare_order(left: "Object", right: "Object") -> ComparisonReturn:
     # There could exist one or more generators to create the other object
     for axis, code in [(0, "R"), (1, "C")]:
         if left.shape[axis] != right.shape[axis]:
-            ct = right.shape[axis] - 1
+            ct = right.shape[axis]
             scaler = Actions.VScale if code == "R" else Actions.HScale
             transform.actions.append(scaler)
             transform.args.append((ct,))

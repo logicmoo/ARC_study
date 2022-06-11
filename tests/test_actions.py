@@ -1,3 +1,4 @@
+import numpy as np
 from arc.actions import Actions, chebyshev_vector
 from arc.object import Object
 
@@ -32,19 +33,50 @@ def test_deformations():
     """Test scaling, skewing, etc of Objects."""
     # If there's no generator, just return a copy of the original object
     pt1 = Object(1, 1, 1)
-    assert Actions.Scale.act(pt1, "V", 2) == pt1
+    assert Actions.Scale.act(pt1, 2, 0) == pt1
 
     square = Object(1, 1, 1, codes={"H": 4, "V": 4})
 
-    flat = Actions.VScale.act(square, 2)
+    flat = Actions.VScale.act(square, 3)
     assert flat.loc == (1, 1)
     assert flat.shape == (3, 5)
 
-    thin = Actions.HScale.act(square, 2)
+    thin = Actions.HScale.act(square, 3)
     assert thin.loc == (1, 1)
     assert thin.shape == (5, 3)
 
-    assert Actions.Scale.act(Actions.Scale.act(square, "V", 1), "V", 4) == square
+    assert Actions.Scale.act(Actions.Scale.act(square, 2, 0), 5, 0) == square
+
+
+def test_orthogonal():
+    input_grid = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+    ]
+    obj = Object.from_grid(input_grid)
+    r90 = Object.from_grid(np.rot90(obj.grid))  # type: ignore
+    r180 = Object.from_grid(np.rot90(r90.grid))  # type: ignore
+    r270 = Object.from_grid(np.rot90(r180.grid))  # type: ignore
+    vflip = Object.from_grid(np.flip(obj.grid, 0))  # type: ignore
+    hflip = Object.from_grid(np.flip(obj.grid, 1))  # type: ignore
+    diag1 = Object.from_grid(np.flip(r90.grid, 0))  # type: ignore
+    diag2 = Object.from_grid(np.flip(r90.grid, 1))  # type: ignore
+
+    o_matrices = Actions.Rotate.o_matrices
+    assert r90 == Actions.Orthogonal.act(obj, *(o_matrices[1].ravel()))
+    assert r180 == Actions.Orthogonal.act(obj, *(o_matrices[2].ravel()))
+    assert r270 == Actions.Orthogonal.act(obj, *(o_matrices[3].ravel()))
+    assert vflip == Actions.Orthogonal.act(obj, *Actions.VFlip.o_args)
+    assert hflip == Actions.Orthogonal.act(obj, *Actions.HFlip.o_args)
+
+    assert r90 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, r90))  # type: ignore
+    assert r180 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, r180))  # type: ignore
+    assert r270 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, r270))  # type: ignore
+    assert vflip == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, vflip))  # type: ignore
+    assert hflip == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, hflip))  # type: ignore
+    assert diag1 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, diag1))  # type: ignore
+    assert diag2 == Actions.Orthogonal.act(obj, *Actions.Orthogonal.inv(obj, diag2))  # type: ignore
 
 
 def test_rotation():
