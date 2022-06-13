@@ -61,12 +61,14 @@ class Inventory:
                 continue
             else:
                 transform = transform.concat(Transform([core_action], [args]))
-                log.debug(f"->{transform}")
+                log.debug(f"    ->{args}")
 
-        null = False
-        if transform.apply(left) != right:
+        if not transform:
+            return ObjectDelta(left, right, transform, null=True)
+
+        log.debug(f"Inversion yielded Transform: {transform}")
+        if null := (transform.apply(left) != right):
             log.debug("  Failed validity check")
-            null = True
         return ObjectDelta(left, right, transform, null=null)
 
     @classmethod
@@ -82,6 +84,7 @@ class Inventory:
         log.debug(f"Matching {target} against {len(candidates)} candidates")
         for candidate in candidates:
             if delta := cls.invert(candidate, target):
+                # if delta := ObjectDelta.from_comparisons(candidate, target):
                 log.debug(f"Candidate has delta: {delta}")
                 if delta.dist < best:
                     best = delta.dist

@@ -83,7 +83,7 @@ class Task:
         for scene in self.cases + self.tests:
             scene.clean(decomp_tree_only=decomp_tree_only)
 
-    def solve(self) -> None:
+    def run(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
         if (input_char := self.decompose()) is None:
             log.warning("Solution failed during decomposition.")
@@ -95,42 +95,13 @@ class Task:
             self.fail = "Link"
             return
 
-        self.init_solution(input_char, output_char)
-        self.solution.bundle(self.cases)
-        self.solution.create_nodes(self.cases)
-        self.validate_nodes(self.solution)
+        if (solution := self.solve(input_char, output_char)) is None:
+            log.warning("No solution found passing validation.")
+            self.fail = "Solution"
+            return
+
+        self.solution = solution
         self.test()
-
-    def init_solution(self, input_char: str, output_char: str) -> None:
-        """Initialize a Solution instance from the characteristic info."""
-        template = self.template_map[output_char]
-        log.debug(f"Template chosen: {template}")
-        for scene in self.cases:
-            scene.current = output_char
-
-        outputs = [case.output for case in self.cases]
-        self.align_boards(outputs, output_char)
-
-        # Determine attention from depth
-        depth: int | None = None
-        depths = {scene.depth for scene in self.cases}
-        if len(depths) == 1:
-            depth = depths.pop()
-
-        self.solution = Solution(
-            characteristic=input_char,
-            attention=depth,
-            template=template,
-        )
-
-    def determine_template(self, char: str) -> Template:
-        """Determine any common elements in the output Grids.
-
-        This also provides a basic frame on which to build the test case outputs."""
-        output_reps = [case.output.rep for case in self.cases]
-        template = Template.from_outputs(output_reps)
-        log.debug(f"Template: {template}")
-        return template
 
     def decompose(
         self,
@@ -230,9 +201,14 @@ class Task:
 
         return best
 
-    def generate(self, test_idx: int = 0) -> Object:
-        """Generate a test output by index, using the current Solution."""
-        return self.solution.generate(self.tests[test_idx])
+    def determine_template(self, char: str) -> Template:
+        """Determine any common elements in the output Grids.
+
+        This also provides a basic frame on which to build the test case outputs."""
+        output_reps = [case.output.rep for case in self.cases]
+        template = Template.from_outputs(output_reps)
+        log.debug(f"Template: {template}")
+        return template
 
     def validate_links(self, template: Template, char: str) -> bool:
         """Check if a template can generate the cases."""
@@ -249,6 +225,37 @@ class Task:
                 self.validation_map[char].append(val_rep)
                 return False
         return True
+
+    def solve(self, input_char: str, output_char: str) -> Solution:
+        solution = self.init_solution(input_char, output_char)
+        solution.bundle(self.cases)
+        solution.create_nodes(self.cases)
+        self.validate_nodes(solution)
+
+        log.info(f" + Candidate Solution:\n{solution}", extra={"max_lines": 50})
+        return solution
+
+    def init_solution(self, input_char: str, output_char: str) -> Solution:
+        """Initialize a Solution instance from the characteristic info."""
+        template = self.template_map[output_char]
+        log.debug(f"Template chosen: {template}")
+        for scene in self.cases:
+            scene.current = output_char
+
+        outputs = [case.output for case in self.cases]
+        self.align_boards(outputs, output_char)
+
+        # Determine attention from depth
+        depth: int | None = None
+        depths = {scene.depth for scene in self.cases}
+        if len(depths) == 1:
+            depth = depths.pop()
+
+        return Solution(
+            characteristic=input_char,
+            attention=depth,
+            template=template,
+        )
 
     def validate_nodes(self, solution: Solution) -> None:
         """Check if the solution nodes yield matching results for cases."""
@@ -314,8 +321,6 @@ class Task:
         for idx in sorted(to_remove, reverse=True):
             solution.nodes.pop(idx)
 
-        log.info(f" + Candidate Solution:\n{self.solution}", extra={"max_lines": 50})
-
     def test(self) -> bool:
         """Test all test cases for correctness."""
         success = 0
@@ -331,3 +336,7 @@ class Task:
             return True
         else:
             return False
+
+    def generate(self, test_idx: int = 0) -> Object:
+        """Generate a test output by index, using the current Solution."""
+        return self.solution.generate(self.tests[test_idx])

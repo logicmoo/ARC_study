@@ -10,9 +10,8 @@ from typing import Any, Callable
 # into these functions, which represent the primary stages of task solutioning.
 PROFILE_BREAKOUT_STD: list[str] = [
     "Task:decompose",
-    "Task:determine_template",
-    "Task:match",
-    "Solution:create_nodes",
+    "Task:link",
+    "Task:solve",
     "Task:test",
 ]
 

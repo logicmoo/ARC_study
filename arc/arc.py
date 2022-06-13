@@ -181,7 +181,7 @@ class ARC:
         timeout: bool = False
 
         try:
-            task.solve()
+            task.run()
         except profile.TimeoutException:
             timeout = True
             if not quiet:

@@ -237,10 +237,14 @@ class Actions:
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args:
             args = tuple([])
-            for axis in [0, 1]:
+            for axis, code in [(0, "V"), (1, "H")]:
                 if left.shape[axis] != right.shape[axis]:
-                    ct = right.shape[axis]
-                    args += (ct,)
+                    cell = left.shape[axis] // (left.codes[code] + 1)
+                    if right.shape[axis] % cell:
+                        # Incommensurate shapes
+                        continue
+                    new_value = right.shape[axis] // cell
+                    args += (new_value,)
             return args
 
     class VScale(Scale):
