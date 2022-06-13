@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 
-from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
 from arc.object import Object
 from arc.transform import Transform
@@ -83,35 +82,6 @@ class ObjectDelta(Link):
 
     def __bool__(self) -> bool:
         return not self.null
-
-    @classmethod
-    def from_comparisons(
-        cls,
-        left: Object,
-        right: Object,
-        base: BaseObjectPath = tuple(),
-        tag: int = 0,
-        comparisons: list["ObjectComparison"] = default_comparisons,
-    ):
-
-        # TODO We should make a separate class/method to perform these comparisons, which
-        # yields instances of Links.
-        transform = Transform([])
-        if left == right:
-            return cls(left, right, transform, base, tag)
-        log.debug("Comparing:")
-        log.debug(f"  {left}")
-        log.debug(f"  {right}")
-        for comparison in comparisons:
-            transform = transform.concat(comparison(left, right))
-        log.debug(f"->{transform}")
-
-        null = False
-        if transform.apply(left) != right:
-            null = True
-            log.debug("Failed test")
-
-        return cls(left, right, transform, base, tag, null)
 
     @property
     def dist(self) -> int:

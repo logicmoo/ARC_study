@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, TypeAlias
 
+from arc.inventory import Inventory
 from arc.labeler import Labeler, all_traits
 from arc.link import ObjectDelta
 from arc.object import Object, sort_layer
@@ -31,7 +32,7 @@ def subdivide_groups(selection: Selection) -> list[Selection]:
             for idx, target in enumerate(new_selections):
                 dist = sum(
                     [
-                        ObjectDelta.from_comparisons(delta.left, tgt_delta.left).dist
+                        Inventory.invert(delta.left, tgt_delta.left).dist
                         for group in target
                         for tgt_delta in group
                     ]

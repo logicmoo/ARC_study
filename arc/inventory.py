@@ -2,7 +2,6 @@ import collections
 from functools import cached_property
 
 from arc.actions import Action
-from arc.comparisons import ObjectComparison, default_comparisons
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta
 from arc.object import Object
@@ -16,12 +15,10 @@ class Inventory:
     def __init__(
         self,
         obj: Object | None = None,
-        comparisons: list[ObjectComparison] = default_comparisons,
     ):
         # TODO WIP Refactor
         self.depth: dict[int, list[Object]] = collections.defaultdict(list)
         self.inventory = self.create_inventory(obj) if obj else {}
-        self.comparisons = comparisons
 
     @cached_property
     def all(self) -> list[Object]:
@@ -73,7 +70,10 @@ class Inventory:
 
     @classmethod
     def find_match(
-        cls, candidates: list[Object], target: Object, dist_threshold: int
+        cls,
+        candidates: list[Object],
+        target: Object,
+        dist_threshold: int = cst.LINK_DIST_THRESHOLD,
     ) -> ObjectDelta | None:
         if not candidates:
             log.debug(f"No candidates")
@@ -84,7 +84,6 @@ class Inventory:
         log.debug(f"Matching {target} against {len(candidates)} candidates")
         for candidate in candidates:
             if delta := cls.invert(candidate, target):
-                # if delta := ObjectDelta.from_comparisons(candidate, target):
                 log.debug(f"Candidate has delta: {delta}")
                 if delta.dist < best:
                     best = delta.dist
@@ -96,9 +95,7 @@ class Inventory:
 
     def find_decomposition_match(self, target: Object) -> ObjectDelta | None:
         candidates = self.all
-        threshold = 8
-
-        return self.find_match(candidates, target, dist_threshold=threshold)
+        return self.find_match(candidates, target)
 
     def find_scene_match(self, target: Object) -> ObjectDelta | None:
         # We prune the search for transformation matches by generating characteristic
@@ -106,6 +103,4 @@ class Inventory:
         # that if the output contains objects with generators, their characteristics
         # are constant across cases.
         candidates = self.inventory.get(target.char, [])
-        return self.find_match(
-            candidates, target, dist_threshold=cst.LINK_DIST_THRESHOLD
-        )
+        return self.find_match(candidates, target)
