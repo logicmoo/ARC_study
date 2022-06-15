@@ -8,23 +8,69 @@ from arc.task import Task
 
 ## Progress on training tasks
 # TODO Task 30 needs Align action touched up
-solved_tasks = {8, 16, 39, 49, 57, 188, 194}
+all_solved = {
+    8,
+    10,
+    16,
+    17,
+    28,
+    31,
+    36,
+    39,
+    49,
+    53,
+    57,
+    61,
+    83,
+    87,
+    100,
+    106,
+    116,
+    128,
+    140,
+    142,
+    150,
+    152,
+    155,
+    164,
+    179,
+    188,
+    194,
+    210,
+    241,
+    249,
+    254,
+    263,
+    276,
+    287,
+    305,
+    373,
+    374,
+    380,
+}
+
+## Progress on evaluation tasks
+all_eval_solved = {17, 49, 78, 177, 179, 197, 217, 301, 309, 366, 372}
 
 # Large tilings tend to take a while, keep them separate
 large_tiling = {17, 61, 287, 305}
 
+fast_solved = all_solved - large_tiling
+
 # Tasks from the DreamCoder work, symmetry-based
-dc_solved = {83, 87, 106, 116, 140, 142, 150, 152, 155, 164, 210, 249, 380}
+dc_idxs = {83, 87, 106, 116, 140, 142, 150, 152, 155, 172, 179, 210, 211, 241} | {
+    249,
+    311,
+    380,
+}
 
 # Tasks from the Minimum Description Length work
 # These tend to be more static in structure across cases
-mdl_solved = {10, 28, 31, 36, 53, 100, 263, 276, 373, 374}
-
-fast_solved = solved_tasks | dc_solved | mdl_solved
-all_solved = fast_solved | large_tiling
-
-## Progress on evaluation tasks
-all_eval_solved = {17, 49, 78, 177, 179, 197, 217, 301, 309, 366, 372}
+mdl_idxs = (
+    {10, 28, 31, 36, 47, 53, 100, 111, 128, 129, 153, 156, 171, 174, 192}
+    | {222, 245, 253, 254, 261, 263, 267, 276, 290, 293, 294, 298, 299}
+    | {300, 354, 362, 373, 374}
+)
 
 # Set of tasks that engage in significant compute at present, and are not
 # under consideration for finding a solution. We filter these out to
@@ -119,66 +165,8 @@ class TaskTraits:
 
     @classmethod
     def from_paper(cls, task: Task) -> None:
-        # Tasks solved in Sebastien Ferre's paper using MDL
-        ferre_idxs = {
-            10,
-            28,
-            31,
-            36,
-            47,
-            53,
-            100,
-            111,
-            128,
-            129,
-            153,
-            156,
-            171,
-            174,
-            192,
-            222,
-            245,
-            253,
-            254,
-            261,
-            263,
-            267,
-            276,
-            290,
-            293,
-            294,
-            298,
-            299,
-            300,
-            354,
-            362,
-            373,
-            374,
-        }
-
-        # Tasks mentioned the Alford thesis that mostly involve simple transforms
-        alford_idxs = {
-            83,
-            87,
-            106,
-            116,
-            140,
-            142,
-            150,
-            152,
-            155,
-            172,
-            179,
-            210,
-            211,
-            241,
-            249,
-            311,
-            380,
-        }
-
-        if task.idx in ferre_idxs:
+        if task.idx in mdl_idxs:
             task.traits.add("mdl")
 
-        if task.idx in alford_idxs:
+        if task.idx in dc_idxs:
             task.traits.add("dreamcoder")

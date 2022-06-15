@@ -11,6 +11,7 @@ from arc.object import Object, ObjectPath, sort_layer
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.template import Template
+from arc.types import Args
 from arc.util import logger
 
 log = logger.fancy_logger("Solution", level=20)
@@ -116,7 +117,7 @@ class TransformNode(SolutionNode):
                     else:
                         total_props += 2 * len(arg[1])
                 except:
-                    log.warning(f"Node on {self.action} has arg issue")
+                    log.warning(f"Node on {self.action} has arg issue: {self.args}")
         return total_props
 
     @classmethod
@@ -176,27 +177,33 @@ class TransformNode(SolutionNode):
                 log.info(f"Pairwise selector for {action}: {args[0]}")
             else:
                 # now check the arguments
-                hot_arg = action.hot_arg
-                transforms = [delta.transform for delta in deltas]
-
-                # TODO NOTE We have a single transform (code len == 1) and also
-                # presume zero or one arguments.
-                for _ in range(action.n_args):
-                    all_args: set[int] = {
-                        trans.args[0][hot_arg] for trans in transforms
-                    }
-
-                    if len(all_args) > 1:
-                        # Non-null, non-constant action arguments means we need a mapping
-                        # or a secondary object to provide the value.
-                        labeler = Labeler(selection)
-                        arg_mapping = cls.determine_map(deltas, labeler)
-                        if not arg_mapping[0]:
-                            return [None]
-                        args = (arg_mapping,)
+                # TODO NOTE We have a single transform (code len == 1)
+                raw_args: set[Args] = set()
+                for delta in deltas:
+                    d_args = delta.transform.args
+                    if not d_args:
+                        raw_args.add(tuple([]))
                     else:
-                        args = (all_args.pop(),)
+                        raw_args.add(action.rearg(delta.left, *(d_args[0])))
 
+                if len(raw_args) > 1:
+                    if len(list(raw_args)[0]) > 1:
+                        log.warning(f"Cannot map multi-args")
+                        return [None]
+                    # Non-null, non-constant action arguments means we need a mapping
+                    # or a secondary object to provide the value.
+                    labeler = Labeler(selection)
+                    arg_mapping = cls.determine_map(deltas, labeler)
+                    if not arg_mapping[0]:
+                        return [None]
+                    args = (arg_mapping,)
+                else:
+                    if None in raw_args:
+                        return [None]
+                    args = tuple(map(int, raw_args.pop()))
+
+            if args is None or None in args or len(args) > action.n_args:
+                return [None]
             nodes.append(cls(selector, action, args, paths))
 
         return nodes

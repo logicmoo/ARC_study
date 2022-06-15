@@ -11,15 +11,9 @@ if TYPE_CHECKING:
     from arc.object import Object
 
 
-class DeterminantError(Exception):
-    pass
-
-
 class Action(metaclass=Representation):
     code: str = ""
     dimension: str = ""
-    args: Args = tuple([])
-    hot_arg: int = 0
     n_args: int = 0
 
     @classmethod
@@ -29,8 +23,13 @@ class Action(metaclass=Representation):
 
     @classmethod
     def inv(cls, left: "Object", right: "Object") -> Args:
-        """Detect if this action helps relate two objects."""
+        """Attempt to invert the Action between two objects, returning args."""
         return tuple([])
+
+    @classmethod
+    def rearg(cls, object: "Object", *args: int) -> tuple[int, ...]:
+        """Transform core action args into valid self args."""
+        return args
 
 
 class Pairwise:
@@ -68,6 +67,10 @@ class Actions:
                     return (list(c2)[0],)
             return tuple([])
 
+        @classmethod
+        def rearg(cls, object: "Object", color: int = 0) -> tuple[int]:
+            return (color,)
+
     ## LOCATION
 
     class Translate(Action):
@@ -86,21 +89,31 @@ class Actions:
                 return tuple([])
             return (right.row - left.row, right.col - left.col)
 
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int, int]:
+            return (dr, dc)
+
     class Vertical(Translate):
-        hot_arg = 1
         n_args = 1
 
         @classmethod
         def act(cls, object: "Object", dr: int = 0) -> "Object":
             return super().act(object, dr, 0)
 
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int]:
+            return (dr,)
+
     class Horizontal(Translate):
-        hot_arg = 0
         n_args = 1
 
         @classmethod
         def act(cls, object: "Object", dc: int = 0) -> "Object":
             return super().act(object, 0, dc)
+
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int]:
+            return (dc,)
 
     class Tile(Translate):
         """Translate based on the object's shape."""
@@ -112,21 +125,41 @@ class Actions:
             dr, dc = object.shape
             return super().act(object, nr * dr, nc * dc)
 
+        @classmethod
+        def rearg(cls, object: "Object", dr: int, dc: int) -> tuple[int, int] | None:
+            if dr % object.shape[0] or dc % object.shape[1]:
+                return None
+            nr = dr // object.shape[0]
+            nc = dc // object.shape[1]
+            return (nr, nc)
+
     class VTile(Tile):
-        hot_arg = 1
         n_args = 1
 
         @classmethod
-        def act(cls, object: "Object") -> "Object":
-            return super().act(object, 1, 0)
+        def act(cls, object: "Object", nr: int = 1) -> "Object":
+            return super().act(object, nr, 0)
+
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int] | None:
+            tile_args = super().rearg(object, dr, dc)
+            if tile_args is None:
+                return None
+            return (tile_args[0],)
 
     class HTile(Tile):
-        hot_arg = 0
         n_args = 1
 
         @classmethod
-        def act(cls, object: "Object") -> "Object":
-            return super().act(object, 0, 1)
+        def act(cls, object: "Object", nc: int = 1) -> "Object":
+            return super().act(object, 0, nc)
+
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int] | None:
+            tile_args = super().rearg(object, dr, dc)
+            if tile_args is None:
+                return None
+            return (tile_args[1],)
 
     class Justify(Translate):
         """Set one of row or column to zero."""
@@ -140,6 +173,15 @@ class Actions:
             else:
                 return super().act(object, 0, -object.col)
 
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int] | None:
+            if dr == -object.row:
+                return (0,)
+            elif dc == -object.col:
+                return (1,)
+            else:
+                return None
+
     class Zero(Justify):
         """Set row and column to zero."""
 
@@ -148,6 +190,13 @@ class Actions:
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return object.copy((0, 0, object.color))
+
+        @classmethod
+        def rearg(cls, object: "Object", dr: int = 0, dc: int = 0) -> tuple[int] | None:
+            if dr == -object.row and dc == -object.col:
+                return tuple([])
+            else:
+                return None
 
     ## ORTHOGONAL OPS: ROTATIONS AND REFLECTIONS
     class Orthogonal(Action):
@@ -185,7 +234,6 @@ class Actions:
 
     class Rotate(Orthogonal):
         n_args = 1
-        hot_arg = 1
 
         @classmethod
         def act(cls, object: "Object", num: int) -> "Object":
@@ -196,7 +244,6 @@ class Actions:
 
     class Flip(Orthogonal):
         n_args = 1
-        hot_arg = 0
 
         @classmethod
         def act(cls, object: "Object", horizontal: int) -> "Object":
@@ -319,21 +366,29 @@ class Actions:
 class Compounds:
     ## Combination Flip and Translation
     class VFlipTile(Actions.VFlip, Actions.VTile):
+        n_args: int = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
-            return Actions.VTile.act(Actions.VFlip.act(object))
+            return Actions.VTile.act(Actions.VFlip.act(object), 1)
 
     class HFlipTile(Actions.HFlip, Actions.HTile):
+        n_args: int = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
-            return Actions.HTile.act(Actions.HFlip.act(object))
+            return Actions.HTile.act(Actions.HFlip.act(object), 1)
 
     class VFlipHinge(Actions.VFlip, Actions.Vertical):
+        n_args: int = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return Actions.Vertical.act(Actions.VFlip.act(object), object.shape[0] - 1)
 
     class HFlipHinge(Actions.HFlip, Actions.Horizontal):
+        n_args: int = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             return Actions.Horizontal.act(
@@ -341,6 +396,8 @@ class Compounds:
             )
 
     class RotTile(Actions.Rotate, Actions.Tile):
+        n_args: int = 0
+
         @classmethod
         def act(cls, object: "Object") -> "Object":
             # TODO This currently takes two args that are a reference row, col.

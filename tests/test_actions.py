@@ -6,7 +6,7 @@ from arc.object import Object
 def test_translations():
     """Test each action that translates an Object."""
     pt1 = Object(1, 1, 1)
-    pt2 = Actions.HTile().act(pt1)
+    pt2 = Actions.Horizontal().act(pt1, 1)
     assert pt2 == Object(1, 2, 1)
     assert pt2 != pt1
 
@@ -24,8 +24,8 @@ def test_translations():
 
     # Tiling ops translate based on the object size
     group = Object(children=[Object(0, 0, 1), pt1])
-    assert Actions.VTile.act(group).loc == (2, 0)
-    assert Actions.HTile.act(group).loc == (0, 2)
+    assert Actions.VTile.act(group, 1).loc == (2, 0)
+    assert Actions.HTile.act(group, 1).loc == (0, 2)
     assert Actions.Tile.act(group, 1, 1) == Actions.VTile.act(Actions.HTile.act(group))
 
 

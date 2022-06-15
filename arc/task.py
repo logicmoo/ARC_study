@@ -129,7 +129,7 @@ class Task:
         for idx, (input, output) in enumerate(zip(inputs, outputs)):
             inventory = Inventory(input.rep)
             output.decompose(max_iter=max_iter, inventory=inventory, init=init)
-            log.info(f"Scene {idx} input rep | props {output.rep.props}: {output.rep}")
+            log.info(f"Scene {idx} output rep | props {output.rep.props}: {output.rep}")
             output.rep.debug()
 
         return best
