@@ -4,7 +4,6 @@ from arc.board import Board, Inventory
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta, VariableLink
 from arc.object import Object, ObjectPath
-from arc.template import Variables
 from arc.types import BaseObjectPath, SceneData
 from arc.util import logger
 
@@ -16,6 +15,7 @@ Link: TypeAlias = ObjectDelta | VariableLink
 LinkMap: TypeAlias = dict[ObjectPath, Link]
 LinkResult: TypeAlias = tuple[int, LinkMap]
 LinkTree: TypeAlias = dict[int, "LinkTree"]
+Variables: TypeAlias = set[ObjectPath]
 
 
 class Scene:

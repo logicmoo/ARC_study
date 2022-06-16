@@ -89,7 +89,7 @@ class ARC:
                 return None
 
     def load_tasks(
-        self, idxs: set[int] = set(), folder: str = ".", quiet: bool = False
+        self, idxs: set[int], folder: str = ".", quiet: bool = False
     ) -> None:
         """Load indicated task(s) from the ARC dataset."""
         curr_idx, boards, tests = 1, 0, 0
