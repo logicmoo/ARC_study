@@ -1,9 +1,9 @@
 import collections
+from copy import deepcopy
 
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
-from arc.link import ObjectDelta
 from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution, TransformNode, VariableNode
@@ -213,14 +213,9 @@ class Task:
     def validate_links(self, template: Template, char: str) -> bool:
         """Check if a template can generate the cases."""
         for case_idx, scene in enumerate(self.cases):
-            template.init_frame()
-            for path, link in scene.link_maps[char].items():
-                if isinstance(link, ObjectDelta):
-                    template.apply_object(path, link.right.copy())
-                else:
-                    template.apply_variable(path, link.value)
-
-            if (val_rep := template.generate(template.frame)) != scene.output.rep:
+            if (
+                val_rep := template.validate_link_map(scene.link_maps[char])
+            ) != scene.output.rep:
                 log.info(f" x Scene {case_idx} failed validation under {char}")
                 self.validation_map[char].append(val_rep)
                 return False
@@ -281,7 +276,7 @@ class Task:
         for case_idx, scene in enumerate(self.cases):
             log.info(f"Validating scene {case_idx}")
             input = solution.inventory(scene)
-            template.init_frame()
+            frame = deepcopy(template.structure)
             for idx, node in enumerate(solution.nodes):
                 if isinstance(node, TransformNode):
                     flags[idx] = [False]
@@ -289,16 +284,16 @@ class Task:
                         for path, item in generated:
                             if isinstance(item, int):
                                 continue
-                            template.apply_object(path, item)
+                            frame = template.apply_object(frame, path, item)
 
             # If the solution is purely transformational, we are done
-            if template.generate(template.frame) == scene.output.rep:
+            if template.generate(frame) == scene.output.rep:
                 continue
 
             for idx, node in enumerate(solution.nodes):
                 if isinstance(node, VariableNode):
                     path = list(node.paths)[0]
-                    frame_val = Template.get_value(path, template.frame)
+                    frame_val = Template.get_value(path, frame)
                     scene_val = scene.output.rep.get_value(path)
                     variable_val = node.apply(input)
                     log.debug(
@@ -339,4 +334,5 @@ class Task:
 
     def generate(self, test_idx: int = 0) -> Object:
         """Generate a test output by index, using the current Solution."""
-        return self.solution.generate(self.tests[test_idx])
+        return self.solution.generate2(self.tests[test_idx])
+        # return self.solution.generate(self.tests[test_idx])

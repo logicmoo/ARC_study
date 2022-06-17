@@ -4,7 +4,9 @@ from typing import Literal, TypeAlias, TypedDict
 
 from arc.actions import Actions
 from arc.definitions import Constants as cst
+from arc.link import ObjectDelta
 from arc.object import Object, ObjectPath
+from arc.scene import LinkMap, Variables
 from arc.types import BaseObjectPath
 from arc.util import logger
 from arc.util.common import all_equal
@@ -12,7 +14,6 @@ from arc.util.common import all_equal
 log = logger.fancy_logger("Template", level=20)
 
 Unknown: TypeAlias = Literal["?"]
-Variables: TypeAlias = set[ObjectPath]
 
 
 class CommonProperties(TypedDict, total=False):
@@ -34,11 +35,11 @@ class Template:
     def __init__(
         self, structure: StructureDef | None = None, variables: Variables | None = None
     ) -> None:
-        self.structure: StructureDef = structure or Template._init_structure()
+        self.structure: StructureDef = structure or Template.init_structure()
         self.variables: Variables = variables or set([])
 
         # Used during Object generation
-        self.frame: StructureDef = Template._init_structure()
+        self.frame: StructureDef = Template.init_structure()
 
     def __repr__(self) -> str:
         structure: str = "\n  ".join(self._display_node(tuple([])))
@@ -66,7 +67,7 @@ class Template:
         return len(self.variables)
 
     @staticmethod
-    def _init_structure() -> StructureDef:
+    def init_structure() -> StructureDef:
         return {
             "props": {},
             "children": [],
@@ -103,24 +104,58 @@ class Template:
         if node and isinstance(path.property, str):
             return node["props"].get(path.property, cst.DEFAULT.get(path.property, 0))
 
-    def init_frame(self) -> None:
-        self.frame: StructureDef = deepcopy(self.structure)
-
-    def apply_object(self, path: ObjectPath, object: Object) -> None:
+    @classmethod
+    def apply_object(
+        cls, frame: StructureDef, path: ObjectPath, object: Object
+    ) -> StructureDef:
         obj_def, _ = Template.recursive_compare([object], tuple([]))
         if not path:
-            self.frame = obj_def
-            return
+            return obj_def
 
-        target = self.get_base(path.base[:-1], self.frame)
+        target = cls.get_base(path.base[:-1], frame)
         if target:
             target["children"][path.base[-1]] = obj_def
+        return frame
 
-    def apply_variable(self, path: ObjectPath, value: int) -> None:
-        target = self.get_base(path.base, self.frame)
+    @classmethod
+    def apply_variable(cls, frame: StructureDef, path: ObjectPath, value: int) -> None:
+        target = cls.get_base(path.base, frame)
         if target:
             if isinstance(path.property, str):
                 target["props"][path.property] = value
+
+    # def apply_link(
+    #     self, frame: StructureDef, path: ObjectPath, link: Link
+    # ) -> StructureDef:
+    #     if isinstance(link, ObjectDelta):
+    #         obj_def, _ = self.recursive_compare([link.right], tuple([]))
+    #         if not path:
+    #             return obj_def
+    #         if target := self.get_base(path.base[:-1], frame):
+    #             target["children"][path.base[-1]] = obj_def
+    #     elif isinstance(path.property, str):
+    #         if target := self.get_base(path.base, frame):
+    #             target["props"][path.property] = link.value
+    #     return frame
+
+    def validate_link_map(self, link_map: LinkMap) -> Object:
+        frame: StructureDef = deepcopy(self.structure)
+        for path, link in link_map.items():
+            if isinstance(link, ObjectDelta):
+                frame = self.apply_object(frame, path, link.right)
+            else:
+                self.apply_variable(frame, path, link.value)
+        return self.generate(frame)
+
+    def create_output(self, outputs: list[tuple[ObjectPath, Object | int]]) -> Object:
+        frame: StructureDef = deepcopy(self.structure)
+        for path, item in sorted(outputs):
+            log.info(f"Inserting {item} at {path}")
+            if isinstance(item, Object):
+                frame = self.apply_object(frame, path, item)
+            else:
+                self.apply_variable(frame, path, item)
+        return self.generate(frame)
 
     @classmethod
     def generate(cls, structure: StructureDef) -> Object:
@@ -145,7 +180,7 @@ class Template:
     def recursive_compare(
         objs: list["Object"], base: BaseObjectPath
     ) -> tuple[StructureDef, Variables]:
-        structure = Template._init_structure()
+        structure = Template.init_structure()
         variables: Variables = set([])
 
         # Get the info present at this level
@@ -185,14 +220,14 @@ class Template:
 
     @staticmethod
     def compare_properties(objs: list["Object"]) -> tuple[StructureDef, set[str]]:
-        struc = Template._init_structure()
+        struc = Template.init_structure()
         vars: set[str] = set([])
 
         # Basic properties. cst.DEFAULT contains each with a default value
-        for prop in cst.DEFAULT:
+        for prop, default in cst.DEFAULT.items():
             cts = collections.Counter([getattr(obj, prop) for obj in objs])
             if len(cts) == 1:
-                if (val := next(iter(cts))) != cst.DEFAULT[prop]:
+                if (val := next(iter(cts))) != default:
                     struc["props"][prop] = val
             else:
                 struc["props"][prop] = "?"

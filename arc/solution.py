@@ -1,5 +1,6 @@
+import uuid
 from collections import defaultdict
-from typing import TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 
@@ -7,7 +8,9 @@ from arc.actions import Action, Actions, Pairwise
 from arc.board import Inventory
 from arc.labeler import Labeler, all_traits
 from arc.link import ObjectDelta, VariableLink
+from arc.node import Node, RootNode, SelectionNode, TerminalNode, TransNode, VarNode
 from arc.object import Object, ObjectPath, sort_layer
+from arc.object_types import Cache, LinkGroup, ObjectCache, ObjectGroup, VarCache
 from arc.scene import Scene
 from arc.selector import Selector, subdivide_groups
 from arc.template import Template
@@ -256,6 +259,7 @@ class TransformNode(SolutionNode):
                     case np.int64():
                         args.append(arg)
                     case Selector():
+                        log.debug(f"Transforming using {self.action}(arg)")
                         if selection := arg.select(input):
                             args.append(selection[0])
                         else:
@@ -299,15 +303,17 @@ class Solution:
         template: Template | None = None,
     ) -> None:
         self.characteristic: str = characteristic
-        self.level_attention: int | None = attention
         self.template: Template = template or Template()
 
         # Create during 'create_nodes'
         self.nodes: list[SolutionNode] = []
+        self.node2: dict[uuid.UUID, Node] = {}
+        self.root: RootNode = RootNode(attention)
+        self.terminus: TerminalNode = TerminalNode(self.template.init_structure(), {})
 
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
-        msg += [f"Level attention: {self.level_attention}"]
+        msg += [f"Level attention: {self.root.level_attention}"]
         for node in self.nodes:
             msg.append(str(node))
         msg.append(str(self.template))
@@ -329,34 +335,61 @@ class Solution:
 
     def create_nodes(self, cases: list[Scene]) -> bool:
         self.nodes = []
-        if self.level_attention is not None:
-            inputs = [
-                Inventory(case.input.rep).depth[self.level_attention] for case in cases
-            ]
-        else:
-            inputs = [Inventory(case.input.rep).all for case in cases]
+        inputs = [
+            self.root.apply({uuid.uuid4(): [case.input.rep]}, {}) for case in cases
+        ]
+        caches: list[tuple[ObjectCache, VarCache]] = []
+
+        self.terminus: TerminalNode = TerminalNode(self.template.structure, {})
+        self.node2 = {self.root.uid: self.root, self.terminus.uid: self.terminus}
 
         for path, links in self.var_targets.items():
             raw_node = VariableNode.from_variable(inputs, links, path)
             if raw_node:
                 self.nodes.append(raw_node)
+            selection: ObjectGroup = [[link.left] for link in links]
+            if selection_node := SelectionNode.from_data(inputs, selection):
+                self.root.adopt(selection_node)
+                self.node2[selection_node.uid] = selection_node
+            property = links[0].property
+            if var_node := VarNode.from_property(property, selection):
+                selection_node.adopt(var_node)
+                var_node.adopt(self.terminus)
+                self.terminus.path_map[var_node.uid] = {path}
 
-        for code, delta in self.bundled.items():
+        for code, transform_group in self.bundled.items():
             if len(code) > 1:
-                log.info(f"Skipping (code > 1) Link {delta}")
+                log.info(
+                    f"Skipping (code > 1) Link {transform_group[0].transform.char}"
+                )
                 continue
 
             # The link node is a list of lists of ObjectDeltas related to the transform
             link_node: list[list[ObjectDelta]] = []
             for case in cases:
                 case_node = [
-                    delta for delta in self.bundled[code] if delta.tag == case.idx
+                    delta for delta in transform_group if delta.tag == case.idx
                 ]
                 link_node.append(case_node)
             link_node = list(filter(None, link_node))
+            selection = [[delta.left for delta in group] for group in link_node]
+            if selection_node := SelectionNode.from_data(inputs, selection):
+                self.root.adopt(selection_node)
+                self.node2[selection_node.uid] = selection_node
+                caches: list[tuple[ObjectCache, VarCache]] = []
+                for case in cases:
+                    obj_cache: ObjectCache = {uuid.uuid4(): [case.input.rep]}
+                    var_cache: VarCache = {}
+                    self.root.apply(obj_cache, var_cache)
+                    selection_node.apply(obj_cache, var_cache)
+                    caches.append((obj_cache, var_cache))
+            else:
+                return False
 
             candidate_nodes: list[TransformNode] = []
+            v2_nodes: list[TransNode] = []
             base_action = Actions.map[code]
+            paths = {ObjectPath(delta.base) for delta in transform_group}
             action_queue = [base_action]
             while action_queue:
                 action = action_queue.pop(0)
@@ -364,40 +397,101 @@ class Solution:
                 # args non-trivially replaces an action with fewer.
                 if action.n_args > base_action.n_args:
                     continue
-                log.info(f"Attempting Solution node for action '{action}'")
+                log.debug(f"Attempting Solution node for action '{action}'")
                 raw_nodes = TransformNode.from_action(inputs, link_node, action)
-                candidate_nodes.extend(filter(None, raw_nodes))
+                raw = raw_nodes[0]
+                if raw:
+                    candidate_nodes.append(raw)
+
+                if issubclass(action, Pairwise):
+                    if trans_node := TransNode.from_pairwise_action(
+                        action, link_node, inputs
+                    ):
+                        v2_nodes.append(trans_node)
+                else:
+                    if trans_node := TransNode.from_action(action, link_node):
+                        v2_nodes.append(trans_node)
+
                 action_queue.extend(action.__subclasses__())
 
-            if candidate_nodes:
-                log.info("Found TransformNodes:")
-                for node in candidate_nodes:
-                    log.info(node)
-                for node in sorted(candidate_nodes, key=lambda x: x.props):
-                    valid = True
-                    for input_group, deltas in zip(inputs, link_node):
-                        result = node.apply(input_group)
-                        if not result:
-                            valid = False
-                            break
-                        result = sorted(result)
-                        rights = sorted([delta.right for delta in deltas])
-                        if result != rights:
-                            log.info("Mismatch between inputs and ouptuts:")
-                            log.info(result)
-                            log.info(rights)
-                            valid = False
-                            break
-                    if valid:
-                        log.info(f"Choosing: {node}")
-                        self.nodes.append(node)
-                        break
-            # We should create at least one SolutionNode per transform key,
-            # otherwise we'll be missing pieces from the output.
-            # TODO This should be based on gaps in the Template.
+            node2 = self.choose_node(v2_nodes, selection_node, caches, link_node)
+            if node2:
+                node2.adopt(self.terminus)
+                self.terminus.path_map[node2.uid] = paths
+                self.node2[node2.uid] = node2
+                if node2.secondary:
+                    self.node2[node2.secondary.uid] = node2.secondary
+            if node := self.choose_node_old(candidate_nodes, inputs, link_node):
+                self.nodes.append(node)
             else:
                 return False
         return True
+
+    def choose_node(
+        self,
+        candidate_nodes: list[TransNode],
+        selection_node: SelectionNode,
+        caches: list[tuple[ObjectCache, VarCache]],
+        link_node: LinkGroup,
+    ) -> TransNode | None:
+        log.info(" --- Candidate nodes:")
+        for node in candidate_nodes:
+            log.info(node)
+        for trans in sorted(candidate_nodes, key=lambda x: x.props):
+            valid = True
+            selection_node.adopt(trans)
+            if trans.secondary:
+                self.root.adopt(trans.secondary)
+            for cache, deltas in zip(caches, link_node):
+                self.root.propagate(*cache)
+                result = cache[0].get(trans.uid, None)
+                if not result:
+                    valid = False
+                    selection_node.disown(trans)
+                    if trans.secondary:
+                        self.root.disown(trans.secondary)
+                    break
+                result = sorted(result)
+                rights = sorted([delta.right for delta in deltas])
+                if result != rights:
+                    log.info("Mismatch between inputs and ouptuts:")
+                    log.info(result)
+                    log.info(rights)
+                    valid = False
+                    selection_node.disown(trans)
+                    if trans.secondary:
+                        self.root.disown(trans.secondary)
+                    break
+            if valid:
+                log.info(f"Choosing: {trans}")
+                return trans
+
+    def choose_node_old(
+        self,
+        candidate_nodes: list[Any],
+        inputs: ObjectGroup,
+        link_node: LinkGroup,
+    ) -> TransformNode | None:
+        for node in candidate_nodes:
+            log.info(node)
+        for trans in sorted(candidate_nodes, key=lambda x: x.props):
+            valid = True
+            for input_group, deltas in zip(inputs, link_node):
+                result = trans.apply(input_group)
+                if not result:
+                    valid = False
+                    break
+                result = sorted(result)
+                rights = sorted([delta.right for delta in deltas])
+                if result != rights:
+                    log.info("Mismatch between inputs and ouptuts:")
+                    log.info(result)
+                    log.info(rights)
+                    valid = False
+                    break
+            if valid:
+                log.info(f"Choosing: {trans}")
+                return trans
 
     def apply_node(
         self, node: SolutionNode, input: list[Object]
@@ -420,14 +514,28 @@ class Solution:
         return results
 
     def inventory(self, scene: Scene) -> list[Object]:
-        if self.level_attention is not None:
-            log.info(f"  Using level attention: {self.level_attention}")
-            input = Inventory(scene.input.rep).depth[self.level_attention]
+        if self.root.level_attention is not None:
+            log.info(f"  Using level attention: {self.root.level_attention}")
+            input = Inventory(scene.input.rep).depth[self.root.level_attention]
         else:
             log.info(f"  No level attention")
             input = Inventory(scene.input.rep).all
         log.debug(f"  input_group: {input}")
         return input
+
+    def generate2(self, scene: Scene) -> Object:
+        """Create the test output."""
+        log.info(f"Generating scene: {scene.idx}")
+        if self.characteristic:
+            log.info(f"  Decomposing with characteristic: {self.characteristic}")
+            scene.input.decompose(characteristic=self.characteristic)
+        else:
+            log.info(f"  Decomposing without characteristic")
+            scene.input.decompose()
+
+        self.cache: Cache = ({uuid.uuid4(): [scene.input.rep]}, {})
+        self.root.propagate(*self.cache)
+        return self.cache[0][self.terminus.uid][0]
 
     def generate(self, scene: Scene) -> Object:
         """Create the test output."""
@@ -442,18 +550,24 @@ class Solution:
         input = self.inventory(scene)
 
         # NOTE: Just depth-1 solution graphs for now
-        self.template.init_frame()
         outputs: list[tuple[ObjectPath, Object | int]] = []
         for node in self.nodes:
             if result := self.apply_node(node, input):
                 outputs.extend(result)
 
-        for path, item in sorted(outputs):
-            log.info(f"Inserting {item} at {path}")
-            if isinstance(item, Object):
-                self.template.apply_object(path, item)
-            else:
-                self.template.apply_variable(path, item)
-        output: Object = self.template.generate(self.template.frame)
+        return self.template.create_output(outputs)
 
-        return output
+    # def root_gen(self, scene: Scene) -> Object:
+    #     nodes: list[Node] = [self.root]
+    #     object_cache: ObjectCache = {}
+    #     var_cache: VarCache = {}
+    #     while nodes:
+    #         curr = nodes.pop(0)
+    #         if isinstance(curr, VarNode):
+    #             if (value := curr.apply(object_cache)) is not None:
+    #                 var_cache[curr.uid] = value
+    #         else:
+    #             if (objects := curr.apply(object_cache, var_cache)) is not None:
+    #             object_cache[curr.uid] = curr.apply(object_cache, var_cache)
+
+    #     return output
