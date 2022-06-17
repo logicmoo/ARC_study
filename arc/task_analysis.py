@@ -7,13 +7,13 @@ we can divide and conquer the problem.
 from arc.task import Task
 
 ## Progress on training tasks
-# TODO Task 30 needs Align action touched up
 all_solved = {
     8,
     10,
     16,
     17,
     28,
+    # 30,
     31,
     36,
     39,
@@ -39,7 +39,7 @@ all_solved = {
     210,
     241,
     249,
-    254,
+    # 254,
     263,
     276,
     287,

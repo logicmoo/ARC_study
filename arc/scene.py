@@ -4,7 +4,7 @@ from arc.board import Board, Inventory
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta, VariableLink
 from arc.object import Object, ObjectPath
-from arc.types import BaseObjectPath, SceneData
+from arc.types import BaseObjectPath, PrefixTree, SceneData
 from arc.util import logger
 
 log = logger.fancy_logger("Scene", level=20)
@@ -14,7 +14,6 @@ log = logger.fancy_logger("Scene", level=20)
 Link: TypeAlias = ObjectDelta | VariableLink
 LinkMap: TypeAlias = dict[ObjectPath, Link]
 LinkResult: TypeAlias = tuple[int, LinkMap]
-LinkTree: TypeAlias = dict[int, "LinkTree"]
 Variables: TypeAlias = set[ObjectPath]
 
 
@@ -92,14 +91,14 @@ class Scene:
         log.info(f"Scene {self.idx} output rep | props {self.output.rep.props}:")
         log.info(self.output.rep)
 
-    def paths_to_tree(self, variables: Variables) -> LinkTree:
+    def paths_to_tree(self, variables: Variables) -> PrefixTree:
         """Create a prefix tree for the Variable paths.
 
         Each variable has a BaseObjectPath (e.g. (0, 3, 1)) that points to an Object
         in the hierarchy. One can create a prefix tree from these where a node exists
         if any variable has a path that includes that value at that position.
         """
-        tree: LinkTree = {}
+        tree: PrefixTree = {}
         for path in variables:
             curr = tree
             for idx in path:
@@ -108,16 +107,25 @@ class Scene:
                 curr = curr[idx]
         return tree
 
+    def search_tree(self, tree: PrefixTree, path: ObjectPath) -> bool:
+        for idx in path.base:
+            if idx not in tree:
+                return False
+            tree = tree[idx]
+        return True
+
     def link(self, decomp_char: str, variables: Variables) -> None:
         """Identify the minimal transformation set needed from input -> output Board."""
         # Begin by checking for transformable Objects
-        link_tree: LinkTree = self.paths_to_tree(variables)
+        link_tree: PrefixTree = self.paths_to_tree(variables)
+        log.debug(link_tree)
         _, link_map = self.recreate(
             self.output.rep, Inventory(self.input.rep), link_tree
         )
 
         # Then determine links due to variables insertion
-        link_map.update(self.variable_link(decomp_char, variables))
+        log.debug(link_tree)
+        link_map.update(self.variable_link(decomp_char, variables, link_tree))
 
         self.link_maps[decomp_char] = link_map
         self.current = decomp_char
@@ -126,7 +134,9 @@ class Scene:
         for _, link in link_map.items():
             log.info(f"    {link}")
 
-    def variable_link(self, decomp_char: str, variables: Variables) -> LinkMap:
+    def variable_link(
+        self, decomp_char: str, variables: Variables, link_tree: PrefixTree
+    ) -> LinkMap:
         """Identify objects + properties that can fill a variable."""
         inputs: list[Object] = Inventory(self.input.rep).all
         log.debug(f"Looking for variable links from {len(inputs)} objects:")
@@ -137,6 +147,10 @@ class Scene:
         for obj_path in variables:
             if obj_path.property is None:
                 continue
+
+            if not self.search_tree(link_tree, obj_path):
+                continue
+
             log.debug(f"Searching for link to {obj_path}")
             output_rep = self.output.tree[self.output.characteristic_map[decomp_char]]
             target = self.output.rep.get_path(obj_path.base)
@@ -162,7 +176,7 @@ class Scene:
         self,
         obj: Object,
         inventory: Inventory,
-        link_tree: LinkTree,
+        link_tree: PrefixTree,
         base: BaseObjectPath = tuple([]),
     ) -> LinkResult:
         """Recursively tries to most easily create the given object"""
@@ -184,7 +198,7 @@ class Scene:
             # It currently can't be used as an object on it's own because self.points is empty.
             if kid.category == "Cutout":
                 continue
-            # Skip any children for which we don't need a match
+            # Skip any children for which we don't need a match based on the Template
             if idx not in link_tree:
                 continue
             kid_dist, kid_map = self.recreate(
@@ -193,10 +207,17 @@ class Scene:
             log.debug(f"{idx} {kid} -> {obj} is distance {kid_dist} via {kid_map}")
             total_dist += kid_dist
             link_map.update(kid_map)
+
         if link_map and total_dist < result[0]:
-            log.debug(f"Choosing children with distance: {total_dist}")
+            log.debug(f"{base} Choosing children: {total_dist} < {result[0]}")
             for link in link_map.values():
                 log.debug(f"  {link}")
+            link_tree.clear()
             return (total_dist, link_map)
+        elif result[0] != cst.MAX_DIST:
+            log.debug(f"{base} Choosing parent: {result[0]} < {total_dist}")
+            link_tree.clear()
+            return result
         else:
+            log.debug(f"{base} No linkable Object found")
             return result

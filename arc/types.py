@@ -36,3 +36,4 @@ Property: TypeAlias = Literal["row", "col", "color", "row_bound", "col_bound"]
 
 BaseObjectPath: TypeAlias = tuple[int, ...]
 PropertyPath: TypeAlias = str
+PrefixTree: TypeAlias = dict[int, "PrefixTree"]
