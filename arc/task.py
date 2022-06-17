@@ -1,12 +1,11 @@
 import collections
-from copy import deepcopy
 
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.inventory import Inventory
 from arc.object import Object
 from arc.scene import Scene
-from arc.solution import Solution, TransformNode, VariableNode
+from arc.solution import Solution
 from arc.template import Template
 from arc.types import TaskData
 from arc.util import logger
@@ -225,7 +224,6 @@ class Task:
         solution = self.init_solution(input_char, output_char)
         solution.bundle(self.cases)
         solution.create_nodes(self.cases)
-        self.validate_nodes(solution)
 
         log.info(f" + Candidate Solution:\n{solution}", extra={"max_lines": 50})
         return solution
@@ -252,70 +250,6 @@ class Task:
             template=template,
         )
 
-    def validate_nodes(self, solution: Solution) -> None:
-        """Check if the solution nodes yield matching results for cases."""
-
-        to_remove: set[int] = set([])
-        log.info("Validating nodes against test scene inputs")
-        # First, test if nodes function on test inputs.
-        for test_scene in self.tests:
-            # TODO Re-engineer timing of test decomposition
-            test_scene.input.decompose(characteristic=solution.characteristic)
-            input = solution.inventory(test_scene)
-            for idx, node in enumerate(solution.nodes):
-                if solution.apply_node(node, input) is None:
-                    log.info(f"Removing invalid node {node}")
-                    to_remove.add(idx)
-
-        for idx in sorted(to_remove, reverse=True):
-            solution.nodes.pop(idx)
-
-        log.info("Validating nodes against case outputs")
-        template = solution.template
-        flags: list[list[bool]] = [[True] * len(self.cases)] * len(solution.nodes)
-        for case_idx, scene in enumerate(self.cases):
-            log.info(f"Validating scene {case_idx}")
-            input = solution.inventory(scene)
-            frame = deepcopy(template.structure)
-            for idx, node in enumerate(solution.nodes):
-                if isinstance(node, TransformNode):
-                    flags[idx] = [False]
-                    if (generated := solution.apply_node(node, input)) is not None:
-                        for path, item in generated:
-                            if isinstance(item, int):
-                                continue
-                            frame = template.apply_object(frame, path, item)
-
-            # If the solution is purely transformational, we are done
-            if template.generate(frame) == scene.output.rep:
-                continue
-
-            for idx, node in enumerate(solution.nodes):
-                if isinstance(node, VariableNode):
-                    path = list(node.paths)[0]
-                    frame_val = Template.get_value(path, frame)
-                    scene_val = scene.output.rep.get_value(path)
-                    variable_val = node.apply(input)
-                    log.debug(
-                        f"{path} in Scene: {scene_val}, Frame: {frame_val}, Var: {variable_val}"
-                    )
-                    if frame_val == scene_val:
-                        pass
-                    elif variable_val == scene_val:
-                        log.info(f"  Variable Needed {node}")
-                        flags[idx][case_idx] = False
-                    else:
-                        log.info(f"  Unchecked val: {path}")
-
-        to_remove: set[int] = set([])
-        for idx, truth in enumerate(flags):
-            if all(truth):
-                to_remove.add(idx)
-                log.info(f"Unneeded SolutionNode: {solution.nodes[idx]}")
-
-        for idx in sorted(to_remove, reverse=True):
-            solution.nodes.pop(idx)
-
     def test(self) -> bool:
         """Test all test cases for correctness."""
         success = 0
@@ -334,5 +268,4 @@ class Task:
 
     def generate(self, test_idx: int = 0) -> Object:
         """Generate a test output by index, using the current Solution."""
-        return self.solution.generate2(self.tests[test_idx])
-        # return self.solution.generate(self.tests[test_idx])
+        return self.solution.generate(self.tests[test_idx])
