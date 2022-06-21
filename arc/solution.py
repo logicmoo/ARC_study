@@ -3,9 +3,11 @@ from collections import defaultdict
 
 from arc.actions import Actions, Pairwise
 from arc.link import ObjectDelta, VariableLink
-from arc.node import Node, RootNode, SelectionNode, TerminalNode, TransNode, VarNode
+from arc.node import Node, RootNode, TerminalNode, VarNode
+from arc.node_selection import SelectionNode
+from arc.node_transform import TransformNode
 from arc.object import Object, ObjectPath
-from arc.object_types import Cache, LinkGroup, ObjectCache, ObjectGroup, VarCache
+from arc.object_types import Cache, LinkGroup, ObjectGroup
 from arc.scene import Scene
 from arc.template import Template
 from arc.util import logger
@@ -63,7 +65,7 @@ class Solution:
         inputs = [
             self.root.apply({uuid.uuid4(): [case.input.rep]}, {}) for case in cases
         ]
-        caches: list[tuple[ObjectCache, VarCache]] = []
+        caches: list[Cache] = []
 
         self.terminus: TerminalNode = TerminalNode(self.template.structure, {})
 
@@ -95,17 +97,16 @@ class Solution:
             if selection_node := SelectionNode.from_data(inputs, selection):
                 self.root.adopt(selection_node)
                 self.nodes[selection_node.uid] = selection_node
-                caches: list[tuple[ObjectCache, VarCache]] = []
+                caches: list[Cache] = []
                 for case in cases:
-                    obj_cache: ObjectCache = {uuid.uuid4(): [case.input.rep]}
-                    var_cache: VarCache = {}
-                    self.root.apply(obj_cache, var_cache)
-                    selection_node.apply(obj_cache, var_cache)
-                    caches.append((obj_cache, var_cache))
+                    cache: Cache = ({uuid.uuid4(): [case.input.rep]}, {})
+                    self.root.apply(*cache)
+                    selection_node.apply(*cache)
+                    caches.append(cache)
             else:
                 return False
 
-            candidate_nodes: list[TransNode] = []
+            candidate_nodes: list[TransformNode] = []
             base_action = Actions.map[code]
             paths = {ObjectPath(delta.base) for delta in transform_group}
             action_queue = [base_action]
@@ -117,12 +118,12 @@ class Solution:
                     continue
                 log.debug(f"Attempting Solution node for action '{action}'")
                 if issubclass(action, Pairwise):
-                    if trans_node := TransNode.from_pairwise_action(
+                    if trans_node := TransformNode.from_pairwise_action(
                         action, link_node, inputs
                     ):
                         candidate_nodes.append(trans_node)
                 else:
-                    if trans_node := TransNode.from_action(action, link_node):
+                    if trans_node := TransformNode.from_action(action, link_node):
                         candidate_nodes.append(trans_node)
 
                 action_queue.extend(action.__subclasses__())
@@ -141,11 +142,11 @@ class Solution:
 
     def choose_node(
         self,
-        candidate_nodes: list[TransNode],
+        candidate_nodes: list[TransformNode],
         selection_node: SelectionNode,
-        caches: list[tuple[ObjectCache, VarCache]],
+        caches: list[Cache],
         link_node: LinkGroup,
-    ) -> TransNode | None:
+    ) -> TransformNode | None:
         log.info(" --- Candidate nodes:")
         for node in candidate_nodes:
             log.info(node)
@@ -191,3 +192,34 @@ class Solution:
         self.cache: Cache = ({uuid.uuid4(): [scene.input.rep]}, {})
         self.root.propagate(*self.cache)
         return self.cache[0][self.terminus.uid][0]
+
+
+# def subdivide_groups(selection: LinkGroup) -> list[LinkGroup]:
+#     if not all([len(group) >= 2 for group in selection]):
+#         log.info("Insufficient group sizes to subdivide selection")
+#         return []
+#     if len(set([len(group) for group in selection])) != 1:
+#         log.info("Different group sizes in selection, won't subdivide")
+#         return []
+
+#     # Begin with a single element per group, nucleated from the first group
+#     new_selections: list[LinkGroup] = [[[delta]] for delta in selection[0]]
+#     for src_group in selection[1:]:
+#         # TODO Try greedily minimizing distance from obj to target group for now
+#         for delta in src_group:
+#             best_dist = 1000
+#             chosen = 0
+#             for idx, target in enumerate(new_selections):
+#                 dist = sum(
+#                     [
+#                         Inventory.invert(delta.left, tgt_delta.left).dist
+#                         for group in target
+#                         for tgt_delta in group
+#                     ]
+#                 )
+#                 if dist < best_dist:
+#                     best_dist = dist
+#                     chosen = idx
+#             new_selections[chosen].append([delta])
+
+#     return new_selections

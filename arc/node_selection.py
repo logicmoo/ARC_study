@@ -1,48 +1,13 @@
 from dataclasses import dataclass
-from typing import Any, TypeAlias
+from typing import Any
 
-from arc.inventory import Inventory
 from arc.labeler import Labeler, all_traits
-from arc.link import ObjectDelta
+from arc.node import Node
 from arc.object import Object, sort_layer
+from arc.object_types import ObjectCache, ObjectGroup, VarCache
 from arc.util import logger
 
 log = logger.fancy_logger("Selector", level=30)
-
-# Represents a list of objects per case that will be grouped
-# as a transform.
-Selection: TypeAlias = list[list[ObjectDelta]]
-
-
-def subdivide_groups(selection: Selection) -> list[Selection]:
-    if not all([len(group) >= 2 for group in selection]):
-        log.info("Insufficient group sizes to subdivide selection")
-        return []
-    if len(set([len(group) for group in selection])) != 1:
-        log.info("Different group sizes in selection, won't subdivide")
-        return []
-
-    # Begin with a single element per group, nucleated from the first group
-    new_selections: list[Selection] = [[[delta]] for delta in selection[0]]
-    for src_group in selection[1:]:
-        # TODO Try greedily minimizing distance from obj to target group for now
-        for delta in src_group:
-            best_dist = 1000
-            chosen = 0
-            for idx, target in enumerate(new_selections):
-                dist = sum(
-                    [
-                        Inventory.invert(delta.left, tgt_delta.left).dist
-                        for group in target
-                        for tgt_delta in group
-                    ]
-                )
-                if dist < best_dist:
-                    best_dist = dist
-                    chosen = idx
-            new_selections[chosen].append([delta])
-
-    return new_selections
 
 
 @dataclass
@@ -52,34 +17,75 @@ class Criterion:
     negated: bool = False
 
 
-class Selector:
-    """Find the set of traits that distinguish the selection from the rest of the inventory."""
+class SelectionNode(Node):
+    """Choose Objects from a set of inputs, based on criteria."""
 
     def __init__(
         self,
-        obj_groups: list[list[Object]],
-        selection: list[list[Object]],
+        criteria: list[Criterion],
+        parents: set["Node"] | None = None,
+        children: set["Node"] | None = None,
+        null: bool = False,
     ) -> None:
-        # Whether this is a valid Selector
-        self.null: bool = True
-        self.criteria: list[Criterion] = []
+        super().__init__(parents or set(), children or set())
+        self.criteria: list[Criterion] = criteria
+        self.null = null
 
+    def __repr__(self) -> str:
+        return str(self.criteria)
+
+    def __bool__(self) -> bool:
+        return not self.null
+
+    @property
+    def props(self) -> int:
+        total_props = 0
+        for criterion in self.criteria:
+            total_props += len(criterion.values)
+        return total_props
+
+    @property
+    def name(self) -> str:
+        return f"S {self}"
+
+    def select(self, group: list[Object]) -> list[Object]:
+        # TODO Handle the timing of Labeling traits, vs intrinsic traits
+        # Here, we must access traits before we've selected into groups. But,
+        # only when we have groups can we do ranked labeling.
+        labels = Labeler([group]).labels
+        selection: list[Object] = group
+        for crit in self.criteria:
+            new_selection: list[Object] = []
+            for obj in selection:
+                if (labels[obj.uid].get(crit.trait) in crit.values) != crit.negated:
+                    new_selection.append(obj)
+            selection = new_selection
+        return sort_layer(selection)
+
+    def apply(self, object_cache: ObjectCache, var_cache: VarCache) -> list[Object]:
+        input_objects, _ = self.fetch_inputs(object_cache)
+        selection = self.select(input_objects)
+        object_cache[self.uid] = selection
+        return selection
+
+    @classmethod
+    def from_data(cls, inputs: ObjectGroup, selection: ObjectGroup) -> "SelectionNode":
+        null = True
         flat_selection = [obj for group in selection for obj in group]
         flat_complement = [
-            obj for group in obj_groups for obj in group if obj not in flat_selection
+            obj for group in inputs for obj in group if obj not in flat_selection
         ]
         log.debug("Choosing criteria for the following inputs, selection:")
-        log.debug(obj_groups)
+        log.debug(inputs)
         log.debug(flat_selection)
 
         if len(flat_complement) == 0:
             log.debug("Trivial selection, no criteria")
-            self.null = False
-            return
+            return cls([])
 
         coeff = 3
 
-        labels = Labeler(obj_groups).labels
+        labels = Labeler(inputs).labels
         best_score = 1000
         best: list[Criterion] = []
         splits: dict[str, tuple[set[Any], set[Any]]] = {}
@@ -137,34 +143,8 @@ class Selector:
                             Criterion(trait_2, out_set, negated=True),
                         ]
 
-        self.criteria: list[Criterion] = best
+        criteria: list[Criterion] = best
         if len(best) > 0:
-            self.null = False
-        log.info(f"Criteria: {self.criteria}")
-
-    def __repr__(self) -> str:
-        return str(self.criteria)
-
-    def __bool__(self) -> bool:
-        return not self.null
-
-    @property
-    def props(self) -> int:
-        total_props = 0
-        for criterion in self.criteria:
-            total_props += len(criterion.values)
-        return total_props
-
-    def select(self, group: list[Object]) -> list[Object]:
-        # TODO Handle the timing of Labeling traits, vs intrinsic traits
-        # Here, we must access traits before we've selected into groups. But,
-        # only when we have groups can we do ranked labeling.
-        labels = Labeler([group]).labels
-        selection: list[Object] = group
-        for crit in self.criteria:
-            new_selection: list[Object] = []
-            for obj in selection:
-                if (labels[obj.uid].get(crit.trait) in crit.values) != crit.negated:
-                    new_selection.append(obj)
-            selection = new_selection
-        return sort_layer(selection)
+            null = False
+        log.info(f"Criteria: {criteria}")
+        return cls(criteria, null=null)

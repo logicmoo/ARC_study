@@ -1,5 +1,8 @@
 from typing import TYPE_CHECKING
 
+from arc.util import logger
+
+log = logger.fancy_logger("ObjectRelations", level=30)
 
 if TYPE_CHECKING:
     from arc.object import Object
