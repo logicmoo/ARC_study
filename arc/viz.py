@@ -4,12 +4,15 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from pyvis.network import Network  # type: ignore (no stub file)
 
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta
+from arc.node import VarNode
 from arc.object import Object
 from arc.scene import Scene
+from arc.solution import Solution
 from arc.task import Task
 from arc.types import Grid
 from arc.util import logger
@@ -176,6 +179,45 @@ def plot_layout(layout: Layout, scale: float = 1.0) -> Figure:
             _add_plot(curr_axes, row[c_idx])
     plt.tight_layout()
     return fig
+
+
+def plot_solution(
+    solution: Solution,
+    filename: str = "solution_plot.html",
+    notebook: bool = False,
+    height: int = 800,
+    width: int = 800,
+) -> Any:
+    # network = Network(
+    #     notebook=notebook, height=height, width=width, directed=True, layout=True
+    # )
+    network = Network(notebook=notebook, directed=True, layout=True)
+    for uid, node in solution.nodes.items():
+        network.add_node(  # type: ignore
+            n_id=str(uid),
+            label=node.info,
+            shape="box",
+            level=node.level,
+        )
+
+    for uid, node in solution.nodes.items():
+        for child_node in node.children:
+            arrow_type: str = "arrow"
+            if node == child_node.secondary:
+                arrow_type = "box"
+
+            dashes: bool = isinstance(node, VarNode)
+
+            network.add_edge(  # type: ignore
+                source=str(uid),
+                to=str(child_node.uid),
+                arrows={"to": {"enabled": True, "type": arrow_type}},
+                endPointOffset={"to": 50},
+                dashes=dashes,
+                smooth="straightCross",
+            )
+
+    return network.write_html(filename, notebook=notebook)  # type: ignore
 
 
 def plot_grid(grid: Grid, title: str = "") -> Figure:
