@@ -61,13 +61,13 @@ class Solution:
                     self.var_targets[path].append(link)
 
     def create_nodes(self, cases: list[Scene]) -> bool:
-        self.nodes = {self.root.uid: self.root, self.terminus.uid: self.terminus}
         inputs = [
             self.root.apply({uuid.uuid4(): [case.input.rep]}, {}) for case in cases
         ]
         caches: list[Cache] = []
 
         self.terminus: TerminalNode = TerminalNode(self.template.structure, {})
+        self.nodes = {self.root.uid: self.root, self.terminus.uid: self.terminus}
 
         for path, links in self.var_targets.items():
             selection: ObjectGroup = [[link.left] for link in links]
@@ -79,6 +79,7 @@ class Solution:
                 selection_node.adopt(var_node)
                 var_node.adopt(self.terminus)
                 self.terminus.path_map[var_node.uid] = {path}
+                self.nodes[var_node.uid] = var_node
 
         for code, transform_group in self.bundled.items():
             if len(code) > 1:
