@@ -25,15 +25,17 @@ class TransformNode(Node):
         self.arg_info = arg_info
 
     @property
+    def name(self) -> str:
+        return f"Transform"
+
+    @property
     def props(self) -> int:
         return 1 + len(self.arg_info)
 
-    def __repr__(self) -> str:
-        return f"{self.action}({self.arg_info})"
-
     @property
-    def name(self) -> str:
-        return f"T {self.action}"
+    def args(self) -> list[str]:
+        args = "(*)" if self.secondary else self.arg_info
+        return [f"{self.action}{args}"]
 
     def apply(
         self, object_cache: ObjectCache, var_cache: VarCache

@@ -31,8 +31,20 @@ class SelectionNode(Node):
         self.criteria: list[Criterion] = criteria
         self.null = null
 
+    @property
+    def name(self) -> str:
+        return f"Selection"
+
+    @property
+    def args(self) -> list[str]:
+        msg: list[str] = []
+        for crit in self.criteria:
+            neg = "not " if crit.negated else ""
+            msg.append(f"'{crit.trait}' {neg}in {crit.values}")
+        return msg
+
     def __repr__(self) -> str:
-        return str(self.criteria)
+        return f"{self.name}({''.join(self.args)})"
 
     def __bool__(self) -> bool:
         return not self.null
@@ -43,10 +55,6 @@ class SelectionNode(Node):
         for criterion in self.criteria:
             total_props += len(criterion.values)
         return total_props
-
-    @property
-    def name(self) -> str:
-        return f"S {self}"
 
     def select(self, group: list[Object]) -> list[Object]:
         # TODO Handle the timing of Labeling traits, vs intrinsic traits

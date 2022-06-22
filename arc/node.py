@@ -41,20 +41,28 @@ class Node:
         self.children: set["Node"] = children
         self.secondary: "Node | None" = secondary
 
+    @property
+    def name(self) -> str:
+        return "Node"
+
+    @property
+    def args(self) -> list[str]:
+        return []
+
     def __repr__(self) -> str:
-        return f"{self.parents} -> {self.name} -> {self.children}"
+        return f"{self.name} | {''.join(self.args)}"
 
     def __getitem__(self, key: int) -> "Node":
         return list(sorted(self.children, key=lambda x: x.uid))[key]
+
+    @property
+    def info(self) -> str:
+        return f"{self.name}\n{chr(10).join(self.args)}"  # chr(10) is \n
 
     @cached_property
     def uid(self) -> uuid.UUID:
         """Generate a unique ID for the node, for storing results in cache."""
         return uuid.uuid4()
-
-    @property
-    def name(self) -> str:
-        return "Node"
 
     @property
     def level(self) -> int:
@@ -75,7 +83,7 @@ class Node:
         for c_idx, child in enumerate(self.children):
             child_dict.update(child._get_tree(c_idx, child.secondary == self))
         mark = "*" if secondary else ""
-        return {f"{mark}({idx}) {self.name}": child_dict}
+        return {f"{mark}({idx}) {self}": child_dict}
 
     def tree(self) -> str:
         return LeftAligned()(self._get_tree())
@@ -130,6 +138,10 @@ class RootNode(Node):
     @property
     def name(self) -> str:
         return "Root"
+
+    @property
+    def args(self) -> list[str]:
+        return [f"Attention: {self.level_attention}"]
 
     def apply(self, object_cache: ObjectCache, var_cache: VarCache) -> list[Object]:
         _, input_objects = object_cache.popitem()
@@ -200,7 +212,11 @@ class VarNode(Node):
 
     @property
     def name(self) -> str:
-        return f"V {self.property}"
+        return "Variable"
+
+    @property
+    def args(self) -> list[str]:
+        return [f"Property: {self.property}"]
 
     @classmethod
     def from_property(
