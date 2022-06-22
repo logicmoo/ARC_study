@@ -1,25 +1,25 @@
 import streamlit as st
 from arc.app.explorer import explorer
 from arc.app.settings import Settings
-from arc.app.solution import solution
+from arc.app.task_display import task_display
 from arc.arc import ARC
 
 
-def run_ui(start_mode: str = "Dev", n: int = Settings.N) -> None:
+def run_ui(pickle_id: str = Settings.default_pickle_id) -> None:
     """Central UI logic governing components to display."""
-    init_session()
+    init_session(pickle_id)
     task_filter()
     task_selector()
 
     if st.session_state.task_idx > 0:
-        solution(task_idx=st.session_state.task_idx)
+        task_display(task_idx=st.session_state.task_idx)
     else:
         explorer()
 
 
-def init_session() -> None:
+def init_session(pickle_id: str) -> None:
     if "arc" not in st.session_state:
-        _arc = ARC.load(Settings.pickle_id)
+        _arc = ARC.load(pickle_id)
         st.session_state.arc = _arc
         st.session_state.plot_cache = {}
 

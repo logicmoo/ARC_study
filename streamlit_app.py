@@ -3,13 +3,18 @@ import argparse
 
 import streamlit as st
 
+from arc.app.settings import Settings
 from arc.app.ui import run_ui
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide")  # type: ignore
 
 parser = argparse.ArgumentParser(description="Select Streamlit mode")
-parser.add_argument("mode", help="Streamlit app mode: Demo, Dev, Stats")
-parser.add_argument("-n", default=400, type=int, help="Total tasks to run")
+parser.add_argument(
+    "-p",
+    default=Settings.default_pickle_id,
+    type=str,
+    help="Name of pickle file (excluding suffix)",
+)
 args = parser.parse_args()
 
-run_ui(args.mode, args.n)
+run_ui(args.p)
