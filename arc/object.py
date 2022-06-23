@@ -148,7 +148,7 @@ class Object:
         for i in range(M):
             for j in range(N):
                 if grid[i, j] != cst.NULL_COLOR:
-                    children.append(cls(i, j, grid[i, j]))
+                    children.append(cls(i, j, int(grid[i, j])))
         return cls(*anchor, children=children, **kwargs)
 
     @classmethod
@@ -175,7 +175,7 @@ class Object:
             raise EmptyObject
         elif len(points) == 1:
             (row, col), color = list(points.items())[0]
-            return cls(row, col, color, **kwargs)
+            return cls(row, col, int(color), **kwargs)
 
         norm_loc, normed, monochrome = norm_points(points)
         loc = (loc[0] + norm_loc[0], loc[1] + norm_loc[1])

@@ -1,7 +1,7 @@
 import uuid
 from collections import defaultdict
 
-from arc.actions import Actions, Pairwise
+from arc.actions import Action, Actions, Pairwise
 from arc.link import ObjectDelta, VariableLink
 from arc.node import Node, RootNode, TerminalNode, VarNode
 from arc.node_selection import SelectionNode
@@ -41,8 +41,7 @@ class Solution:
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
         msg += [f"Level attention: {self.root.level_attention}"]
-        for node in self.nodes:
-            msg.append(str(node))
+        msg.append(self.root.tree())
         msg.append(str(self.template))
         return "\n".join(msg)
 
@@ -132,11 +131,17 @@ class Solution:
             if node := self.choose_node(
                 candidate_nodes, selection_node, caches, link_node
             ):
-                node.adopt(self.terminus)
-                self.terminus.path_map[node.uid] = paths
-                self.nodes[node.uid] = node
-                if node.secondary:
-                    self.nodes[node.secondary.uid] = node.secondary
+                if node.action == Action:
+                    # Don't add Identity operations
+                    selection_node.disown(node)
+                    selection_node.adopt(self.terminus)
+                    self.terminus.path_map[selection_node.uid] = paths
+                else:
+                    node.adopt(self.terminus)
+                    self.terminus.path_map[node.uid] = paths
+                    self.nodes[node.uid] = node
+                    if node.secondary:
+                        self.nodes[node.secondary.uid] = node.secondary
             else:
                 return False
         return True

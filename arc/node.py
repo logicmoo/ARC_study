@@ -50,7 +50,7 @@ class Node:
         return []
 
     def __repr__(self) -> str:
-        return f"{self.name} | {''.join(self.args)}"
+        return f"{self.name} | {', '.join(self.args)}"
 
     def __getitem__(self, key: int) -> "Node":
         return list(sorted(self.children, key=lambda x: x.uid))[key]

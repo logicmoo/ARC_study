@@ -43,9 +43,6 @@ class SelectionNode(Node):
             msg.append(f"'{crit.trait}' {neg}in {crit.values}")
         return msg
 
-    def __repr__(self) -> str:
-        return f"{self.name}({''.join(self.args)})"
-
     def __bool__(self) -> bool:
         return not self.null
 

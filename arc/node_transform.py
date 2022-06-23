@@ -34,8 +34,8 @@ class TransformNode(Node):
 
     @property
     def args(self) -> list[str]:
-        args = "(*)" if self.secondary else self.arg_info
-        return [f"{self.action}{args}"]
+        arg_info = "(*)" if self.secondary else self.arg_info
+        return [f"{self.action}{arg_info}"]
 
     def apply(
         self, object_cache: ObjectCache, var_cache: VarCache

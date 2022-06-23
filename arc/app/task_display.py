@@ -29,7 +29,7 @@ def task_display(task_idx: int):
             plot_solution(solution, filename=filename)
 
         with open(filename, "r", encoding="utf-8") as fh:
-            components.html(fh.read(), width=500, height=500)  # type: ignore
+            components.html(fh.read(), width=1400, height=700)  # type: ignore
 
     # Decomposition
     with st.expander(f"Decomposition of Scene {scene_idx}", expanded=True):
