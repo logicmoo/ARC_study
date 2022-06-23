@@ -22,15 +22,14 @@ def task_display(task_idx: int):
     with st.expander(f"Solution", expanded=True):
         solution = _arc[task_idx].solution
         if not solution:
-            st.write("No solution found")
+            st.write("No solution found")  # type: ignore
 
         filename: str = f"task{task_idx}_solution.html"
         if not os.path.isfile(filename):
-            plot_solution(solution, filename=filename, width=1000, height=1000)
+            plot_solution(solution, filename=filename)
 
         with open(filename, "r", encoding="utf-8") as fh:
-            pyvis_html = fh.read()
-            components.html(pyvis_html, width=500, height=500)
+            components.html(fh.read(), width=500, height=500)  # type: ignore
 
     # Decomposition
     with st.expander(f"Decomposition of Scene {scene_idx}", expanded=True):

@@ -50,7 +50,7 @@ all_solved = {
 }
 
 ## Progress on evaluation tasks
-all_eval_solved = {17, 49, 78, 177, 179, 197, 217, 301, 309, 366, 372}
+all_eval_solved = {17, 49, 78, 177, 179, 197, 217, 301, 309, 312, 366, 372}
 
 # Large tilings tend to take a while, keep them separate
 large_tiling = {17, 61, 287, 305}

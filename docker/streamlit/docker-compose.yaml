@@ -10,7 +10,5 @@ services:
       - "run"
       - "--browser.serverAddress=0.0.0.0"
       - "streamlit_app.py"
-      - "--"
-      - "Demo"
     ports:
       - "${STREAMLIT_PORT}:${STREAMLIT_PORT}"

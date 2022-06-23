@@ -6,7 +6,10 @@ ADD requirements.txt requirements.txt
 RUN python3.10 -m pip install -r requirements.txt
 
 WORKDIR /streamlit/
-RUN python3.10 -m pip install streamlit==1.9.0
+RUN python3.10 -m pip install streamlit==1.9.0 protobuf==3.20.0
+
+ADD requirements-dev.txt requirements-dev.txt
+RUN python3.10 -m pip install -r requirements-dev.txt
 
 ADD arc arc
 ADD data data

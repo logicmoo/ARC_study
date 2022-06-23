@@ -73,10 +73,9 @@ def plot(item: Any, **kwargs: Any) -> Figure:
             return plot_grid(item.raw.grid, **kwargs)
         case Board(current=_):
             return plot_layout(tree_layout(item.rep), **kwargs)
-        case Scene(dist=-1):
+        case Scene(current=""):
             return plot_layout(scene_layout(item), **kwargs)
-        case Scene(dist=dist):
-            log.info(f"Distance {dist}")
+        case Scene(current=_):
             return plot_layout(link_layout(item), **kwargs)
         case Task():
             return plot_layout(task_layout(item), **kwargs)
@@ -185,19 +184,16 @@ def plot_solution(
     solution: Solution,
     filename: str = "solution_plot.html",
     notebook: bool = False,
-    height: int = 800,
-    width: int = 800,
 ) -> Any:
-    # network = Network(
-    #     notebook=notebook, height=height, width=width, directed=True, layout=True
-    # )
     network = Network(notebook=notebook, directed=True, layout=True)
     for uid, node in solution.nodes.items():
         network.add_node(  # type: ignore
             n_id=str(uid),
-            label=node.info,
+            label=f"<b>{node.name}</b>\n{chr(10).join(node.args)}",
             shape="box",
             level=node.level,
+            font={"multi": "html", "size": 20},
+            borderWidth=2,
         )
 
     for uid, node in solution.nodes.items():
