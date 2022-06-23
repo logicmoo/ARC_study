@@ -1,4 +1,5 @@
 from typing import Any, TypeAlias, TypedDict
+from uuid import UUID
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -6,15 +7,18 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pyvis.network import Network  # type: ignore (no stub file)
 
+from arc.actions import Actions
 from arc.board import Board
 from arc.definitions import Constants as cst
 from arc.link import ObjectDelta
-from arc.node import VarNode
+from arc.node import Node, VarNode
+from arc.node_selection import SelectionNode
 from arc.object import Object
 from arc.scene import Scene
 from arc.solution import Solution
 from arc.task import Task
-from arc.types import Grid
+from arc.template import CommonProperties, StructureDef
+from arc.types import BaseObjectPath, Grid
 from arc.util import logger
 
 log = logger.fancy_logger("Viz", level=20)
@@ -180,16 +184,101 @@ def plot_layout(layout: Layout, scale: float = 1.0) -> Figure:
     return fig
 
 
+def _node_label(node: Node) -> str:
+    bold_name = f"<b>{node.name}</b>"
+    if isinstance(node, SelectionNode) and not node.args:
+        args = "All"
+    else:
+        args = "\n".join(node.args)
+    return f"{bold_name}\n{args}"
+
+
+def _structure_label(name: str, props: CommonProperties) -> str:
+    bold_name = f"<b>{name}</b>"
+    args: list[str] = []
+    for name, val in props.items():
+        if len(name) == 1:
+            name = str(Actions.map[name])
+        if name == "color":
+            val = cst.cname.get(val, "?")  # type: ignore
+        args.append(f"{name}: {val}")
+    argstr = "\n".join(args)
+    return f"{bold_name}\n{argstr}"
+
+
+def add_template(network: Network, solution: Solution, colors: dict[UUID, str]) -> None:
+    structure = solution.template.structure
+    base_level = solution.terminus.level + 1
+
+    queue: list[tuple[BaseObjectPath, StructureDef]] = [(tuple(), structure)]
+    network.add_node(  # type: ignore
+        n_id="()",
+        label=_structure_label("Structure Root", structure["props"]),
+        shape="box",
+        level=base_level,
+        font={"multi": "html", "size": 20},
+        color="lightgrey",
+        borderWidth=2,
+    )
+    while queue:
+        path, node = queue.pop(0)
+        for idx, child_dict in enumerate(node["children"]):
+            child_path = path + (idx,)
+            queue.append((child_path, child_dict))
+            network.add_node(  # type: ignore
+                n_id=str(child_path),
+                label=_structure_label(str(child_path), child_dict["props"]),
+                shape="box",
+                level=base_level + len(child_path),
+                font={"multi": "html", "size": 20},
+                borderWidth=2,
+                color="lightgrey",
+            )
+            network.add_edge(  # type: ignore
+                source=str(path),
+                to=str(child_path),
+                arrows={"to": {"enabled": False}},
+                color="black",
+            )
+
+    # Add edges from Terminus to structure
+    for node_id, path_set in solution.terminus.path_map.items():
+        for path in path_set:
+            dashes: bool = path.property is not None
+            color: str = colors.get(node_id, "black")
+            network.add_edge(  # type: ignore
+                source=str(solution.terminus.uid),
+                to=str(path.base),
+                arrows={"to": {"enabled": True}},
+                dashes=dashes,
+                color=color,
+                smooth={"type": "curvedCW", "roundness": 0.4},
+            )
+
+
 def plot_solution(
     solution: Solution,
     filename: str = "solution_plot.html",
     notebook: bool = False,
+    height: int = 600,
+    width: int = 1200,
 ) -> Any:
-    network = Network(notebook=notebook, directed=True, layout=True)
+    network = Network(
+        notebook=notebook,
+        height=f"{height}px",
+        width=f"{width}px",
+        directed=True,
+        layout=True,
+    )
+
+    insertion_colors: dict[UUID, str] = {}
+    for idx, uid in enumerate(solution.terminus.path_map):
+        insertion_colors[uid] = cst.cname[idx + 1]
+
     for uid, node in solution.nodes.items():
         network.add_node(  # type: ignore
             n_id=str(uid),
-            label=f"<b>{node.name}</b>\n{chr(10).join(node.args)}",
+            label=_node_label(node),
             shape="box",
             level=node.level,
             font={"multi": "html", "size": 20},
@@ -203,6 +292,7 @@ def plot_solution(
                 arrow_type = "box"
 
             dashes: bool = isinstance(node, VarNode)
+            color: str = insertion_colors.get(uid, "black")
 
             network.add_edge(  # type: ignore
                 source=str(uid),
@@ -210,8 +300,11 @@ def plot_solution(
                 arrows={"to": {"enabled": True, "type": arrow_type}},
                 endPointOffset={"to": 50},
                 dashes=dashes,
+                color=color,
                 smooth="straightCross",
             )
+
+    add_template(network, solution, insertion_colors)
 
     return network.write_html(filename, notebook=notebook)  # type: ignore
 

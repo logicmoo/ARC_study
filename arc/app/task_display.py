@@ -39,19 +39,6 @@ def task_display(task_idx: int):
         with right:
             st.image(cached_plot((task_idx, int(scene_idx), "output")))  # type: ignore
 
-    # linking
+    # Linking
     with st.expander(f"Linking between the Scene's input and output", expanded=True):
         st.image(cached_plot((task_idx, int(scene_idx))))  # type: ignore
-
-    # Solution
-    with st.expander(f"The Solution parameters", expanded=True):
-        sol = _arc[task_idx].solution
-        st.write(f"Common structure of outputs:")  # type: ignore
-        md_lines: list[str] = []
-        for line in sol.template._display_node(tuple([])):
-            indent = len(line) - len(line.lstrip())
-            if indent > 0:
-                md_lines.append(line[:indent] + "* " + line[indent:])
-            else:
-                md_lines.append(line)
-        st.markdown("\n".join(md_lines))  # type: ignore
