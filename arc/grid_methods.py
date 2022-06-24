@@ -128,22 +128,21 @@ def connect(marked: Grid, max_ct: int = 10) -> list[PointDict]:
 def get_boundary(grid: Grid) -> tuple[PointList, PositionList]:
     """Determine all points on the outside surface of a 2D grid."""
     M, N = grid.shape
-    if M == 1 or N == 1:
-        log.error("Object.bound_info should handle cases with small shape parameters.")
     marked = grid.copy()
     bound_pts: PointList = []
     queue: PositionList = []
     # The following two for loops check the bounding box of the Object. If the point is part
     # of the object, it is added to the boundary, else it is queued for flood fill.
     for row in range(M):
-        for pt in [(row, 0), (row, N - 1)]:
+        # Using a set for the iterator handles M, N == 1
+        for pt in {(row, 0), (row, N - 1)}:
             if marked[pt] == cst.NULL_COLOR:
                 queue.append(pt)
             else:
                 bound_pts.append((*pt, marked[pt]))
             marked[pt] = cst.MARKED_COLOR
     for col in range(1, N - 1):
-        for pt in [(0, col), (M - 1, col)]:
+        for pt in {(0, col), (M - 1, col)}:
             if marked[pt] == cst.NULL_COLOR:
                 queue.append(pt)
             else:

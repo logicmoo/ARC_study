@@ -14,8 +14,9 @@ log = logger.fancy_logger("Solution", level=20)
 
 try:
     from asciitree import LeftAligned  # type: ignore
-except:
+except:  # pragma: no cover
     log.warning("Python pkg 'asciitree' not found, falling back to ugly trees.")
+    LeftAligned = lambda: str
 
 
 NodeTree: TypeAlias = dict[str, "NodeTree"]
@@ -33,12 +34,12 @@ class Node:
 
     def __init__(
         self,
-        parents: set["Node"],
-        children: set["Node"],
+        parents: set["Node"] | None = None,
+        children: set["Node"] | None = None,
         secondary: "Node | None" = None,
     ) -> None:
-        self.parents: set["Node"] = parents
-        self.children: set["Node"] = children
+        self.parents: set["Node"] = parents or set()
+        self.children: set["Node"] = children or set()
         self.secondary: "Node | None" = secondary
 
     @property
@@ -46,18 +47,21 @@ class Node:
         return "Node"
 
     @property
-    def args(self) -> list[str]:
+    def specs(self) -> list[str]:
         return []
 
+    def __lt__(self, other: "Node") -> bool:
+        return self.props < other.props
+
     def __repr__(self) -> str:
-        return f"{self.name} | {', '.join(self.args)}"
+        return f"{self.name} | {', '.join(self.specs)}"
 
     def __getitem__(self, key: int) -> "Node":
         return list(sorted(self.children, key=lambda x: x.uid))[key]
 
     @property
     def info(self) -> str:
-        return f"{self.name}\n{chr(10).join(self.args)}"  # chr(10) is \n
+        return f"{self.name}\n{chr(10).join(self.specs)}"  # chr(10) is \n
 
     @cached_property
     def uid(self) -> uuid.UUID:
@@ -140,7 +144,7 @@ class RootNode(Node):
         return "Root"
 
     @property
-    def args(self) -> list[str]:
+    def specs(self) -> list[str]:
         return [f"Attention: {self.level_attention}"]
 
     def apply(self, object_cache: ObjectCache, var_cache: VarCache) -> list[Object]:
@@ -215,7 +219,7 @@ class VarNode(Node):
         return "Variable"
 
     @property
-    def args(self) -> list[str]:
+    def specs(self) -> list[str]:
         return [f"Property: {self.property}"]
 
     @classmethod

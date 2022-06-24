@@ -52,7 +52,7 @@ class Labeler:
         else:
             name = name or f"{param}-rank"
 
-        if key_function and param:
+        if key_function and param:  # pragma: no cover
             log.warning(
                 f"Both a key function and param ({param}) are defined for trait "
                 f"'{name}'. Using the key_function by default."

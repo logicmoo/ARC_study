@@ -71,15 +71,15 @@ def test_get_boundary():
     nc = cst.NULL_COLOR
     grid = gridify([[1, 1, 1], [1, nc, 1], [1, 1, 1]])
     bounds, enclosed = get_boundary(grid)
-    assert bounds == [
+    assert sorted(bounds) == [
         (0, 0, 1),
+        (0, 1, 1),
         (0, 2, 1),
         (1, 0, 1),
         (1, 2, 1),
         (2, 0, 1),
-        (2, 2, 1),
-        (0, 1, 1),
         (2, 1, 1),
+        (2, 2, 1),
     ]
     assert enclosed == [(1, 1)]
 

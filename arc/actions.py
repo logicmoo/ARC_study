@@ -35,7 +35,7 @@ class Action(metaclass=Representation):
 class Pairwise:
     @classmethod
     def act(cls, object: "Object", secondary: "Object") -> "Object":
-        """Return a copy of the object with any logic applied."""
+        """Pairwise Actions take another object as the second argument."""
         return object.copy()
 
 
@@ -221,9 +221,18 @@ class Actions:
 
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args:
-            if left.c_rank != right.c_rank:
+            if (
+                right.size == 1
+                or left.size != right.size
+                or left.c_rank != right.c_rank
+            ):
                 return tuple([])
 
+            # Zero the objects for direct comparison
+            left = Actions.map["z"].act(left)
+            right = Actions.map["z"].act(right)
+            if left == right:
+                return tuple()
             for reflection in (cls, Actions.VFlip, Actions.HFlip):
                 if (reflected := reflection.act(left)) == right:
                     return (reflection.o_arg, 0)
@@ -283,15 +292,23 @@ class Actions:
 
         @classmethod
         def inv(cls, left: "Object", right: "Object") -> Args:
+            if not left.generating and not right.generating:
+                return tuple()
             args = tuple([])
             for axis, code in [(0, "V"), (1, "H")]:
-                if left.shape[axis] != right.shape[axis]:
+                if left.shape[axis] == right.shape[axis]:
+                    args += (0,)
+                else:
                     cell = left.shape[axis] // (left.codes[code] + 1)
                     if right.shape[axis] % cell:
                         # Incommensurate shapes
-                        continue
+                        return tuple([])
                     new_value = right.shape[axis] // cell
                     args += (new_value,)
+
+            # Skip identity
+            if args == (0, 0):
+                return tuple()
             return args
 
     class VScale(Scale):

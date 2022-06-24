@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Any
 
 from arc.labeler import Labeler, all_traits
@@ -15,6 +16,13 @@ class Criterion:
     trait: str
     values: set[str | int]
     negated: bool = False
+
+    @cached_property
+    def props(self) -> int:
+        return len(self.values) * 2 + int(self.negated)
+
+    def __lt__(self, other: "Criterion") -> bool:
+        return self.props < other.props
 
 
 class SelectionNode(Node):
@@ -36,7 +44,7 @@ class SelectionNode(Node):
         return f"Selection"
 
     @property
-    def args(self) -> list[str]:
+    def specs(self) -> list[str]:
         msg: list[str] = []
         for crit in self.criteria:
             neg = "not " if crit.negated else ""
@@ -48,10 +56,7 @@ class SelectionNode(Node):
 
     @property
     def props(self) -> int:
-        total_props = 0
-        for criterion in self.criteria:
-            total_props += len(criterion.values)
-        return total_props
+        return sum([crit.props for crit in self.criteria])
 
     def select(self, group: list[Object]) -> list[Object]:
         # TODO Handle the timing of Labeling traits, vs intrinsic traits
@@ -88,8 +93,6 @@ class SelectionNode(Node):
             log.debug("Trivial selection, no criteria")
             return cls([])
 
-        coeff = 3
-
         labels = Labeler(inputs).labels
         best_score = 1000
         best: list[Criterion] = []
@@ -104,15 +107,17 @@ class SelectionNode(Node):
                 continue
             splits[trait] = (in_set, out_set)
             if in_set and out_set and (not in_set & out_set):
-                if (score := (len(in_set) - 1) * coeff) < best_score:
-                    best_score = score
-                    best = [Criterion(trait, in_set)]
-                if (score := (len(out_set) - 1) * coeff) < best_score:
+                pos_criterion = Criterion(trait, in_set)
+                neg_criterion = Criterion(trait, out_set, negated=True)
+                if pos_criterion.props < best_score:
+                    best_score = pos_criterion.props
+                    best = [pos_criterion]
+                if neg_criterion.props < best_score:
                     # NOTE: Try only allowing single-value negations
                     if len(out_set) > 1:
                         continue
-                    best_score = score
-                    best = [Criterion(trait, out_set, negated=True)]
+                    best_score = neg_criterion.props
+                    best = [neg_criterion]
 
         # Also search for two-trait combos
         for trait_1, (in_1, out_1) in splits.items():
@@ -124,10 +129,8 @@ class SelectionNode(Node):
                 obj for obj in flat_complement if labels[obj.uid][trait_1] in overlap
             ]
             if len(in_1) <= len(out_1):
-                base_len = len(in_1)
                 base_criterion = Criterion(trait_1, in_1)
             else:
-                base_len = len(out_1)
                 base_criterion = Criterion(trait_1, out_1, negated=True)
 
             for trait_2 in splits:
@@ -135,18 +138,21 @@ class SelectionNode(Node):
                     continue
                 in_set = {labels[obj.uid][trait_2] for obj in confused_in}
                 out_set = {labels[obj.uid][trait_2] for obj in confused_out}
+                pos_criterion = Criterion(trait_2, in_set)
+                neg_criterion = Criterion(trait_2, out_set, negated=True)
                 if in_set and out_set and (not in_set & out_set):
-                    if (score := (len(in_set) + base_len - 2) * coeff) < best_score:
+                    if (
+                        score := (base_criterion.props + pos_criterion.props)
+                    ) < best_score:
                         best_score = score
-                        best = [base_criterion, Criterion(trait_2, in_set)]
-                    if (score := len(out_set) + base_len - 2) * coeff < best_score:
+                        best = [base_criterion, pos_criterion]
+                    if (
+                        score := (base_criterion.props + neg_criterion.props)
+                    ) < best_score:
                         if len(out_set) > 1:
                             continue
                         best_score = score
-                        best = [
-                            base_criterion,
-                            Criterion(trait_2, out_set, negated=True),
-                        ]
+                        best = [base_criterion, neg_criterion]
 
         criteria: list[Criterion] = best
         if len(best) > 0:

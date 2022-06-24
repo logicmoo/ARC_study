@@ -33,7 +33,11 @@ class Solution:
         self.characteristic: str = characteristic
         self.template: Template = template or Template()
 
-        # Create during 'create_nodes'
+        # Used during 'bundle()'
+        self.bundled: dict[str, list[ObjectDelta]] = defaultdict(list)
+        self.var_targets: dict[ObjectPath, list[VariableLink]] = defaultdict(list)
+
+        # Created during 'create_nodes()'
         self.nodes: dict[uuid.UUID, Node] = {}
         self.root: RootNode = RootNode(attention)
         self.terminus: TerminalNode = TerminalNode(self.template.init_structure(), {})

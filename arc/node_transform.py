@@ -33,7 +33,7 @@ class TransformNode(Node):
         return 1 + len(self.arg_info)
 
     @property
-    def args(self) -> list[str]:
+    def specs(self) -> list[str]:
         arg_info = "(*)" if self.secondary else self.arg_info
         return [f"{self.action}{arg_info}"]
 

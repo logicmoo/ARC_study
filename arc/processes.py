@@ -219,9 +219,8 @@ class Processes:
         def apply(cls, object: Object) -> Object | None:
             object_pts = object.blobs
             children: list[Object] = []
-            for idx, pts in enumerate(object_pts):
-                name = f"Conn{idx}"
-                children.append(Object.from_points(pts, name=name, process="Conn"))
+            for pts in object_pts:
+                children.append(Object.from_points(pts, process="Conn"))
             return Object(*object.loc, children=children, leaf=True, process="Conn")
 
     class Tiling(Process):

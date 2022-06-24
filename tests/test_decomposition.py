@@ -13,9 +13,8 @@ def test_8(decomposition_samples: ARC):
     board = decomposition_samples.tasks[8].cases[0].input
     board.decompose()
     child_names = sorted([kid.id for kid in board.rep.children])
-    # TODO: How should we use the 'name' field (e.g. Conn0 below)
     assert child_names == [
-        "Cluster(2x4)@(2, 0, 2) 'Conn0'",
+        "Cluster(2x4)@(2, 0, 2)",
         "Rect(14x9)@(0, 0, 0)",
         "Rect(2x2)@(10, 3, 8)",
     ]
@@ -39,6 +38,47 @@ def test_16(decomposition_samples: ARC):
     board.decompose()
     child_names = sorted([kid.id for kid in board.rep.children])
     assert child_names == ["Cell(1x3)@(0, 0, 10)"]
+    grandchild_names = sorted([kid.id for kid in board.rep.children[0]])
+    assert grandchild_names == [
+        "Dot@(0, 0, 3)",
+        "Dot@(0, 1, 1)",
+        "Dot@(0, 2, 2)",
+    ]
+
+    hier_repr = str(board).replace(" ", "").split("\n")
+    assert hier_repr == [
+        "[Tile]Pattern(3x3)@(0,0,10)(1ch,9pts,15p)",
+        "Generating(V:2)",
+        "[Cell]Cell(1x3)@(0,0,10)(3ch,3pts,10p)",
+        "Dot@(0,0,3)",
+        "Dot@(0,1,1)",
+        "Dot@(0,2,2)",
+    ]
+
+    # Repeating call with an empty processing queue should do nothing
+    board.decompose()
+    child_names = sorted([kid.id for kid in board.rep.children])
+    assert child_names == ["Cell(1x3)@(0, 0, 10)"]
+    grandchild_names = sorted([kid.id for kid in board.rep.children[0]])
+    assert grandchild_names == [
+        "Dot@(0, 0, 3)",
+        "Dot@(0, 1, 1)",
+        "Dot@(0, 2, 2)",
+    ]
+
+    # Initializing and allowing no processes should leave the board in raw state
+    board.decompose(characteristic="", init=True)
+    assert board.current == ""
+    assert board.proc_q == [""]
+
+    # Only allowing Processes.Background gives a different result
+    board.decompose(characteristic="B", init=True)
+    child_names = sorted([kid.id for kid in board.rep.children])
+    assert child_names == [
+        "Line(3x1)@(0, 1, 1)",
+        "Rect(3x2)@(0, 1, 2)",
+        "Rect(3x3)@(0, 0, 3)",
+    ]
 
 
 def test_17(decomposition_samples: ARC):

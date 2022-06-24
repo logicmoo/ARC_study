@@ -1,7 +1,8 @@
+import pytest
 from arc.actions import Actions
 from arc.grid_methods import grid_equal, gridify
 from arc.object import Object
-from arc.transform import Transform
+from arc.transform import Transform, TransformError
 
 
 def test_transform():
@@ -11,6 +12,9 @@ def test_transform():
 
     trans = Transform([Actions.Zero], args=[])
     assert trans.args == [tuple()]
+
+    with pytest.raises(TransformError):
+        Transform([Actions.Zero], args=[(1,), (2,)])
 
 
 def test_codes():

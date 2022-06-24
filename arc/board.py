@@ -34,7 +34,6 @@ class Board:
         """Initialize all decomposition-related attributes."""
         self.tree: dict[str, Object] = {"": self.raw}
         self.current: str = ""
-        self.processes: list[type[Process]] = list(Processes.map.values())
         self.proc_q: list[str] = [""]
 
     def __repr__(self) -> str:
@@ -68,7 +67,7 @@ class Board:
         self,
         max_iter: int = cst.DEFAULT_MAX_ITER,
         inventory: Inventory | None = None,
-        characteristic: str = "",
+        characteristic: str | None = None,
         init: bool = False,
     ) -> None:
         """Determine the optimal representation of the Board.
@@ -77,18 +76,24 @@ class Board:
             max_iter: Maximum number of iterations of decomposition.
         """
         inventory = inventory or Inventory()
-        if not self.proc_q or init:
+        if init:
             self._decomp_init()
+        elif not self.proc_q:
+            log.warning("Empty processing queue")
+            return
 
-        if characteristic:
-            self.processes = [Processes.map[char] for char in characteristic]
+        processes: list[type[Process]] = list(Processes.map.values())
+        if characteristic == "":
+            return
+        elif characteristic:
+            processes = [Processes.map[char] for char in characteristic]
 
         log.info(f"  Begin decomposition")
         for ct in range(1, max_iter + 1):
             key = self.proc_q.pop(0)
             obj = self.tree[key]
             log.debug(f"Decomposing candidate with key: {key}")
-            candidates = self._decomposition(obj, inventory, set([]))
+            candidates = self._decomposition(processes, obj, inventory, set([]))
             for code, obj in candidates:
                 if obj.props > cst.PRUNE_PROPS_COEFF * self.rep.props:
                     continue
@@ -132,7 +137,11 @@ class Board:
             self.proc_q.pop(idx)
 
     def _decomposition(
-        self, obj: Object, inventory: "Inventory", occlusion: PositionSet
+        self,
+        processes: list[type[Process]],
+        obj: Object,
+        inventory: "Inventory",
+        occlusion: PositionSet,
     ) -> list[tuple[str, Object]]:
         """Attempts to find a more canonical or condensed way to represent the object"""
         # No children means nothing to simplify
@@ -141,7 +150,7 @@ class Board:
         # Search for the first object that's not decomposed and apply decomposition
         elif not obj.leaf and (match := inventory.find_decomposition_match(obj)):
             # TODO How to incorporate occlusion here?
-            log.info(f"Match at distance: {match.dist} to {match.left}")
+            log.info(f"Match at distance: {match}")
             linked = match.transform.apply(match.left)
             linked.leaf = True
             linked.process = "Inv"
@@ -153,7 +162,7 @@ class Board:
             for rev_idx, child in enumerate(obj.children[::-1]):
                 relative_occlusion = set(shift_locs(cumulative_occlusion, child.loc))
                 child_candidates = self._decomposition(
-                    child, inventory=inventory, occlusion=relative_occlusion
+                    processes, child, inventory=inventory, occlusion=relative_occlusion
                 )
                 if child_candidates:
                     # Each new decomposition needs to replace any parents
@@ -166,15 +175,15 @@ class Board:
             return decompositions
 
         log.debug(f"Decomposing {obj} with occ: {occlusion}")
-        candidates = self.generate_candidates(obj, occlusion)
+        candidates = self.generate_candidates(processes, obj, occlusion)
         log.debug(f"Generated {len(candidates)} candidates")
         return candidates
 
     def generate_candidates(
-        self, obj: Object, occlusion: PositionSet
+        self, processes: list[type[Process]], obj: Object, occlusion: PositionSet
     ) -> list[tuple[str, Object]]:
         candidates: list[tuple[str, Object]] = []
-        for process in self.processes:
+        for process in processes:
             if process.test(obj):
                 log.debug(f"Applying {process}")
                 candidate = process.run(obj, occlusion)

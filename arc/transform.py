@@ -41,9 +41,13 @@ class Transform:
     ):
         self.actions = actions
         self.args: ArgsList = args or [tuple([])] * len(self.actions)
-        if len(self.args) < len(self.actions):
-            log.error(f"Insufficient arguments for Transform: {args} -> {actions}")
+        if len(self.args) != len(self.actions):
+            log.error(f"Wrong length for argument tuple list: {args} -> {actions}")
             raise TransformError
+        for _action, _args in zip(self.actions, self.args):
+            if _action.n_args != len(_args):
+                log.error(f"Bad arg count for action: {_args} -> {_action}")
+                raise TransformError
 
     def __bool__(self) -> bool:
         return len(self.actions) > 0
@@ -51,7 +55,7 @@ class Transform:
     def __len__(self) -> int:
         return len(self.actions)
 
-    def __str__(self) -> str:
+    def __repr__(self) -> str:
         if not self:
             return "ID()"
 
@@ -115,7 +119,7 @@ class Transform:
 
     def apply(self, object: "Object", default_args: Position = (0, 0)) -> "Object":
         """Creates a new object based on the set of actions and arguments."""
-        result = object
+        result = Action.act(object)  # Copy the object via the Identity
         for action, args in zip(self.actions, self.args):
             try:
                 result = action.act(result, *args)

@@ -1,24 +1,20 @@
 [run]
 omit =
     */__init__.py
-    # omit all ARC utilities
+    # omit all utilities
     arc/util/*
     # omit visualization code
     arc/viz.py
-    arc/layouts.py
-    # WIP functionality
-    arc/contexts.py
-    arc/selection.py
-    arc/selector.py
+    # omit meta-analysis functionality
     arc/task_analysis.py
-    arc/transforms.py
+    # omit the launch script
+    arc/run.py
 
 [report]
 exclude_lines = 
     pragma: no cover
     if TYPE_CHECKING:
     def info
-    def plot
     def __str__
     def __repr__
     @abstractmethod
