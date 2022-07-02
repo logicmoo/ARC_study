@@ -4,7 +4,7 @@
   "description": "chollet abstraction and reasoning corpus",
   "main": "index.js",
   "scripts": {
-    "test": "test"
+    "test": "jest"
   },
   "repository": {
     "type": "git",
@@ -17,10 +17,31 @@
     "reasoning",
     "corpus"
   ],
-  "author": "fermion",
+  "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/fermigas/ARC/issues"
   },
-  "homepage": "https://github.com/fermigas/ARC#readme"
+  "homepage": "https://github.com/fermigas/ARC#readme",
+  "devDependencies": {
+    "jest": "^24.9.0",
+    "jest-cli": "^24.9.0"
+  },
+  "jest": {
+    "verbose": true,
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js",
+      "jsx"
+    ],
+    "testMatch": [
+      "**/__tests__/*.(js|jsx)",
+      "**/__tests__/**/*.(|js|jsx)",
+      "**/?(*.)(spec|test).js?(x)"
+    ]
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "validator": "^13.7.0"
+  }
 }
