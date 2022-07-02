@@ -1,0 +1,26 @@
+{
+  "name": "arc",
+  "version": "1.0.0",
+  "description": "chollet abstraction and reasoning corpus",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fermigas/ARC.git"
+  },
+  "keywords": [
+    "chollet",
+    "arc",
+    "ai",
+    "reasoning",
+    "corpus"
+  ],
+  "author": "fermion",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fermigas/ARC/issues"
+  },
+  "homepage": "https://github.com/fermigas/ARC#readme"
+}
