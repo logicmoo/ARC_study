@@ -4,6 +4,9 @@ module.exports = function () {
       'data/training/746b3537.json',
       'src/utility/utils.js',
       'src/sanity_check.js',
+      'src/rows.js',
+      'src/columns.js',
+      'src/grids.js',
       'src/solve_task.js'
     ],
     tests: [

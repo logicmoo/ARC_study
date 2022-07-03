@@ -1,4 +1,7 @@
 const { solveTask } = require('../src/solve_task')
+const { rows } = require('../src/rows')
+const { grids } = require('../src/grids')
+const task_746B3537 = require("../data/training/746b3537.json");
 
 
 //  all 746B3537 training sample outputs have either 1 row or one column
@@ -28,7 +31,7 @@ describe('given 746B3537', function () {
     });
 
     it('should give the solution to task_746B3537 train sample 5 as [ [4], [2], [8], [3] ]', function () {
-        expect(solveTask(task_746B3537, 5)).toStrictEqual([[4], [2], [8], [3] ] )
+        expect(solveTask(task_746B3537, 5)).toStrictEqual(task_746B3537.train[4].output)
     });
 
     // Final solution to task_746B3537
@@ -38,3 +41,160 @@ describe('given 746B3537', function () {
 
 });
 
+
+describe('input and output grids are identical', function () {
+    let task = {
+        "train": [
+            {
+                "input": [
+                    [
+                        1,
+                        1,
+                        1
+                    ],
+                    [
+                        2,
+                        2,
+                        2
+                    ],
+                    [
+                        3,
+                        3,
+                        3
+                    ]
+                ],
+                "output": [
+                    [
+                        1,
+                        1,
+                        1
+                    ],
+                    [
+                        2,
+                        2,
+                        2
+                    ],
+                    [
+                        3,
+                        3,
+                        3
+                    ]
+                ]
+            },
+        ],
+        "test": [
+            {
+                "input": [
+                    [
+                        1,
+                        1,
+                        2,
+                        3,
+                        3,
+                        3,
+                        8,
+                        8,
+                        4
+                    ]
+                ],
+                "output": [
+                    [
+                        1,
+                        2,
+                        3,
+                        8,
+                        4
+                    ]
+                ]
+            }
+        ]
+    }
+    expect(solveTask(task, 1)).toStrictEqual(task.train[0].output)
+
+});
+
+describe('given a matrix with all rows equal', function () {
+    let matrix = [
+        [1, 2, 3],
+        [1, 2, 3],
+        [1, 2, 3]
+    ]
+    it('should return true when comparing all rows', function () {
+        expect(rows.areAllRowsEqual(matrix)).toBe(true);
+    });
+});
+
+describe('given a matrix with one row different', function () {
+    let matrix = [
+        [1, 2, 3],
+        [2, 3, 4],
+        [1, 2, 3]
+    ]
+    it('should return false when comparing all rows', function () {
+        expect(rows.areAllRowsEqual(matrix)).toBe(false);
+    });
+});
+
+describe('given a matrix with one all rowws different', function () {
+    let matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+    ]
+    it('should return the tanspose ', function () {
+        expect(grids.transpose(matrix)).toStrictEqual([ [1,4,7], [2,5,8], [3,6,9] ]);
+    });
+});
+
+
+
+//  basic knowledge
+
+//  tasks
+//    how many?  which directory? names?  training vs evaluation
+
+//  task
+//    # training samples in task
+//    # testing samples in task
+
+// training sample
+//   # input rows
+//   # input columns
+//   # output rows
+//   # output columns
+
+
+
+// General capabilities
+//
+//   Code its own tests
+//      Add tests to wallaby.js,
+//         or, code around this
+//         or, run from command line?
+//
+//   Pick primitives
+//   Create primitives
+//   Try different approaches
+//   Generate "understanding" of training sample, set of training samples, solution
+//      Express this understanding
+
+
+// Primitive capabilities
+
+//  Compare sample inputs to outputs
+//    # rows
+//    # columns
+//    # colors
+
+// Grids
+//   rows
+//      shrink?
+//      grow?
+//      stay the same?
+//   columns
+//      shrink?
+//      grow?
+//      stay the same?
+
+// Some actions are synonyms
+//   dedupRows === compressRowsToSingleColors  === combineRedundantRows === uniqueRowsOnly
