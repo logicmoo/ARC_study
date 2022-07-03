@@ -33,5 +33,6 @@ function sanityCheck(task) {
     if(task.train.filter(t => !isArrayOfArrays(t.input) ).length > 0 )  return 'training input array elements must be arrays'
     if(task.train.filter(t => !isArrayOfArrays(t.output) ).length > 0 )  return 'training output array elements must be arrays'
 
+    return 'sane';
 }
 exports.sanityCheck = sanityCheck;
