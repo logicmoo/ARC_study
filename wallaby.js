@@ -1,7 +1,7 @@
 module.exports = function () {
   return {
     files: [
-      'data/training/746b3537.json',
+      'data/training/*.json',
       'src/utility/utils.js',
       'src/sanity_check.js',
       'src/rows.js',
@@ -10,9 +10,8 @@ module.exports = function () {
       'src/solve_task.js'
     ],
     tests: [
-//      'tests/utils.test.js'
-      'tests/sanity_check.test.js',
-      'tests/solve_task.test.js'
+        'tests/*.test.js',
+        'tests/auto/*.test.js',
     ],
 
     env: {

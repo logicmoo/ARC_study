@@ -16,12 +16,12 @@ const grids = {
     },
     dedupRows: (matrix) => {
         if(!columns.areAllColumnsEqual(matrix)) return matrix;
-        return Object.values(matrix.reduce((r, v) => (r[v] = v, r), {}))  /*?*/
+        return Object.values(matrix.reduce((r, v) => (r[v] = v, r), {}))
     },
     dedupColumns: (matrix) => {
         if(!rows.areAllRowsEqual(matrix)) return matrix;
-        let dedupedRow1 = [... new Set(matrix[0]) ]  /*?*/
-        return matrix.map(r => dedupedRow1) /*?*/
+        let dedupedRow1 = [... new Set(matrix[0]) ]
+        return matrix.map(r => dedupedRow1)
     },
 
 }

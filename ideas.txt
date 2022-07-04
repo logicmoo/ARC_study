@@ -1,0 +1,105 @@
+
+
+mass process all task files
+- to see if current rules solve any
+
+auto-generation of tests
+- add
+
+ROUTINES
+
+test for symmetries:
+- left-right
+- up-down
+- across diagonals
+- translational
+- rot: 90, 180, 270
+- scaling:  1/2x, 2x, 3x
+make monochrome  (all colors to blue == 1)
+- this will allow for testing exact equality of matrices modulo color
+flatten to string
+- on transpose, too;  maybe use regexes to pattern match, then
+interleave flattening to help find patterns
+percent black, other colors
+enclosed areas
+
+WILD
+
+genetic algo which creates regexes
+
+
+STRATEGIES
+
+divide problems into types
+
+All inputs have the same grid size
+All outputs have the same grid size
+
+- maintain grid size
+- increase grid size
+-- only in x
+-- only in y
+-- in x and y
+- decrease grid size
+-- only in x
+-- only in y
+-- in x and y
+
+# of colors
+- increase
+- decrease
+
+
+
+GRAVEYARD
+
+//  basic knowledge
+
+//  tasks
+//    how many?  which directory? names?  training vs evaluation
+
+//  task
+//    # training samples in task
+//    # testing samples in task
+
+// training sample
+//   # input rows
+//   # input columns
+//   # output rows
+//   # output columns
+
+
+
+// General capabilities
+//
+//   Code its own tests
+//      Add tests to wallaby.js,
+//         or, code around this
+//         or, run from command line?
+//
+//   Pick primitives
+//   Create primitives
+//   Try different approaches
+//   Generate "understanding" of training sample, set of training samples, solution
+//      Express this understanding
+
+
+// Primitive capabilities
+
+//  Compare sample inputs to outputs
+//    # rows
+//    # columns
+//    # colors
+
+// Grids
+//   rows
+//      shrink?
+//      grow?
+//      stay the same?
+//   columns
+//      shrink?
+//      grow?
+//      stay the same?
+
+// Some actions are synonyms
+//   dedupRows === compressRowsToSingleColors  === combineRedundantRows === uniqueRowsOnly

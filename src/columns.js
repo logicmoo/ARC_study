@@ -16,12 +16,12 @@ const columns = {
     doesTheOutputColumnMatchAnyColumnsOfTheInput: (sample) => {
         let match = false;
         let outputColumn = columns.getOutputColumn(sample, 1);
-        let numberOfInputColumns = columns.getNumberOfInputColumns(sample); /*?*/
+        let numberOfInputColumns = columns.getNumberOfInputColumns(sample);
         for(let column= 1; column <= numberOfInputColumns; column++ ) {
             let inputColumn = columns.getInputColumn(sample, column);
             if( _.isEqual( inputColumn, outputColumn)) match = true
         }
-        return match; /*?*/
+        return match;
     },
     areAllColumnsEqual: (matrix) => {
         let matrixTranspose = _.unzip(matrix);
@@ -31,7 +31,7 @@ const columns = {
         if(columns.isTheOutputOneColumnWide(sample)) {
             if(columns.doesTheOutputColumnMatchAnyColumnsOfTheInput(sample)) {
                 if(columns.areAllColumnsEqual(sample.input)) {
-                    return sample.output; /*?*/
+                    return sample.output;
                 }
             }
         }

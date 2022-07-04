@@ -22,7 +22,7 @@ const rows = {
         if(rows.isTheOutputOneRowHigh(sample)) {
             if(rows.doesTheOutputRowMatchAnyRowsOfTheInput(sample)) {
                 if(rows.areAllRowsEqual(sample.input)) {
-                    return sample.output; /*?*/
+                    return sample.output;
                 }
             }
         }

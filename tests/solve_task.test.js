@@ -135,66 +135,16 @@ describe('given a matrix with one row different', function () {
     });
 });
 
-describe('given a matrix with one all rowws different', function () {
+describe('given a matrix with one all rows different', function () {
     let matrix = [
         [1, 2, 3],
         [4, 5, 6],
         [7, 8, 9]
     ]
-    it('should return the tanspose ', function () {
+    it('should return the transpose ', function () {
         expect(grids.transpose(matrix)).toStrictEqual([ [1,4,7], [2,5,8], [3,6,9] ]);
     });
 });
 
 
 
-//  basic knowledge
-
-//  tasks
-//    how many?  which directory? names?  training vs evaluation
-
-//  task
-//    # training samples in task
-//    # testing samples in task
-
-// training sample
-//   # input rows
-//   # input columns
-//   # output rows
-//   # output columns
-
-
-
-// General capabilities
-//
-//   Code its own tests
-//      Add tests to wallaby.js,
-//         or, code around this
-//         or, run from command line?
-//
-//   Pick primitives
-//   Create primitives
-//   Try different approaches
-//   Generate "understanding" of training sample, set of training samples, solution
-//      Express this understanding
-
-
-// Primitive capabilities
-
-//  Compare sample inputs to outputs
-//    # rows
-//    # columns
-//    # colors
-
-// Grids
-//   rows
-//      shrink?
-//      grow?
-//      stay the same?
-//   columns
-//      shrink?
-//      grow?
-//      stay the same?
-
-// Some actions are synonyms
-//   dedupRows === compressRowsToSingleColors  === combineRedundantRows === uniqueRowsOnly

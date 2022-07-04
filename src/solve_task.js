@@ -28,7 +28,7 @@ function solve_sample(sample) {
     if(rows.isTheOutputOneRowHigh(sample)) {
         if(columns.areThereMoreInputColumnsThanOutputColumns(sample)) {
             sample.input = grids.dedupColumns(sample.input);
-            solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);  /*?*/
+            solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
     }
@@ -36,7 +36,7 @@ function solve_sample(sample) {
     if(columns.isTheOutputOneColumnWide(sample)) {
         if(rows.areThereMoreInputRowsThanOutputRows(sample)) {
             sample.input = grids.dedupRows(sample.input);
-            solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);  /*?*/
+            solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
 
