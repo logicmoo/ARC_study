@@ -7,7 +7,8 @@ module.exports = function () {
       'src/rows.js',
       'src/columns.js',
       'src/grids.js',
-      'src/solve_task.js'
+      'src/solve_task.js',
+      'tests/tasks.js',
     ],
     tests: [
         'tests/*.test.js',

@@ -1,7 +1,7 @@
 const { solveTask } = require('../src/solve_task')
 const { rows } = require('../src/rows')
 const { grids } = require('../src/grids')
-const task_746B3537 = require("../data/training/746b3537.json");
+//const task_746B3537 = require("../data/training/746b3537.json");
 
 
 //  all 746B3537 training sample outputs have either 1 row or one column
@@ -16,11 +16,11 @@ describe('given 746B3537', function () {
 
     it('should give the solution to task_746B3537 train sample 1 as [ [1], [2], [1] ]', function () {
         expect(solveTask(task_746B3537, 1)).toStrictEqual([ [1], [2], [1] ])
-    });
+    })
 
     it('should give the solution to task_746B3537 train sample 2 as [ 3, 4, 6 ]', function () {
         expect(solveTask(task_746B3537, 2)).toStrictEqual([[ 3, 4, 6 ]] )
-    });
+    })
 
     it('should give the solution to task_746B3537 train sample 3 as [ 2, 3, 8, 1 ]', function () {
         expect(solveTask(task_746B3537, 3)).toStrictEqual([[ 2, 3, 8, 1 ]] )

@@ -7,9 +7,11 @@ const { grids } = require("./grids")
 
 function solve_sample(sample) {
 
+    let failReason = '';
     if(grids.doInputAndOutputGridsHaveTheSameDimensions(sample)) {
         if(grids.areInputAndOutputGridsIdentical(sample))
             return sample.output
+        failReason += "grids have same dimension |"
     }
 
     let solution
@@ -17,11 +19,13 @@ function solve_sample(sample) {
     if(columns.areInputAndOutputColumnsOfTheSameSize(sample)) {
         solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample)
         if (solution) return sample.output
+        failReason += "input and output columns have same size |"
     }
 
     if(rows.areInputAndOutputRowsOfTheSameSize(sample)) {
         solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample)
         if (solution) return sample.output;
+        failReason += "input and output rows have the same size |"
     }
 
     // Now we know rows and columns are different
@@ -31,6 +35,7 @@ function solve_sample(sample) {
             solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
+        failReason += "output is one row high |"
     }
 
     if(columns.isTheOutputOneColumnWide(sample)) {
@@ -39,9 +44,10 @@ function solve_sample(sample) {
             solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
-
+        failReason += "output is one column wide |"
     }
-    // if we de-dup columns
+
+    return "no solution"  + failReason
 }
 
 function solve_task(task, training_sample) {
