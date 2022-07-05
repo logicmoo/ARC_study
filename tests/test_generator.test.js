@@ -34,7 +34,7 @@ describe('given a list of tasks', function () {
     describe('given a task in the list of tasks', function () {
 
 
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < 1; i++) {
         // for (let i = 0; i < 100; i++) {
 
             let task_id =  task_list[i];
@@ -60,7 +60,7 @@ describe('given a list of tasks', function () {
               +  "    })\n\n"
 
             test_file_contents =  test_file_contents   + "})\n"
-            fs.writeFileSync("/home/jon/js/arc/tests/auto/task_" + task_id + ".test.js", test_file_contents); /*?*/
+            fs.writeFileSync("/home/jon/js/arc/tests/auto/task_" + task_id + ".test.js", test_file_contents);
 
         }
 

@@ -4,6 +4,12 @@ const { rows } = require("./rows");
 const columns = {
     getNumberOfInputColumns: (sample) => { return sample.input.length; },
     getNumberOfOutputColumns: (sample) => { return sample.output.length; },
+    getInputOutputColumnScalingFactor: (sample) => {
+        return columns.getNumberOfInputColumns(sample)/columns.getNumberOfOutputColumns(sample)
+    },
+    getOutputInputColumnScalingFactor: (sample) => {
+        return columns.getNumberOfOutputColumns(sample)/columns.getNumberOfInputColumns(sample)
+    },
     getInputColumn: (sample, column) => { return sample.input.map(row => row[column-1])},
     getOutputColumn: (sample, column)  => { return sample.output.map(row => row[column-1]) },
     areInputAndOutputColumnsOfTheSameSize: (sample) => {

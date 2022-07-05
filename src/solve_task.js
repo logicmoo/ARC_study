@@ -7,11 +7,11 @@ const { grids } = require("./grids")
 
 function solve_sample(sample) {
 
-    let failReason = '';
+    let patternDetected = '';
     if(grids.doInputAndOutputGridsHaveTheSameDimensions(sample)) {
         if(grids.areInputAndOutputGridsIdentical(sample))
             return sample.output
-        failReason += "grids have same dimension |"
+        patternDetected += "grids have same dimension |"
     }
 
     let solution
@@ -19,13 +19,13 @@ function solve_sample(sample) {
     if(columns.areInputAndOutputColumnsOfTheSameSize(sample)) {
         solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample)
         if (solution) return sample.output
-        failReason += "input and output columns have same size |"
+        patternDetected += "input and output columns have same size |"
     }
 
     if(rows.areInputAndOutputRowsOfTheSameSize(sample)) {
         solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample)
         if (solution) return sample.output;
-        failReason += "input and output rows have the same size |"
+        patternDetected += "input and output rows have the same size |"
     }
 
     // Now we know rows and columns are different
@@ -35,7 +35,7 @@ function solve_sample(sample) {
             solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
-        failReason += "output is one row high |"
+        patternDetected += "output is one row high |"
     }
 
     if(columns.isTheOutputOneColumnWide(sample)) {
@@ -44,10 +44,37 @@ function solve_sample(sample) {
             solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);
             if(solution) return sample.output;
         }
-        failReason += "output is one column wide |"
+        patternDetected += "output is one column wide |"
     }
 
-    return "no solution"  + failReason
+    // console.log('rows.getInputOutputRowScalingFactor(sample) ', rows.getInputOutputRowScalingFactor(sample) );
+    // console.log('columns.getInputOutputColumnScalingFactor(sample) ', columns.getInputOutputColumnScalingFactor(sample) );
+    // console.log('rows.getOutputInputRowScalingFactor(sample) ', rows.getOutputInputRowScalingFactor(sample) );
+    // console.log('columns.getOutputInputColumnScalingFactor(sample) ', columns.getOutputInputColumnScalingFactor(sample) );
+
+    // input is scaled DOWN by the same integer factor in rows and columns
+    if( rows.getInputOutputRowScalingFactor(sample) === Math.floor(rows.getInputOutputRowScalingFactor(sample)) &&
+        rows.getInputOutputRowScalingFactor(sample) < 1.0 &&
+        rows.getInputOutputRowScalingFactor(sample) === columns.getInputOutputColumnScalingFactor(sample) ) {
+        patternDetected += 'scales down an integer multiple in rows and columns |'
+    }
+
+    // input is scaled UP by the same integer factor in rows and columns
+    if( rows.getOutputInputRowScalingFactor(sample) === Math.floor(rows.getOutputInputRowScalingFactor(sample)) &&
+        rows.getOutputInputRowScalingFactor(sample) > 1.0 &&
+        rows.getOutputInputRowScalingFactor(sample) === columns.getOutputInputColumnScalingFactor(sample) ) {
+
+        // are there copies of the input in the  output?
+        //   are they exact copies?  (in number of cells)
+        //   how many are there?  what are their colors
+        //   OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
+        //    OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
+
+        patternDetected += 'scales up an integer multiple in rows and columns |'
+    }
+
+
+    return "no solution:   "  + patternDetected
 }
 
 function solve_task(task, training_sample) {

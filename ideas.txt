@@ -50,56 +50,76 @@ All outputs have the same grid size
 - decrease
 
 
+TASK QUESTIONS
 
-GRAVEYARD
-
-//  basic knowledge
-
-//  tasks
-//    how many?  which directory? names?  training vs evaluation
-
-//  task
-//    # training samples in task
-//    # testing samples in task
-
-// training sample
-//   # input rows
-//   # input columns
-//   # output rows
-//   # output columns
+007bbfb7
+- is the input scaled up an integer factor?
+- are the same colors used in the input and output?
+- are there exact copies of the input in the output?
+-- assuming yes:  how many copies?  where are they?
+-- the hard question:  why are the copies where they are?
+--  hard to encode answer: because they are in the non-background color cells in the input
 
 
 
-// General capabilities
-//
-//   Code its own tests
-//      Add tests to wallaby.js,
-//         or, code around this
-//         or, run from command line?
-//
-//   Pick primitives
-//   Create primitives
-//   Try different approaches
-//   Generate "understanding" of training sample, set of training samples, solution
-//      Express this understanding
+BRAINSTORM
+
+evaluate situation  -> take action(s)
+how to percolate evaluation upwards?
+
+there are levels of "evaluation"  (level is a vague word)
+- eg:  "color of a cell" is much lower than  "are input and output grids the same?"
+- lower levels may influence upper levels, but upper levels may influence lower levels
+--  it isn't a strict hierarchy, perhaps
+
+there are kinds of evaluation
+- yes/no (binary) properties:  same grid size, same colors
+- numbers:  scaling factors, # of colors
+- numerical ranges:
+- one of a set:  shapes
+
+eval/action of all training samples in a task _taken together_ has to constrain the eval/action of the test
+
+could these be reduced to finding string transformations between input -> output?
+--  JSON.stringify(input)
+--  pipes and numbers
+
+we would like for the evaluations and actions to be explainable
 
 
-// Primitive capabilities
+CAPABILITIES NEEDED
 
-//  Compare sample inputs to outputs
-//    # rows
-//    # columns
-//    # colors
+aggregation
+- what tasks have a given property?
+-- exanples:
+---  How many tasks have input and outputs with the same dimensions?  Which?
+- answers question:  "how important is this evaluation "
+- implementation details
+-- dictionary of dictionaries of dictionaries
+---  {
+         task_id:  {
+              sample1:  { solved: false,  prop1:  1,  prop2: 2 , ... }
+              sample2:  { solved: false,  prop1:  1,  prop2: 2 , ... }
+                  ...
+              test:  {  prop1:  1,  prop2: 2 , ... }
+                   },
+         task_id:  {
+              sample1:  {  prop1:  1,  prop2: 2 , ... }
+              sample2:  {  prop1:  1,  prop2: 2 , ... }
+                  ...
+              test:  {  prop1:  1,  prop2: 2 , ... }
+                   }
+     }
+-- pass structure in from test_generator;  each test
 
-// Grids
-//   rows
-//      shrink?
-//      grow?
-//      stay the same?
-//   columns
-//      shrink?
-//      grow?
-//      stay the same?
+Another alternative:
+use Jest Globals
+- describe.each
+- then after.all to aggregate
+- maybe use after each for aggregating at the individual task level
 
-// Some actions are synonyms
-//   dedupRows === compressRowsToSingleColors  === combineRedundantRows === uniqueRowsOnly
+
+a way of determining the actions to take given a set of evaluations
+
+meta: code which develops new evaluations (and actions) on the fly
+- example: comparing grid sizes

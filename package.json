@@ -2,7 +2,6 @@
   "name": "arc",
   "version": "1.0.0",
   "description": "chollet abstraction and reasoning corpus",
-  "main": "index.js",
   "scripts": {
     "test": "jest"
   },
@@ -24,8 +23,8 @@
   },
   "homepage": "https://github.com/fermigas/ARC#readme",
   "devDependencies": {
-    "jest": "^24.9.0",
-    "jest-cli": "^24.9.0"
+    "jest": "^27.5.1",
+    "jest-cli": "^27.5.1"
   },
   "jest": {
     "verbose": true,
