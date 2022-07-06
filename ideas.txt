@@ -21,7 +21,14 @@ flatten to string
 - on transpose, too;  maybe use regexes to pattern match, then
 interleave flattening to help find patterns
 percent black, other colors
+- has no black?
 enclosed areas
+
+has mono-colored rows/columns
+only has mono-colored rows/columns
+
+each color only used once in a row/column
+
 
 WILD
 
@@ -51,6 +58,11 @@ All outputs have the same grid size
 
 
 TASK QUESTIONS
+
+00000000
+
+- are all outputs only one row/column, or row & column?
+-- if so, we can transpose one kind and see if similar patterns emerge
 
 007bbfb7
 - is the input scaled up an integer factor?

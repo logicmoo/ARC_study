@@ -7,62 +7,71 @@ const { grids } = require("./grids")
 
 function solve_sample(sample) {
 
-    let patternDetected = '';
+    let patternsDetected = {}
+
     if(grids.doInputAndOutputGridsHaveTheSameDimensions(sample)) {
-        if(grids.areInputAndOutputGridsIdentical(sample))
-            return sample.output
-        patternDetected += "grids have same dimension |"
+        patternsDetected["InputAndOutputGridsHaveTheSameDimensions"] = true
+        if(grids.areInputAndOutputGridsIdentical(sample)) {
+            patternsDetected["InputAndOutputGridsIdentical"] = true
+            patternsDetected["solution"] = sample.output
+            return patternsDetected //sample.output
+        }
     }
 
     let solution
 
     if(columns.areInputAndOutputColumnsOfTheSameSize(sample)) {
+        patternsDetected["InputAndOutputColumnsOfTheSameSize"] = true
+        //  TODO:  this has more pattern detections buried inside
         solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample)
-        if (solution) return sample.output
-        patternDetected += "input and output columns have same size |"
+        if (solution) {
+            patternsDetected["solution"] = sample.output
+            return patternsDetected //sample.output
+        }
     }
 
     if(rows.areInputAndOutputRowsOfTheSameSize(sample)) {
+        patternsDetected["InputAndOutputRowsOfTheSameSize"] = true
+        //  TODO:  this has more pattern detections buried inside
         solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample)
-        if (solution) return sample.output;
-        patternDetected += "input and output rows have the same size |"
+        if (solution) {
+            patternsDetected["solution"] = sample.output
+            return patternsDetected // sample.output;
+        }
     }
 
     // Now we know rows and columns are different
     if(rows.isTheOutputOneRowHigh(sample)) {
+        patternsDetected["OutputOneRowHigh"] = true
         if(columns.areThereMoreInputColumnsThanOutputColumns(sample)) {
+            patternsDetected["MoreInputColumnsThanOutputColumn"] = true
             sample.input = grids.dedupColumns(sample.input);
             solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);
-            if(solution) return sample.output;
+            if(solution) {
+                patternsDetected["solution"] = sample.output
+                return patternsDetected //sample.output;
+            }
         }
-        patternDetected += "output is one row high |"
     }
 
     if(columns.isTheOutputOneColumnWide(sample)) {
+        patternsDetected["OutputOneColumnWide"] = true
         if(rows.areThereMoreInputRowsThanOutputRows(sample)) {
             sample.input = grids.dedupRows(sample.input);
             solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);
-            if(solution) return sample.output;
+            if(solution) {
+                patternsDetected["solution"] = sample.output
+                return patternsDetected //sample.output;
+            }
         }
-        patternDetected += "output is one column wide |"
     }
 
-    // console.log('rows.getInputOutputRowScalingFactor(sample) ', rows.getInputOutputRowScalingFactor(sample) );
-    // console.log('columns.getInputOutputColumnScalingFactor(sample) ', columns.getInputOutputColumnScalingFactor(sample) );
-    // console.log('rows.getOutputInputRowScalingFactor(sample) ', rows.getOutputInputRowScalingFactor(sample) );
-    // console.log('columns.getOutputInputColumnScalingFactor(sample) ', columns.getOutputInputColumnScalingFactor(sample) );
 
-    // input is scaled DOWN by the same integer factor in rows and columns
-    if( rows.getInputOutputRowScalingFactor(sample) === Math.floor(rows.getInputOutputRowScalingFactor(sample)) &&
-        rows.getInputOutputRowScalingFactor(sample) < 1.0 &&
-        rows.getInputOutputRowScalingFactor(sample) === columns.getInputOutputColumnScalingFactor(sample) ) {
-        patternDetected += 'scales down an integer multiple in rows and columns |'
+    if(grids.isInputGridScaledDownByIntegerFactor(sample) ) {
+        patternsDetected["InputGridScaledDownByIntegerFactor"] = true
     }
 
-    // input is scaled UP by the same integer factor in rows and columns
-    if( rows.getOutputInputRowScalingFactor(sample) === Math.floor(rows.getOutputInputRowScalingFactor(sample)) &&
-        rows.getOutputInputRowScalingFactor(sample) > 1.0 &&
-        rows.getOutputInputRowScalingFactor(sample) === columns.getOutputInputColumnScalingFactor(sample) ) {
+    if( grids.isInputGridScaledUpByIntegerFactor(sample) ) {
 
         // are there copies of the input in the  output?
         //   are they exact copies?  (in number of cells)
@@ -70,11 +79,10 @@ function solve_sample(sample) {
         //   OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
         //    OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
 
-        patternDetected += 'scales up an integer multiple in rows and columns |'
+        patternsDetected["InputGridScaledUpByIntegerFactor"] = true
     }
 
-
-    return "no solution:   "  + patternDetected
+    return  patternsDetected
 }
 
 function solve_task(task, training_sample) {

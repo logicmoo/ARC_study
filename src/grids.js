@@ -4,11 +4,23 @@ const _ = require("lodash");
 
 const grids = {
     doInputAndOutputGridsHaveTheSameDimensions: (sample) => {
-        return columns.areInputAndOutputColumnsOfTheSameSize(sample)  && rows.areInputAndOutputRowsOfTheSameSize(sample)
+        return columns.areInputAndOutputColumnsOfTheSameSize(sample) && rows.areInputAndOutputRowsOfTheSameSize(sample)
     },
     areInputAndOutputGridsIdentical: (sample) => {
-        return 0 === sample.input.filter((r, i) => !_.isEqual(r, sample.output[i] ) ).length
+        return 0 === sample.input.filter((r, i) => !_.isEqual(r, sample.output[i])).length
     },
+    isInputGridScaledDownByIntegerFactor: (sample) => {
+        return rows.getInputOutputRowScalingFactor(sample) === Math.floor(rows.getInputOutputRowScalingFactor(sample)) &&
+                rows.getInputOutputRowScalingFactor(sample) < 1.0 &&
+                rows.getInputOutputRowScalingFactor(sample) === columns.getInputOutputColumnScalingFactor(sample)
+    },
+    isInputGridScaledUpByIntegerFactor: (sample) => {
+        return rows.getOutputInputRowScalingFactor(sample) === Math.floor(rows.getOutputInputRowScalingFactor(sample)) &&
+            rows.getOutputInputRowScalingFactor(sample) > 1.0 &&
+            rows.getOutputInputRowScalingFactor(sample) === columns.getOutputInputColumnScalingFactor(sample)
+    },
+
+    // ACTIONS
     //  also transpose with lodash:  _.unzip(matrix);
     transpose: (matrix) => {
         return _.unzip(matrix);
