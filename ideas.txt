@@ -56,6 +56,12 @@ All outputs have the same grid size
 - increase
 - decrease
 
+        are there copies of the input in the  output?
+          are they exact copies?  (in number of cells)
+          how many are there?  what are their colors
+          OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
+           OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
+
 
 TASK QUESTIONS
 

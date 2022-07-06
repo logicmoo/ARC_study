@@ -9,78 +9,26 @@ function solve_sample(sample) {
 
     let patternsDetected = {}
 
-    if(grids.doInputAndOutputGridsHaveTheSameDimensions(sample)) {
-        patternsDetected["InputAndOutputGridsHaveTheSameDimensions"] = true
-        if(grids.areInputAndOutputGridsIdentical(sample)) {
-            patternsDetected["InputAndOutputGridsIdentical"] = true
-            patternsDetected["solution"] = sample.output
-            return patternsDetected //sample.output
-        }
-    }
+    if(grids.doInputAndOutputGridsHaveTheSameDimensions(sample))   patternsDetected["InputAndOutputGridsHaveTheSameDimensions"] = true
+    if(grids.areInputAndOutputGridsIdentical(sample)) patternsDetected["InputAndOutputGridsIdentical"] = true
 
-    let solution
+    if(columns.areInputAndOutputColumnsOfTheSameSize(sample))  patternsDetected["InputAndOutputColumnsOfTheSameSize"] = true
+    if(columns.doesTheOutputColumnMatchAnyColumnsOfTheInput(sample))  patternsDetected["OutputColumnMatchAnyColumnsOfTheInput"] = true
+    if(columns.areAllColumnsEqual(sample.input))  patternsDetected["AllInputColumnsEqual"] = true
 
-    if(columns.areInputAndOutputColumnsOfTheSameSize(sample)) {
-        patternsDetected["InputAndOutputColumnsOfTheSameSize"] = true
-        //  TODO:  this has more pattern detections buried inside
-        solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample)
-        if (solution) {
-            patternsDetected["solution"] = sample.output
-            return patternsDetected //sample.output
-        }
-    }
+    if(rows.areInputAndOutputRowsOfTheSameSize(sample)) patternsDetected["InputAndOutputRowsOfTheSameSize"] = true
+    if(rows.doesTheOutputRowMatchAnyRowsOfTheInput(sample))  patternsDetected["OutputRowMatchAnyRowsOfTheInput"] = true
+    if(rows.areAllRowsEqual(sample.input))  patternsDetected["AllInputRowsEqual"] = true
 
-    if(rows.areInputAndOutputRowsOfTheSameSize(sample)) {
-        patternsDetected["InputAndOutputRowsOfTheSameSize"] = true
-        //  TODO:  this has more pattern detections buried inside
-        solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample)
-        if (solution) {
-            patternsDetected["solution"] = sample.output
-            return patternsDetected // sample.output;
-        }
-    }
+    if(rows.isTheOutputOneRowHigh(sample))  patternsDetected["OutputOneRowHigh"] = true
+    if(columns.areThereMoreInputColumnsThanOutputColumns(sample))  patternsDetected["MoreInputColumnsThanOutputColumn"] = true
 
-    // Now we know rows and columns are different
-    if(rows.isTheOutputOneRowHigh(sample)) {
-        patternsDetected["OutputOneRowHigh"] = true
-        if(columns.areThereMoreInputColumnsThanOutputColumns(sample)) {
-            patternsDetected["MoreInputColumnsThanOutputColumn"] = true
-            sample.input = grids.dedupColumns(sample.input);
-            solution = rows.processInputAndOutputHavingRowsOfTheSameSize(sample);
-            if(solution) {
-                patternsDetected["solution"] = sample.output
-                return patternsDetected //sample.output;
-            }
-        }
-    }
+    if(columns.isTheOutputOneColumnWide(sample)) patternsDetected["OutputOneColumnWide"] = true
+    if(rows.areThereMoreInputRowsThanOutputRows(sample)) patternsDetected["MoreInputRowsThanOutputRows"] = true
 
-    if(columns.isTheOutputOneColumnWide(sample)) {
-        patternsDetected["OutputOneColumnWide"] = true
-        if(rows.areThereMoreInputRowsThanOutputRows(sample)) {
-            sample.input = grids.dedupRows(sample.input);
-            solution = columns.processInputAndOutputHavingColumnsOfTheSameSize(sample);
-            if(solution) {
-                patternsDetected["solution"] = sample.output
-                return patternsDetected //sample.output;
-            }
-        }
-    }
+    if(grids.isInputGridScaledDownByIntegerFactor(sample) )  patternsDetected["InputGridScaledDownByIntegerFactor"] = true
+    if(grids.isInputGridScaledUpByIntegerFactor(sample) ) patternsDetected["InputGridScaledUpByIntegerFactor"] = true
 
-
-    if(grids.isInputGridScaledDownByIntegerFactor(sample) ) {
-        patternsDetected["InputGridScaledDownByIntegerFactor"] = true
-    }
-
-    if( grids.isInputGridScaledUpByIntegerFactor(sample) ) {
-
-        // are there copies of the input in the  output?
-        //   are they exact copies?  (in number of cells)
-        //   how many are there?  what are their colors
-        //   OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
-        //    OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
-
-        patternsDetected["InputGridScaledUpByIntegerFactor"] = true
-    }
 
     return  patternsDetected
 }

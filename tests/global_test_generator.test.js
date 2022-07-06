@@ -1,25 +1,46 @@
+const _ = require("lodash");
 const {solveTask} = require("../src/solve_task");
-const task_746B3537 = require("../data/training/746b3537.json");
+const { task_list } = require("./tasks")
 
+let some_tasks =   [[ '00000000' ], [ '007bbfb7' ] ]
+let all_tasks = task_list.map(t => [t] )
 let aggregate = { };
 
-afterAll(() => {
-    // count patterns identified
-    console.log('aggregate final', aggregate)
-});
+
+function everySampleHasProperty(task_id, property) {
+    let sample_keys = Object.keys(aggregate[task_id])
+    return sample_keys.every(key => _.has(aggregate[task_id][key], property))
+
+}
+
+let propertyList = [
+    'InputAndOutputGridsHaveTheSameDimensions', 'InputAndOutputGridsIdentical', 'InputAndOutputColumnsOfTheSameSize',
+    'OutputColumnMatchAnyColumnsOfTheInput', 'AllInputColumnsEqual', 'InputAndOutputRowsOfTheSameSize',
+    'OutputRowMatchAnyRowsOfTheInput', 'AllInputRowsEqual', 'OutputOneRowHigh', 'MoreInputColumnsThanOutputColumn',
+    'OutputOneColumnWide', 'MoreInputRowsThanOutputRows', 'InputGridScaledDownByIntegerFactor', 'InputGridScaledUpByIntegerFactor'
+]
+
+function processAggregate() {
+    let use_tasks = all_tasks // some_tasks
+    let propertyTable = { }
+    propertyList.forEach(property => {
+        let at =  use_tasks.filter(task_id => everySampleHasProperty(task_id, property))
+        propertyTable[property] = at.length;
+        // console.log(property, at.length   // ,  at
+        // )
+
+    })
+
+    console.log(propertyTable)
+}
+
 
 
 describe('given a list of tasks to aggregate on', function () {
-    const { task_list } = require("./tasks")
-
-    let all_tasks = task_list.map(t => [t] )
 
     describe.each(
-        // all_tasks
-     [
-        [ '00000000' ],
-        [ '007bbfb7' ],
-    ]
+    //    some_tasks
+        all_tasks
     )('given task_%s', (task_id) => {
 
         let task_file = require("../data/training/" + task_id + ".json")
@@ -50,6 +71,14 @@ describe('given a list of tasks to aggregate on', function () {
             expect(true).toStrictEqual(true)
 //            expect(solution).toStrictEqual(task_file.test[0].output)
         });
+
+    });
+
+    afterAll(() => {
+        // count patterns identified
+        // console.log('aggregate final', aggregate)
+
+        processAggregate()
 
     });
 
