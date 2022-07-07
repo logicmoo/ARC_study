@@ -1,4 +1,43 @@
+LEVELS
 
+each level has
+
+one train input
+one train output
+one test input
+one test output
+
+one train pair - looks at properties of both input and output
+one test pair
+
+all train pairs - looks at properties true of all pairs
+all test pairs
+
+one puzzle
+
+all puzzles - what is true of all puzzles?  sanity checker knows, but is incomplete
+- min/max grid size
+- min/max colors
+
+levels can be applied to properties, too
+
+PROPERTY TYPES
+
+yes/no properties
+counts
+- # rows, columns, cells
+- # of colors
+coordinates  (top, left, bottom, right)
+- grids
+- shapes, etc
+1d arrays of strings
+1d arrays of numbers
+- colors
+- cells of given color eg: ( 40, 0, 0, 1, 5, 5, 1, 0, 0, 0)
+- percent of cells of given color
+solution function sequence
+
+======
 
 mass process all task files
 - to see if current rules solve any
