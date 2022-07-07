@@ -29,6 +29,30 @@ function solve_sample(sample) {
     if(grids.isInputGridScaledDownByIntegerFactor(sample) )  patternsDetected["InputGridScaledDownByIntegerFactor"] = true
     if(grids.isInputGridScaledUpByIntegerFactor(sample) ) patternsDetected["InputGridScaledUpByIntegerFactor"] = true
 
+    if(grids.areInputAndOutputSquare(sample)) patternsDetected["InputAndOutputSquare"] = true
+    if(grids.isInputSquare(sample)) patternsDetected["InputSquare"] = true
+    if(grids.isOutputSquare(sample)) patternsDetected["OutputSquare"] = true
+    if(grids.areInputSquareAndOutputNotSquare(sample)) patternsDetected["InputSquareAndOutputNotSquare"] = true
+    if(grids.areInputNotSquareAndOutputSquare(sample)) patternsDetected["InputNotSquareAndOutputSquare"] = true
+    if(grids.areNeitherInputNorOutputSquare(sample)) patternsDetected["NeitherInputNorOutputSquare"] = true
+
+    if(grids.areAllInputCellsBlack(sample)) patternsDetected["AllInputCellsBlack"] = true
+    if(grids.areAllOutputCellsBlack(sample)) patternsDetected["AllOutputCellsBlack"] = true
+    if(grids.areAllInputCellsColored(sample)) patternsDetected["AllInputCellsColored"] = true
+    if(grids.areAllOutputCellsColored(sample)) patternsDetected["AllOutputCellsColored"] = true
+
+    if(grids.areAllInputCellsTheSameColor(sample)) patternsDetected["AllInputCellsTheSameColor"] = true
+    if(grids.areAllOutputCellsTheSameColor(sample)) patternsDetected["AllOutputCellsTheSameColor"] = true
+
+    if(grids.areAllInputCellsOneColorOrBlack(sample)) patternsDetected["AllInputCellsOneColorOrBlack"] = true
+    if(grids.areAllOutputCellsOneColorOrBlack(sample)) patternsDetected["AllOutputCellsOneColorOrBlack"] = true
+    if(grids.areAllInputAndOutputCellsOneColorOrBlack(sample)) patternsDetected["AllInputAndOutputCellsOneColorOrBlack"] = true
+
+    if(grids.areAllInputCellsTwoColorsOrBlack(sample)) patternsDetected["AllInputCellsTwoColorsOrBlack"] = true
+    if(grids.areAllOutputCellsTwoColorsOrBlack(sample)) patternsDetected["AllOutputCellsTwoColorsOrBlack"] = true
+    if(grids.areAllInputAndOutputCellsTwoColorsOrBlack(sample)) patternsDetected["AllInputAndOutputCellsTwoColorsOrBlack"] = true
+
+    if(patternsDetected === {})  patternsDetected["NoPatternsDetected"] = true
 
     return  patternsDetected
 }

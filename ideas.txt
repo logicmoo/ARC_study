@@ -6,6 +6,15 @@ mass process all task files
 auto-generation of tests
 - add
 
+need a way to rank properties by importance/exclusivity
+
+SOLUTION STRATEGY
+
+detect properties
+generate outputs of the right size
+fill outputs using sequence of filler routines; test against actual
+
+
 ROUTINES
 
 test for symmetries:
@@ -34,13 +43,41 @@ WILD
 
 genetic algo which creates regexes
 
+PRINCIPLES OF GENERALITY
+
+when a puzzle requires detecting the most of something ('de1cd16c') detect the least, too
 
 STRATEGIES
+
+degenerate outputs:  all one color, one row, one column
+
+denoiser
+- work in tandem with "find lonely dots"
+- possible implementation:
+--- subtract output from input (or vice versa)
+--- do only lonely dots remain?  no other shapes?
+
+//  Need  AllInputAndOutputCellsOneColor__AND_Black,
+//   AllInputAndOutputCellsOne__AndTheSame_Color__AND_Black
+
+detect colored regions
 
 divide problems into types
 
 All inputs have the same grid size
 All outputs have the same grid size
+All input/output pairs have same size, but different sizes between pairs
+All input/output pairs are square:  all row counts === column counts
+
+Color sets in input and output: all, some, none
+Inputs are all black
+Inputs are all of some non-black color
+
+find shapes within shapes
+
+is input row in each/most rows of output (feca6190)
+
+All output columns/rows all equal
 
 - maintain grid size
 - increase grid size
@@ -56,12 +93,57 @@ All outputs have the same grid size
 - increase
 - decrease
 
+interchange rows/columns;  permute them
+
+input and output have same colors
+input and output have same non-black colors
+
         are there copies of the input in the  output?
           are they exact copies?  (in number of cells)
           how many are there?  what are their colors
           OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
            OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
 
+is entire input contained in output?
+- under transform?
+-- horizontal/vertical/diagonal reflection
+-- rotation (90/180/270)
+
+single cell surrounded by black
+
+SHAPES
+(do some research on finding shapes in grids)
+
+find "objects"
+- single color / multiple colors
+- black color all around
+
+known shapes
+- squares 2x2, 3x3, 4x4
+- black-filled squares 3x3, 4x4, .... up to grid size
+- rectangles: 1x2..10; 2x3...10, 3x4...10;  and their 90 deg rotations
+- black-filled rectangles  3x4...10 and their rotations .... up to grid size
+- black shapes inside colored rectangles  3x4...10 and their rotations .... up to grid size ... with
+- each color-filled rectangles  3x4...10 and their rotations .... up to grid size
+- plus, plus with different colored center
+- x
+- notched 2x2: ox  and rotations
+               xx
+- non-uniform shapes
+-- game of life shapes
+
+reduce to B&W and identify shapes that way first
+- then see if they are a uniform color
+- if not, is it noise, or pattern?
+
+count shapes
+
+
+COUNTS
+
+black cells
+non-black cells
+cells of each color
 
 TASK QUESTIONS
 
@@ -79,6 +161,11 @@ TASK QUESTIONS
 --  hard to encode answer: because they are in the non-background color cells in the input
 
 
+
+
+DO NEXT
+
+5 tasks have InputAndOutputGridsIdentical?   Examine.  Might be bug.
 
 BRAINSTORM
 
@@ -141,3 +228,19 @@ a way of determining the actions to take given a set of evaluations
 
 meta: code which develops new evaluations (and actions) on the fly
 - example: comparing grid sizes
+
+20 QUESTIONS
+
+blind test - try to reconstruct puzzle using only the properties
+-- this will force coding properties I'd want to know about
+
+are all input and output grids the same size?
+are all inputs scaled by an integer factor?
+what is the grid size in #rows, #cols, #cells, input and output
+how many distinct colors? What are they?
+are there lonely dots?  how many?  do they remain from input to output?
+are there lonely lines?
+are colors isolated to on half or another?  In inputs and outputs?
+
+have shapes moved between input and outputs?
+-- have they combined with other shapes? replaced them?

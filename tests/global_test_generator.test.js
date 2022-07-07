@@ -4,6 +4,12 @@ const { task_list } = require("./tasks")
 
 let some_tasks =   [[ '00000000' ], [ '007bbfb7' ] ]
 let all_tasks = task_list.map(t => [t] )
+let use_tasks =  all_tasks
+           // some_tasks
+         //  [[ '3af2c5a8' ]  ]
+
+
+
 let aggregate = { };
 
 
@@ -17,11 +23,17 @@ let propertyList = [
     'InputAndOutputGridsHaveTheSameDimensions', 'InputAndOutputGridsIdentical', 'InputAndOutputColumnsOfTheSameSize',
     'OutputColumnMatchAnyColumnsOfTheInput', 'AllInputColumnsEqual', 'InputAndOutputRowsOfTheSameSize',
     'OutputRowMatchAnyRowsOfTheInput', 'AllInputRowsEqual', 'OutputOneRowHigh', 'MoreInputColumnsThanOutputColumn',
-    'OutputOneColumnWide', 'MoreInputRowsThanOutputRows', 'InputGridScaledDownByIntegerFactor', 'InputGridScaledUpByIntegerFactor'
+    'OutputOneColumnWide', 'MoreInputRowsThanOutputRows', 'InputGridScaledDownByIntegerFactor', 'InputGridScaledUpByIntegerFactor',
+    'InputAndOutputSquare', 'InputSquare', 'OutputSquare', 'InputSquareAndOutputNotSquare', 'InputNotSquareAndOutputSquare',
+    'AllInputCellsBlack', 'AllOutputCellsBlack', 'AllInputCellsColored', 'AllOutputCellsColored',
+    'AllInputCellsTheSameColor', 'AllOutputCellsTheSameColor', 'NeitherInputNorOutputSquare',
+    'AllInputCellsOneColorOrBlack', 'AllOutputCellsOneColorOrBlack', 'AllInputAndOutputCellsOneColorOrBlack',
+
+    'AllInputCellsTwoColorsOrBlack', 'AllOutputCellsTwoColorsOrBlack', 'AllInputAndOutputCellsTwoColorsOrBlack',
+    'NoPatternsDetected'
 ]
 
-function processAggregate() {
-    let use_tasks = all_tasks // some_tasks
+function generatePropertyTable (use_tasks)  {
     let propertyTable = { }
     propertyList.forEach(property => {
         let at =  use_tasks.filter(task_id => everySampleHasProperty(task_id, property))
@@ -32,6 +44,17 @@ function processAggregate() {
     })
 
     console.log(propertyTable)
+
+}
+function analyzeProperty (use_tasks, property)  {
+    let at =  use_tasks.filter(task_id => everySampleHasProperty(task_id, property))
+    console.log(property, at.length, at)
+}
+
+function processAggregate() {
+
+    generatePropertyTable (use_tasks)
+    analyzeProperty(use_tasks, 'AllInputAndOutputCellsTwoColorsOrBlack')
 }
 
 
@@ -39,8 +62,7 @@ function processAggregate() {
 describe('given a list of tasks to aggregate on', function () {
 
     describe.each(
-    //    some_tasks
-        all_tasks
+        use_tasks
     )('given task_%s', (task_id) => {
 
         let task_file = require("../data/training/" + task_id + ".json")

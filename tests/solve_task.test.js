@@ -36,3 +36,16 @@ describe('given a matrix with one all rows different', function () {
 
 
 
+describe('given a matrix that is all black', function () {
+    let matrix = [
+        [0, 0, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ]
+    it('should return true ', function () {
+        expect(grids.areAllCellsBlack(matrix)).toStrictEqual(true );
+    });
+});
+
+
+

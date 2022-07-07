@@ -28,6 +28,21 @@ const rows = {
                 }
             }
         }
-    }
+    },
+    isRowAllBlack: (r) => { return 0 === r.filter(cell => cell !== 0).length },
+    isRowAllColored: (r) => { return r.every(cell => cell !== 0) },
+    isRowAllOneColor: (r) => {
+        let color = r[0]
+        if(color === 0) return false  // Black is not a color
+        return r.every(cell => cell === color)
+    },
+    isRowAllThisOneColor: (r, color) => {
+        if(color === 0) return false  // Black is not a color
+        return r.every(cell => cell === color)
+    },
+    colorsBesidesBlack: (r) => {
+        return [...new Set(r.filter(cell => cell !== 0))]   // unique colors
+    },
+
 }
 exports.rows = rows
