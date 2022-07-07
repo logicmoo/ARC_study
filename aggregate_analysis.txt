@@ -106,14 +106,27 @@ AllInputAndOutputCellsTwoColorsOrBlack 27 [
   [ '1bfc4729' ], // find lonely dots; are they part of shape in output? (yes); draw that shape, using lonely dot's color
   [ '1e32b0e9' ], // find shape in top left of tick tack toe; add it with the other color to all other ttt cells, only overwriting black
   [ '3906de3d' ], // slide red lines into slots in blue holes above them
-  [ '3befdf3e' ],
-  [ '3f7978a0' ], [ '447fd412' ],
-  [ '4938f0c2' ], [ '496994bd' ],
-  [ '5168d44c' ], [ '6d58a25d' ],
-  [ '7468f01a' ], [ '760b3cac' ],
-  [ '928ad970' ], [ '963e52fc' ],
-  [ '98cf29f8' ], [ 'a48eeaf7' ],
-  [ 'b527c5c6' ], [ 'b7249182' ],
+  [ '3befdf3e' ], // swap colors; add center shape along boundary connecting with 2 cells
+  [ '3f7978a0' ], // remove columns with no gray; remove rows with no gray or blues attached to gray
+                //  although seeing if output shape lives in input would help narrow it
+                //  then must characterize output:
+                    - has same number of gray cells as input
+                    - all corner cells are light blue
+                    - right and left borders are non-black
+                // so is there a region, output sized, in input, with blue corners, all the grey cells
+  [ '447fd412' ],
+  [ '4938f0c2' ],
+  [ '496994bd' ],
+  [ '5168d44c' ],
+  [ '6d58a25d' ],
+  [ '7468f01a' ],
+  [ '760b3cac' ],
+  [ '928ad970' ],
+  [ '963e52fc' ],
+  [ '98cf29f8' ],
+  [ 'a48eeaf7' ],
+  [ 'b527c5c6' ],
+  [ 'b7249182' ],
   [ 'ba97ae07' ], [ 'cce03e0d' ],
   [ 'dc433765' ], [ 'e5062a87' ],
   [ 'e9afcf9a' ], [ 'ecdecbb3' ],
