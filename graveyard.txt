@@ -1,0 +1,54 @@
+GRAVEYARD
+
+//  basic knowledge
+
+//  tasks
+//    how many?  which directory? names?  training vs evaluation
+
+//  task
+//    # training samples in task
+//    # testing samples in task
+
+// training sample
+//   # input rows
+//   # input columns
+//   # output rows
+//   # output columns
+
+
+
+// General capabilities
+//
+//   Code its own tests
+//      Add tests to wallaby.js,
+//         or, code around this
+//         or, run from command line?
+//
+//   Pick primitives
+//   Create primitives
+//   Try different approaches
+//   Generate "understanding" of training sample, set of training samples, solution
+//      Express this understanding
+
+
+// Primitive capabilities
+
+//  Compare sample inputs to outputs
+//    # rows
+//    # columns
+//    # colors
+
+// Grids
+//   rows
+//      shrink?
+//      grow?
+//      stay the same?
+//   columns
+//      shrink?
+//      grow?
+//      stay the same?
+
+// Some actions are synonyms
+//   dedupRows === compressRowsToSingleColors  === combineRedundantRows === uniqueRowsOnly
+
+

@@ -22,6 +22,8 @@ The primary goal of the work is to be a toy model that fosters idea generation, 
   * Inference: finding a common process to turn input representations into output representations.
 * The system should be modular towards 'core knowledge', allowing new concepts to be plugged in easily.
 * For early simplicity, the learning and training are entirely manual, in order to find a viable solution architecture.
+=======
+A complete description of the dataset, its goals, and its underlying logic, can be found in: [On the Measure of Intelligence](https://arxiv.org/abs/1911.01547).
 
 See [here](https://arc.dereklarson.info) for an interactive visual demonstration of the system at work.
 

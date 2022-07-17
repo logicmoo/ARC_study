@@ -1,0 +1,285 @@
+LEVELS
+
+each level has
+
+one train input
+one train output
+one test input
+one test output
+
+one train pair - looks at properties of both input and output
+one test pair
+
+all train pairs - looks at properties true of all pairs
+all test pairs
+
+one puzzle
+
+all puzzles - what is true of all puzzles?  sanity checker knows, but is incomplete
+- min/max grid size
+- min/max colors
+
+levels can be applied to properties, too
+
+PROPERTY TYPES
+
+yes/no properties
+counts
+- # rows, columns, cells
+- # of colors
+coordinates  (top, left, bottom, right)
+- grids
+- shapes, etc
+1d arrays of strings
+1d arrays of numbers
+- colors
+- cells of given color eg: ( 40, 0, 0, 1, 5, 5, 1, 0, 0, 0)
+- percent of cells of given color
+solution function sequence
+
+======
+
+mass process all task files
+- to see if current rules solve any
+
+auto-generation of tests
+- add
+
+need a way to rank properties by importance/exclusivity
+
+SOLUTION STRATEGY
+
+detect properties
+generate outputs of the right size
+fill outputs using sequence of filler routines; test against actual
+
+
+ROUTINES
+
+test for symmetries:
+- left-right
+- up-down
+- across diagonals
+- translational
+- rot: 90, 180, 270
+- scaling:  1/2x, 2x, 3x
+make monochrome  (all colors to blue == 1)
+- this will allow for testing exact equality of matrices modulo color
+flatten to string
+- on transpose, too;  maybe use regexes to pattern match, then
+interleave flattening to help find patterns
+percent black, other colors
+- has no black?
+enclosed areas
+
+has mono-colored rows/columns
+only has mono-colored rows/columns
+
+each color only used once in a row/column
+
+
+WILD
+
+genetic algo which creates regexes
+
+PRINCIPLES OF GENERALITY
+
+when a puzzle requires detecting the most of something ('de1cd16c') detect the least, too
+
+STRATEGIES
+
+degenerate outputs:  all one color, one row, one column
+
+denoiser
+- work in tandem with "find lonely dots"
+- possible implementation:
+--- subtract output from input (or vice versa)
+--- do only lonely dots remain?  no other shapes?
+
+//  Need  AllInputAndOutputCellsOneColor__AND_Black,
+//   AllInputAndOutputCellsOne__AndTheSame_Color__AND_Black
+
+detect colored regions
+
+divide problems into types
+
+All inputs have the same grid size
+All outputs have the same grid size
+All input/output pairs have same size, but different sizes between pairs
+All input/output pairs are square:  all row counts === column counts
+
+Color sets in input and output: all, some, none
+Inputs are all black
+Inputs are all of some non-black color
+
+find shapes within shapes
+
+is input row in each/most rows of output (feca6190)
+
+All output columns/rows all equal
+
+- maintain grid size
+- increase grid size
+-- only in x
+-- only in y
+-- in x and y
+- decrease grid size
+-- only in x
+-- only in y
+-- in x and y
+
+# of colors
+- increase
+- decrease
+
+interchange rows/columns;  permute them
+
+input and output have same colors
+input and output have same non-black colors
+
+        are there copies of the input in the  output?
+          are they exact copies?  (in number of cells)
+          how many are there?  what are their colors
+          OR:  if input is scaled and overlaid on the output, do all black regions overlap all black regions?
+           OR: if input regions are scaled and overlaid on output, what regions are no longer identical?
+
+is entire input contained in output?
+- under transform?
+-- horizontal/vertical/diagonal reflection
+-- rotation (90/180/270)
+
+single cell surrounded by black
+
+SHAPES
+(do some research on finding shapes in grids)
+
+find "objects"
+- single color / multiple colors
+- black color all around
+
+known shapes
+- squares 2x2, 3x3, 4x4
+- black-filled squares 3x3, 4x4, .... up to grid size
+- rectangles: 1x2..10; 2x3...10, 3x4...10;  and their 90 deg rotations
+- black-filled rectangles  3x4...10 and their rotations .... up to grid size
+- black shapes inside colored rectangles  3x4...10 and their rotations .... up to grid size ... with
+- each color-filled rectangles  3x4...10 and their rotations .... up to grid size
+- plus, plus with different colored center
+- x
+- notched 2x2: ox  and rotations
+               xx
+- non-uniform shapes
+-- game of life shapes
+
+reduce to B&W and identify shapes that way first
+- then see if they are a uniform color
+- if not, is it noise, or pattern?
+
+count shapes
+
+
+COUNTS
+
+black cells
+non-black cells
+cells of each color
+
+TASK QUESTIONS
+
+00000000
+
+- are all outputs only one row/column, or row & column?
+-- if so, we can transpose one kind and see if similar patterns emerge
+
+007bbfb7
+- is the input scaled up an integer factor?
+- are the same colors used in the input and output?
+- are there exact copies of the input in the output?
+-- assuming yes:  how many copies?  where are they?
+-- the hard question:  why are the copies where they are?
+--  hard to encode answer: because they are in the non-background color cells in the input
+
+
+
+
+DO NEXT
+
+5 tasks have InputAndOutputGridsIdentical?   Examine.  Might be bug.
+
+BRAINSTORM
+
+evaluate situation  -> take action(s)
+how to percolate evaluation upwards?
+
+there are levels of "evaluation"  (level is a vague word)
+- eg:  "color of a cell" is much lower than  "are input and output grids the same?"
+- lower levels may influence upper levels, but upper levels may influence lower levels
+--  it isn't a strict hierarchy, perhaps
+
+there are kinds of evaluation
+- yes/no (binary) properties:  same grid size, same colors
+- numbers:  scaling factors, # of colors
+- numerical ranges:
+- one of a set:  shapes
+
+eval/action of all training samples in a task _taken together_ has to constrain the eval/action of the test
+
+could these be reduced to finding string transformations between input -> output?
+--  JSON.stringify(input)
+--  pipes and numbers
+
+we would like for the evaluations and actions to be explainable
+
+
+CAPABILITIES NEEDED
+
+aggregation
+- what tasks have a given property?
+-- exanples:
+---  How many tasks have input and outputs with the same dimensions?  Which?
+- answers question:  "how important is this evaluation "
+- implementation details
+-- dictionary of dictionaries of dictionaries
+---  {
+         task_id:  {
+              sample1:  { solved: false,  prop1:  1,  prop2: 2 , ... }
+              sample2:  { solved: false,  prop1:  1,  prop2: 2 , ... }
+                  ...
+              test:  {  prop1:  1,  prop2: 2 , ... }
+                   },
+         task_id:  {
+              sample1:  {  prop1:  1,  prop2: 2 , ... }
+              sample2:  {  prop1:  1,  prop2: 2 , ... }
+                  ...
+              test:  {  prop1:  1,  prop2: 2 , ... }
+                   }
+     }
+-- pass structure in from test_generator;  each test
+
+Another alternative:
+use Jest Globals
+- describe.each
+- then after.all to aggregate
+- maybe use after each for aggregating at the individual task level
+
+
+a way of determining the actions to take given a set of evaluations
+
+meta: code which develops new evaluations (and actions) on the fly
+- example: comparing grid sizes
+
+20 QUESTIONS
+
+blind test - try to reconstruct puzzle using only the properties
+-- this will force coding properties I'd want to know about
+
+are all input and output grids the same size?
+are all inputs scaled by an integer factor?
+what is the grid size in #rows, #cols, #cells, input and output
+how many distinct colors? What are they?
+are there lonely dots?  how many?  do they remain from input to output?
+are there lonely lines?
+are colors isolated to on half or another?  In inputs and outputs?
+
+have shapes moved between input and outputs?
+-- have they combined with other shapes? replaced them?

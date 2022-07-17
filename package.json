@@ -1,0 +1,46 @@
+{
+  "name": "arc",
+  "version": "1.0.0",
+  "description": "chollet abstraction and reasoning corpus",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fermigas/ARC.git"
+  },
+  "keywords": [
+    "chollet",
+    "arc",
+    "ai",
+    "reasoning",
+    "corpus"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fermigas/ARC/issues"
+  },
+  "homepage": "https://github.com/fermigas/ARC#readme",
+  "devDependencies": {
+    "jest": "^27.5.1",
+    "jest-cli": "^27.5.1"
+  },
+  "jest": {
+    "verbose": true,
+    "testEnvironment": "node",
+    "moduleFileExtensions": [
+      "js",
+      "jsx"
+    ],
+    "testMatch": [
+      "**/__tests__/*.(js|jsx)",
+      "**/__tests__/**/*.(|js|jsx)",
+      "**/?(*.)(spec|test).js?(x)"
+    ]
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "validator": "^13.7.0"
+  }
+}
