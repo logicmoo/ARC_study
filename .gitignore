@@ -1,15 +1,15 @@
 # Python
 __pycache__/
 .pytest_cache/
-.coverage
-*.pkl
+#.coverage
+#*.pkl
 
 # Editor and tools
-.vscode/
-.ipynb_checkpoints/
+#.vscode/
+#.ipynb_checkpoints/
 
 # Build environment
-build/
+#build/
 
 # Profiling
 *.prof

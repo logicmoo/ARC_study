@@ -77,6 +77,7 @@ if __name__ == "__main__":
 
     log.info(f"Running {n} tasks on {args.n_procs} processes")
     start = time.time()
+
     jobs: list[Process] = []
     for core in range(args.n_procs):
         idxs.put(-1)  # Add the sentinel to tell the workers to stop

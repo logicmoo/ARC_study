@@ -59,6 +59,10 @@ class ARC:
 
         # Utility
         self.eval: bool = folder == cst.FOLDER_EVAL
+        self.dump(pid="demo_run")
+    #ARC.dump(pid="demo_run")
+    #arc.app.explorer
+
 
     @staticmethod
     def load(pid: str | int) -> "ARC":
