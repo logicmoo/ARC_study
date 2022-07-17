@@ -1,9 +1,26 @@
+
 # A study on the Abstraction and Reasoning Corpus (ARC)
 
-[![GitHub](https://img.shields.io/github/license/dereklarson/arc_study?style=for-the-badge)](https://github.com/dereklarson/arc_study/blob/master/LICENSE)
+[![Logicmoo](https://img.shields.io/github/license/logicmoo/arc_study?style=for-the-badge)](https://github.com/logicmoo/arc_study/blob/master/LICENSE)
 [![Generic badge](https://img.shields.io/badge/python-3.10-blue?style=for-the-badge)](https://shields.io/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge)](https://github.com/psf/black)
-[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/dereklarson/arc_study?style=for-the-badge)](https://github.com/dereklarson/arc_study/graphs/contributors)
+[![GitHub commit activity](https://img.shields.io/github/commit-activity/m/logicmoo/arc_study?style=for-the-badge)](https://github.com/logicmoo/arc_study/graphs/contributors)
+[![GitHub Upstream commit activity](https://img.shields.io/github/commit-activity/m/dereklarson/arc_study?style=for-the-badge)](https://github.com/dereklarson/arc_study/graphs/contributors)
+[![Upstream LICENSE](https://img.shields.io/github/license/dereklarson/arc_study?style=for-the-badge)](https://github.com/dereklarson/arc_study/blob/master/LICENSE)
+
+
+# Solution for three (ARC) tasks:
+
+This repository contains solution to three ARC tasks; 7f4411dc, 239be575 and 83302e8f.
+
+The idea of the solutions is to collect information from the input traing grids, which are provided in the form of meaningfull cells with values > 0 and useless cells with 0 values or connections between cells, or special patternes or shapes formed by the cells in the grids, then it stores this information in a data structure or variables which works as a predicton modle to be applied to new un-seen test grids and make a regression on the expected output grids. 
+
+Solutions are written in python code with use of numpy library, and using programming capapilities in python; looping over 2 dimention arrays, using different python data structures; like dictionaries, sets and lists to store collected information.
+
+Solutions also provides examples of using 1d and 2d numpy arrays slicing and nested loops over nested sub-2d arrays.
+     
+
+# The Abstraction and Reasoning Corpus (ARC)
 
 This work is an exploration of concepts related to visual perception and cognition, based on the [ARC dataset](https://github.com/fchollet/ARC).
 ARC is one of the simplest, well-defined means of demonstrating the distance between human and artificial cognition.
@@ -22,7 +39,7 @@ The primary goal of the work is to be a toy model that fosters idea generation, 
   * Inference: finding a common process to turn input representations into output representations.
 * The system should be modular towards 'core knowledge', allowing new concepts to be plugged in easily.
 * For early simplicity, the learning and training are entirely manual, in order to find a viable solution architecture.
-=======
+
 A complete description of the dataset, its goals, and its underlying logic, can be found in: [On the Measure of Intelligence](https://arxiv.org/abs/1911.01547).
 
 See [here](https://arc.dereklarson.info) for an interactive visual demonstration of the system at work.
