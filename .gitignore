@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Python
 __pycache__/
 .pytest_cache/
@@ -13,3 +14,6 @@ __pycache__/
 
 # Profiling
 *.prof
+=======
+src/__pycache__/
+>>>>>>> c175add411b878738718132b9c7e54c8f4cf4455
