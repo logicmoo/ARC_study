@@ -186,10 +186,10 @@ def plot_layout(layout: Layout, scale: float = 1.0) -> Figure:
 
 def _node_label(node: Node) -> str:
     bold_name = f"<b>{node.name}</b>"
-    if isinstance(node, SelectionNode) and not node.args:
+    if isinstance(node, SelectionNode) and not node.specs:
         args = "All"
     else:
-        args = "\n".join(node.args)
+        args = "\n".join(node.specs)
     return f"{bold_name}\n{args}"
 
 
