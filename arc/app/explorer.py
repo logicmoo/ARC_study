@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import streamlit as st
 from arc.app.settings import Settings
 from arc.app.util import cached_plot
@@ -26,4 +27,8 @@ def explorer():
                     return action
 
                 st.button(str(task_idx), on_click=on_click(task_idx))
-                st.image(cached_plot((task_idx, 0, "input"), "raw"))  # type: ignore
+                try:
+                    with open(f"thumbnails/task{task_idx:0>3}.png", "rb") as fh:
+                        st.image(plt.imread(fh))  # type: ignore
+                except FileNotFoundError:
+                    st.image(cached_plot((task_idx, 0, "input"), "raw"))  # type: ignore
