@@ -49,6 +49,10 @@ class Solution:
         msg.append(str(self.template))
         return "\n".join(msg)
 
+    def __bool__(self) -> bool:
+        # Populating the nodes dictionary indicates a solution attempt
+        return len(self.nodes) > 0
+
     def bundle(self, cases: list[Scene]) -> None:
         """Bundle object transforms together from the Scene link maps.
 
