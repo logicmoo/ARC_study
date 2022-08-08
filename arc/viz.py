@@ -263,12 +263,30 @@ def plot_solution(
     height: int = 600,
     width: int = 1200,
 ) -> Any:
+    """Create a Pyvis graph for the Task Solution and Template.
+
+    The Solution graph showing each Node is created first, and the
+    'add_template' call generates the Task Output template.
+    """
+
     network = Network(
         notebook=notebook,
         height=f"{height}px",
         width=f"{width}px",
         directed=True,
         layout=True,
+    )
+
+    # Tweaking Pyvis is challenging, being a mid-fidelity wrapper on VisJs.
+    # physics.hierarchicalRepulsion.avoidOverlap sets a level of node
+    # repulsion so they usually no longer overlap.
+    network.set_options(  # type: ignore
+        """
+      const options = {
+        "layout": { "hierarchical": {} },
+        "physics": { "hierarchicalRepulsion": { "avoidOverlap": 1.0 } }
+      }
+    """
     )
 
     insertion_colors: dict[UUID, str] = {}
@@ -304,6 +322,7 @@ def plot_solution(
                 smooth="straightCross",
             )
 
+    # Show the Output Structure template for the ARC Task solution
     add_template(network, solution, insertion_colors)
 
     return network.write_html(filename, notebook=notebook)  # type: ignore
