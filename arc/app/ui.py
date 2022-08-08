@@ -17,10 +17,14 @@ def run_ui(pickle_id: str = Settings.default_pickle_id) -> None:
         explorer()
 
 
-def init_session(pickle_id: str) -> None:
+def init_session(pickle_id: str = "") -> None:
     if "arc" not in st.session_state:
-        _arc = ARC.load(pickle_id)
-        st.session_state.arc = _arc
+        if pickle_id:
+            _arc = ARC.load(pickle_id)
+        else:
+            _arc = ARC(N=Settings.N)
+            _arc.set_log(40)
+        st.session_state.arc = ARC()
         st.session_state.plot_cache = {}
 
 
@@ -38,8 +42,8 @@ def task_filter() -> None:
         return f"{option} ({_arc.stats[option]})"
 
     default: list[str] = []
-    if "Solved" in options:
-        default = ["Solved"]
+    if "solved" in options:
+        default = ["solved"]
 
     st.sidebar.multiselect(title, options, default=default, format_func=labeler, key="filters")  # type: ignore
 

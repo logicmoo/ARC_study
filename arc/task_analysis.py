@@ -95,7 +95,14 @@ blocklist = {
 
 
 class TaskTraits:
-    methods: list[str] = ["color_ct", "const_size", "size", "tiled", "from_paper"]
+    methods: list[str] = [
+        "color_ct",
+        "const_size",
+        "size",
+        "solved",
+        "tiled",
+        "from_paper",
+    ]
 
     @classmethod
     def color_ct(cls, task: Task) -> None:
@@ -162,6 +169,11 @@ class TaskTraits:
         if ordered:
             task.traits.add("tiled")
         return
+
+    @classmethod
+    def solved(cls, task: Task) -> None:
+        if task.idx in all_solved:
+            task.traits.add("solved")
 
     @classmethod
     def from_paper(cls, task: Task) -> None:

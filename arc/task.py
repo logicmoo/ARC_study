@@ -261,7 +261,7 @@ class Task:
                 log.warning(f"  Failed test {test_idx}")
         log.info(f"Passed {success} / {len(self.tests)} tests")
         if success == len(self.tests):
-            self.traits.add("Solved")
+            self.traits.add("passed")
             return True
         else:
             return False

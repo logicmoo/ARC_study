@@ -11,6 +11,7 @@ def task_display(task_idx: int):
     st.caption("Showing the stages of determining a solution")  # type: ignore
 
     _arc = st.session_state.arc
+    _arc[task_idx].run()
 
     scene_options = list(range(len(_arc[task_idx].cases)))
     scene_idx = st.sidebar.selectbox("Choose scene", scene_options, index=0)  # type: ignore
@@ -42,3 +43,5 @@ def task_display(task_idx: int):
     # Linking
     with st.expander(f"Linking between the Scene's input and output", expanded=True):
         st.image(cached_plot((task_idx, int(scene_idx))))  # type: ignore
+
+    _arc[task_idx].clean()
