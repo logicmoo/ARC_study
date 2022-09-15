@@ -201,6 +201,7 @@ class TerminalNode(Node):
 
     @property
     def props(self) -> int:
+        """Each incoming set of Objects gets assigned to part of the Structure."""
         return len(self.path_map)
 
 
@@ -221,6 +222,11 @@ class VarNode(Node):
     @property
     def specs(self) -> list[str]:
         return [f"Property: {self.property}"]
+
+    @property
+    def props(self) -> int:
+        """A single property is required for self.property"""
+        return 1
 
     @classmethod
     def from_property(

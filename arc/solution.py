@@ -45,9 +45,19 @@ class Solution:
     def __repr__(self) -> str:
         msg: list[str] = [f"Decomposition characteristic: {self.characteristic}"]
         msg += [f"Level attention: {self.root.level_attention}"]
+        msg += [f"Properties: {self.props}"]
         msg.append(self.root.tree())
         msg.append(str(self.template))
         return "\n".join(msg)
+
+    @property
+    def props(self) -> int:
+        count = 0
+        for node in self.nodes.values():
+            # Each node present counts for one property by specifying its class
+            # and any interior properties are included as well.
+            count += 1 + node.props
+        return count
 
     def __bool__(self) -> bool:
         # Populating the nodes dictionary indicates a solution attempt
