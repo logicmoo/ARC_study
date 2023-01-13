@@ -33,14 +33,11 @@ class Task:
         self.cases: list[Scene] = []
         self.tests: list[Scene] = []
 
-        # A solve run will create a Solution instance
-        self.solution: Solution = Solution()
+        # Solution-related attributes are generated in an initializer
+        self._init_solution()
 
         # Utility
         self.traits: set[str] = set([])
-        self.template_map: dict[str, Template] = {}
-        self.validation_map: dict[str, list[Object]] = collections.defaultdict(list)
-        self.fail: str = ""
 
         # Load scenes, cases ("train" data) and tests
         for scene_idx, scene_data in enumerate(task_data["train"]):
@@ -48,6 +45,12 @@ class Task:
 
         for scene_idx, scene_data in enumerate(task_data["test"]):
             self.tests.append(Scene(idx=scene_idx, data=scene_data))
+
+    def _init_solution(self) -> None:
+        self.solution: Solution = Solution()
+        self.template_map: dict[str, Template] = {}
+        self.validation_map: dict[str, list[Object]] = collections.defaultdict(list)
+        self.fail: str = ""
 
     def __getitem__(self, arg: int | str) -> Scene:
         """Retrieve a Scene by index.  (Convenience method)"""
@@ -81,6 +84,8 @@ class Task:
         """
         for scene in self.cases + self.tests:
             scene.clean(decomp_tree_only=decomp_tree_only)
+
+        self._init_solution()
 
     def run(self) -> None:
         """Execute every step of the solution pipeline for the Task."""
@@ -261,7 +266,7 @@ class Task:
                 log.warning(f"  Failed test {test_idx}")
         log.info(f"Passed {success} / {len(self.tests)} tests")
         if success == len(self.tests):
-            self.traits.add("Solved")
+            self.traits.add("passed")
             return True
         else:
             return False

@@ -199,7 +199,7 @@ class ARC:
             task.clean(decomp_tree_only=True)
             mem_mb = profile.get_mem() / 1000
             task_seconds = time.time() - task_start
-            if "Solved" in task.traits:
+            if "passed" in task.traits:
                 solved_set = all_eval_solved if self.eval else all_solved
                 mark: str = "*" if task.idx not in solved_set else ""
                 status = logger.color_text(f"{mark}Passed   ", "green")

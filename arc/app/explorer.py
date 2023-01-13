@@ -1,11 +1,15 @@
+import matplotlib.pyplot as plt
 import streamlit as st
-from arc.app.settings import Settings
+from arc.app.settings import Notes, Settings
 from arc.app.util import cached_plot
 
 
 def explorer():
-    st.title("Explorer")  # type: ignore
+    st.title("ARC Explorer")  # type: ignore
     st.caption("Displaying the input grid of the first Scene for each Task")  # type: ignore
+
+    if not st.session_state.hide_annotations:
+        st.markdown(Notes.explorer)  # type: ignore
 
     _arc = st.session_state.arc
     tasks: list[int] = list(sorted(_arc.selection))
@@ -26,4 +30,8 @@ def explorer():
                     return action
 
                 st.button(str(task_idx), on_click=on_click(task_idx))
-                st.image(cached_plot((task_idx, 0, "input"), "raw"))  # type: ignore
+                try:
+                    with open(f"thumbnails/task{task_idx:0>3}.png", "rb") as fh:
+                        st.image(plt.imread(fh))  # type: ignore
+                except FileNotFoundError:
+                    st.image(cached_plot((task_idx, 0, "input"), "raw"))  # type: ignore

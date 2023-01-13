@@ -53,7 +53,7 @@ def solve(_arc: ARC, time_limit: int) -> None:
         # print(hp.heap())
         _arc[idx].clean()
         runtime += seconds
-    _arc.select({"Solved"})
+    _arc.select({"passed"})
     solved = len(_arc.selection)
     log.info(
         f"=== Total runtime: {runtime:.2f}s, {errors} errors ({solved}/{_arc.N}) solved ==="
